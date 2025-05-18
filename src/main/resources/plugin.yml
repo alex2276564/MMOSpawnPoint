@@ -3,10 +3,42 @@ version: '${version}'
 main: uz.alex2276564.smartspawnpoint.SmartSpawnPoint
 api-version: '1.16'
 authors: [alex2276564]
+description: SmartSpawnPoint is a powerful and flexible Minecraft plugin that revolutionizes how player respawning works on your server. With region-based, world-based, and condition-based spawn points, you can create immersive experiences for your players that go far beyond the vanilla respawn mechanics.
 softdepend: [WorldGuard, PlaceholderAPI]
 commands:
   smartspawnpoint:
-    description: Reload the SmartSpawnPoint configuration
-    usage: /<command> reload
-    permission: smartspawnpoint.reload
-website: https://github.com/alex2276564/SmartSpawnPoint
+    description: Main command for SmartSpawnPoint plugin
+    usage: /smartspawnpoint <reload|party> [args]
+    aliases: [ssp]
+    permission: smartspawnpoint.command
+permissions:
+  smartspawnpoint.command:
+    description: Allows access to basic SmartSpawnPoint commands
+    default: true
+  smartspawnpoint.reload:
+    description: Allows reloading the SmartSpawnPoint configuration
+    default: op
+  smartspawnpoint.party.invite:
+    description: Allows inviting players to a party
+    default: true
+  smartspawnpoint.party.accept:
+    description: Allows accepting party invitations
+    default: true
+  smartspawnpoint.party.deny:
+    description: Allows denying party invitations
+    default: true
+  smartspawnpoint.party.leave:
+    description: Allows leaving a party
+    default: true
+  smartspawnpoint.party.list:
+    description: Allows listing party members
+    default: true
+  smartspawnpoint.party.remove:
+    description: Allows removing players from a party
+    default: true
+  smartspawnpoint.party.setleader:
+    description: Allows transferring party leadership
+    default: true
+  smartspawnpoint.party.options:
+    description: Allows changing party options
+    default: true

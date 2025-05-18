@@ -11,6 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.ArrayList;
@@ -51,10 +52,39 @@ public class ConfigManager {
     @Getter
     private boolean forceDelayedTeleport;
 
+    // Party system settings
+    @Getter
+    private boolean partyEnabled;
+
+    @Getter
+    private int partyMaxSize;
+
+    @Getter
+    private int partyMaxRespawnDistance;
+
+    @Getter
+    private int partyRespawnCooldown;
+
+    @Getter
+    private int partyInvitationExpiry;
+
+    @Getter
+    private Map<String, String> partyMessages;
+
+    @Getter
+    private boolean respawnAtDeathEnabled;
+
+    @Getter
+    private String respawnAtDeathPermission;
+
+    @Getter
+    private String respawnAtDeathMessage;
+
     public ConfigManager(SmartSpawnPoint plugin) {
         this.plugin = plugin;
         this.regionSpawns = new ArrayList<>();
         this.worldSpawns = new HashMap<>();
+        this.partyMessages = new HashMap<>();
     }
 
     public void reload() {
@@ -78,6 +108,9 @@ public class ConfigManager {
         // Load general settings
         loadSettings();
 
+        // Load party settings
+        loadPartySettings();
+
         // Log loaded config
         if (debugMode) {
             logLoadedConfig();
@@ -96,6 +129,11 @@ public class ConfigManager {
             spawnPoint.setRegion(region);
             spawnPoint.setRegionWorld(regionWorld);
             spawnPoint.setType(type);
+
+            // Check if party respawn is disabled
+            if (spawnMap.containsKey("party-respawn-disabled")) {
+                spawnPoint.setPartyRespawnDisabled(getBooleanValue(spawnMap, "party-respawn-disabled", false));
+            }
 
             // Load location based on type
             if ("fixed".equals(type)) {
@@ -194,6 +232,11 @@ public class ConfigManager {
             spawnPoint.setWorld(world);
             spawnPoint.setType(type);
 
+            // Check if party respawn is disabled
+            if (spawnMap.containsKey("party-respawn-disabled")) {
+                spawnPoint.setPartyRespawnDisabled(getBooleanValue(spawnMap, "party-respawn-disabled", false));
+            }
+
             // Load location based on type
             if ("fixed".equals(type)) {
                 if (spawnMap.containsKey("location")) {
@@ -282,6 +325,40 @@ public class ConfigManager {
                 worldSpawns.put(world, new ArrayList<>());
             }
             worldSpawns.get(world).add(spawnPoint);
+        }
+    }
+
+    private void loadPartySettings() {
+        // Load party system settings
+        partyEnabled = config.getBoolean("settings.party.enabled", true);
+        partyMaxSize = config.getInt("settings.party.max-size", 10);
+        partyMaxRespawnDistance = config.getInt("settings.party.max-respawn-distance", 0);
+        partyRespawnCooldown = config.getInt("settings.party.respawn-cooldown", 0);
+        partyInvitationExpiry = config.getInt("settings.party.invitation-expiry", 60);
+
+        // Log unlimited settings information
+        if (partyMaxRespawnDistance <= 0) {
+            plugin.getLogger().info("Party max respawn distance is set to unlimited");
+        }
+
+        if (partyRespawnCooldown <= 0) {
+            plugin.getLogger().info("Party respawn cooldown is set to unlimited");
+        }
+
+        respawnAtDeathEnabled = config.getBoolean("settings.party.respawn-at-death.enabled", false);
+
+        respawnAtDeathPermission = config.getString("settings.party.respawn-at-death.permission", "smartspawnpoint.party.respawnatdeath");
+
+        respawnAtDeathMessage = config.getString("settings.party.respawn-at-death.message", "&aYou have respawned at your death location as a walking spawn point");
+
+        // Load party messages
+        if (config.contains("settings.party.messages")) {
+            ConfigurationSection messagesSection = config.getConfigurationSection("settings.party.messages");
+            if (messagesSection != null) {
+                for (String key : messagesSection.getKeys(false)) {
+                    partyMessages.put(key, messagesSection.getString(key, ""));
+                }
+            }
         }
     }
 
@@ -552,5 +629,39 @@ public class ConfigManager {
         plugin.getLogger().info("Safe location radius: " + safeLocationRadius);
         plugin.getLogger().info("Waiting room enabled: " + useWaitingRoom);
         plugin.getLogger().info("Force delayed teleport: " + forceDelayedTeleport);
+        plugin.getLogger().info("Party system enabled: " + partyEnabled);
+    }
+
+    // Get a party message with a specific key
+    public String getPartyMessage(String key) {
+        return partyMessages.getOrDefault(key, "");
+    }
+
+    // Format a party message with replacements
+    public String formatPartyMessage(String key, Map<String, String> replacements) {
+        String message = getPartyMessage(key);
+
+        if (message.isEmpty()) {
+            return "";
+        }
+
+        // Replace placeholders (we'll do this before the colors so as not to affect the color codes in the substitutions)
+        if (replacements != null) {
+            for (Map.Entry<String, String> entry : replacements.entrySet()) {
+                message = message.replace("%" + entry.getKey() + "%", entry.getValue());
+            }
+        }
+
+        // Replace color codes
+        message = message.replace("&", "§");
+
+        // Add prefix if available
+        String prefix = getPartyMessage("prefix");
+        if (!prefix.isEmpty()) {
+            prefix = prefix.replace("&", "§");
+            return prefix + message;
+        }
+
+        return message;
     }
 }

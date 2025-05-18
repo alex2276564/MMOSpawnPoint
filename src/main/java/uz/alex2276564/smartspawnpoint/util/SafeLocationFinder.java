@@ -74,6 +74,9 @@ public class SafeLocationFinder {
             return baseLocation.clone();
         }
 
+        // Special handling for Nether
+        boolean isNether = world.getEnvironment() == World.Environment.NETHER;
+
         // Try to find a safe location nearby
         int attempts = 0;
         int radius = 5; // Smaller radius for better performance
@@ -88,7 +91,16 @@ public class SafeLocationFinder {
             Location testLocation = baseLocation.clone().add(offsetX, 0.0, offsetZ);
 
             // Find the highest block at this X,Z coordinate
-            int highestY = world.getHighestBlockYAt(testLocation.getBlockX(), testLocation.getBlockZ());
+            int highestY;
+            if (isNether) {
+                // For Nether, find a safe Y coordinate
+                highestY = findSafeYInNether(world, testLocation.getBlockX(), testLocation.getBlockZ(),
+                        120, 30); // Common Nether height range
+            } else {
+                // For other worlds, use highest block
+                highestY = world.getHighestBlockYAt(testLocation.getBlockX(), testLocation.getBlockZ());
+            }
+
             testLocation.setY(highestY + 1.0); // Add 1.0 to ensure we're above the block
 
             if (isSafeLocation(testLocation)) {
@@ -137,8 +149,19 @@ public class SafeLocationFinder {
         double centerY = (minY + maxY) / 2;
         double centerZ = (minZ + maxZ) / 2;
 
+        // Special handling for Nether
+        boolean isNether = world.getEnvironment() == World.Environment.NETHER;
+
         // Try to find a good default by using highest block at center
-        int centerHighestY = world.getHighestBlockYAt((int)centerX, (int)centerZ);
+        int centerHighestY;
+        if (isNether) {
+            // For Nether, start from the middle and search down
+            centerHighestY = findSafeYInNether(world, (int)centerX, (int)centerZ, (int)maxY, (int)minY);
+        } else {
+            // For other worlds, use highest block
+            centerHighestY = world.getHighestBlockYAt((int)centerX, (int)centerZ);
+        }
+
         Location centerLoc = new Location(world, centerX, centerHighestY + 1.0, centerZ);
 
         if (isSafeLocation(centerLoc)) {
@@ -153,8 +176,16 @@ public class SafeLocationFinder {
 
             // Generate random coordinates within the specified bounds
             double x = minX + RANDOM.nextDouble() * (maxX - minX);
-            double y = minY + RANDOM.nextDouble() * (maxY - minY);
             double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+
+            double y;
+            if (isNether) {
+                // For Nether, find a safe Y coordinate
+                y = findSafeYInNether(world, (int)x, (int)z, (int)maxY, (int)minY);
+            } else {
+                // For other worlds, use random Y within bounds
+                y = minY + RANDOM.nextDouble() * (maxY - minY);
+            }
 
             Location location = new Location(world, x, y, z);
 
@@ -168,7 +199,13 @@ public class SafeLocationFinder {
                 x = minX + RANDOM.nextDouble() * (maxX - minX);
                 z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
 
-                int y2 = world.getHighestBlockYAt((int)x, (int)z);
+                int y2;
+                if (isNether) {
+                    y2 = findSafeYInNether(world, (int)x, (int)z, (int)maxY, (int)minY);
+                } else {
+                    y2 = world.getHighestBlockYAt((int)x, (int)z);
+                }
+
                 Location highestLocation = new Location(world, x, y2 + 1.0, z);
 
                 if (isSafeLocation(highestLocation)) {
@@ -190,6 +227,46 @@ public class SafeLocationFinder {
         cacheLocation(cacheKey, centerLocation);
         return centerLocation.clone();
     }
+
+    // Helper method to find a safe Y coordinate in the Nether
+    private static int findSafeYInNether(World world, int x, int z, int maxY, int minY) {
+        // Start from the middle of the range
+        int startY = (maxY + minY) / 2;
+
+        // First try going down from the middle
+        for (int y = startY; y >= minY; y--) {
+            Block block = world.getBlockAt(x, y, z);
+            Block blockAbove = world.getBlockAt(x, y + 1, z);
+            Block blockAbove2 = world.getBlockAt(x, y + 2, z);
+
+            // Check if we have 2 air blocks above a solid block
+            if (block.getType().isSolid() &&
+                    !unsafeMaterials.contains(block.getType()) &&
+                    blockAbove.getType().isAir() &&
+                    blockAbove2.getType().isAir()) {
+                return y;
+            }
+        }
+
+        // If not found, try going up
+        for (int y = startY + 1; y <= maxY - 2; y++) {
+            Block block = world.getBlockAt(x, y, z);
+            Block blockAbove = world.getBlockAt(x, y + 1, z);
+            Block blockAbove2 = world.getBlockAt(x, y + 2, z);
+
+            // Check if we have 2 air blocks above a solid block
+            if (block.getType().isSolid() &&
+                    !unsafeMaterials.contains(block.getType()) &&
+                    blockAbove.getType().isAir() &&
+                    blockAbove2.getType().isAir()) {
+                return y;
+            }
+        }
+
+        // If nothing found, return a reasonable default
+        return 64; // Common safe height in Nether
+    }
+
 
     private static boolean isWithinBounds(Location loc, double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {
         return loc.getX() >= minX && loc.getX() <= maxX &&

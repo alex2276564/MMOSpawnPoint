@@ -16,12 +16,14 @@ public class SpawnPoint {
     private List<SpawnCondition> conditions;
     private List<SpawnAction> actions;
     private SpawnLocation waitingRoom; // Custom waiting room for this spawn point
+    private boolean partyRespawnDisabled; // Whether party respawn is disabled for this spawn point
 
     public SpawnPoint() {
         this.conditions = new ArrayList<>();
         this.actions = new ArrayList<>();
         this.weightedLocations = new ArrayList<>();
         this.regionWorld = "*"; // Default to all worlds
+        this.partyRespawnDisabled = false; // Default to allowing party respawn
     }
 
     // Check if this spawn point has a location (teleport destination)

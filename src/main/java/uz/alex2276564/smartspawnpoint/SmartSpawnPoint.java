@@ -2,15 +2,18 @@ package uz.alex2276564.smartspawnpoint;
 
 import uz.alex2276564.smartspawnpoint.config.ConfigManager;
 import uz.alex2276564.smartspawnpoint.listener.PlayerDeathListener;
+import uz.alex2276564.smartspawnpoint.listener.PlayerJoinListener;
 import uz.alex2276564.smartspawnpoint.listener.PlayerRespawnListener;
 import uz.alex2276564.smartspawnpoint.manager.SpawnManager;
+import uz.alex2276564.smartspawnpoint.party.PartyManager;
 import uz.alex2276564.smartspawnpoint.runner.BukkitRunner;
 import uz.alex2276564.smartspawnpoint.runner.Runner;
-import uz.alex2276564.smartspawnpoint.commands.reloadcommand.ReloadCommand;
+import uz.alex2276564.smartspawnpoint.commands.MainCommandExecutor;
 import uz.alex2276564.smartspawnpoint.util.SafeLocationFinder;
 import lombok.Getter;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import uz.alex2276564.smartspawnpoint.util.UpdateChecker;
 
 public final class SmartSpawnPoint extends JavaPlugin {
     @Getter
@@ -21,6 +24,9 @@ public final class SmartSpawnPoint extends JavaPlugin {
 
     @Getter
     private SpawnManager spawnManager;
+
+    @Getter
+    private PartyManager partyManager;
 
     @Getter
     private Runner runner;
@@ -35,24 +41,24 @@ public final class SmartSpawnPoint extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
-        // Setup runner
         setupRunner();
 
-        // Check dependencies
         checkDependencies();
 
-        // Initialize managers
         configManager = new ConfigManager(this);
         spawnManager = new SpawnManager(this);
 
-        // Register listeners
+        configManager.reload();
+
+        if (configManager.isPartyEnabled()) {
+            partyManager = new PartyManager(this);
+            spawnManager.setPartyManager(partyManager);
+            getLogger().info("Party system enabled");
+        }
+
         registerListeners();
 
-        // Register commands
         registerCommands();
-
-        // Load configuration
-        configManager.reload();
 
         getLogger().info("SmartSpawnPoint has been enabled!");
     }
@@ -62,7 +68,6 @@ public final class SmartSpawnPoint extends JavaPlugin {
     }
 
     private void checkDependencies() {
-        // Check PlaceholderAPI
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             placeholderAPIEnabled = true;
             getLogger().info("Hooked into PlaceholderAPI!");
@@ -71,7 +76,6 @@ public final class SmartSpawnPoint extends JavaPlugin {
             getLogger().warning("PlaceholderAPI not found! Placeholder conditions will not work.");
         }
 
-        // Check WorldGuard
         if (getServer().getPluginManager().getPlugin("WorldGuard") != null) {
             worldGuardEnabled = true;
             getLogger().info("Hooked into WorldGuard!");
@@ -85,14 +89,25 @@ public final class SmartSpawnPoint extends JavaPlugin {
         PluginManager pm = getServer().getPluginManager();
         pm.registerEvents(new PlayerDeathListener(this), this);
         pm.registerEvents(new PlayerRespawnListener(this), this);
+        pm.registerEvents(new PlayerJoinListener(this), this);
     }
 
     private void registerCommands() {
-        getCommand("smartspawnpoint").setExecutor(new ReloadCommand());
+        // Register main command executor that handles all subcommands
+        getCommand("smartspawnpoint").setExecutor(new MainCommandExecutor(this));
+    }
+
+    private void checkUpdates() {
+        UpdateChecker updateChecker = new UpdateChecker(this, "alex2276564/SmartSpawnPoint", runner);
+        updateChecker.checkForUpdates();
     }
 
     @Override
     public void onDisable() {
+        if (partyManager != null) {
+            partyManager.shutdown();
+        }
+
         if (spawnManager != null) {
             spawnManager.cleanup();
         }
@@ -101,7 +116,6 @@ public final class SmartSpawnPoint extends JavaPlugin {
             runner.cancelTasks();
         }
 
-        // Clear caches
         SafeLocationFinder.clearCache();
 
         getLogger().info("SmartSpawnPoint has been disabled!");

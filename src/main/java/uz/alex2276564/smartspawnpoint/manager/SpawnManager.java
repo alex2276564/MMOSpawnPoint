@@ -5,6 +5,7 @@ import uz.alex2276564.smartspawnpoint.model.SpawnAction;
 import uz.alex2276564.smartspawnpoint.model.SpawnCondition;
 import uz.alex2276564.smartspawnpoint.model.SpawnLocation;
 import uz.alex2276564.smartspawnpoint.model.SpawnPoint;
+import uz.alex2276564.smartspawnpoint.party.PartyManager;
 import uz.alex2276564.smartspawnpoint.util.PlaceholderUtils;
 import uz.alex2276564.smartspawnpoint.util.SafeLocationFinder;
 import uz.alex2276564.smartspawnpoint.util.WorldGuardUtils;
@@ -31,16 +32,29 @@ public class SpawnManager {
     private final Map<UUID, BukkitTask> pendingTeleports = new ConcurrentHashMap<>();
     private final Map<UUID, CompletableFuture<Location>> pendingLocations = new ConcurrentHashMap<>();
 
+    // Party manager reference
+    private PartyManager partyManager;
+
     public SpawnManager(SmartSpawnPoint plugin) {
         this.plugin = plugin;
     }
 
+    public void setPartyManager(PartyManager partyManager) {
+        this.partyManager = partyManager;
+    }
+
     public void recordDeathLocation(Player player, Location location) {
-        deathLocations.put(player.getUniqueId(), location.clone());
-        if (plugin.getConfigManager().isDebugMode()) {
-            plugin.getLogger().info("Recorded death location for " + player.getName() + ": " + locationToString(location));
+        UUID playerId = player.getUniqueId();
+
+        // Only record if there's no existing death location
+        if (!deathLocations.containsKey(playerId)) {
+            deathLocations.put(playerId, location.clone());
+            if (plugin.getConfigManager().isDebugMode()) {
+                plugin.getLogger().info("Recorded death location for " + player.getName() + ": " + locationToString(location));
+            }
         }
     }
+
 
     public Location getSpawnLocation(Player player) {
         Location deathLocation = deathLocations.remove(player.getUniqueId());
@@ -62,6 +76,17 @@ public class SpawnManager {
 
             if (plugin.getConfigManager().isDebugMode()) {
                 plugin.getLogger().info("Cancelled pending teleport for " + player.getName());
+            }
+        }
+
+        // Check for party respawn if party system is enabled
+        if (plugin.getConfigManager().isPartyEnabled() && partyManager != null) {
+            Location partyLocation = partyManager.findPartyRespawnLocation(player, deathLocation);
+            if (partyLocation != null) {
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().info("Using party respawn location for " + player.getName() + ": " + locationToString(partyLocation));
+                }
+                return partyLocation;
             }
         }
 
