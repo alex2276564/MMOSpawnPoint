@@ -60,6 +60,8 @@ public final class SmartSpawnPoint extends JavaPlugin {
 
         registerCommands();
 
+        checkUpdates();
+
         getLogger().info("SmartSpawnPoint has been enabled!");
     }
 
