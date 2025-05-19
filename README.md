@@ -182,6 +182,31 @@ SmartSpawnPoint isn't just a spawn point plugin - it's a complete respawn manage
 
 4. **Safe Location Finding**: The `require-safe` option should be set to `false` for known safe locations to improve performance. Only enable it when spawning in potentially dangerous areas.
 
+5. **Vanilla vs SmartSpawnPoint Respawn Mechanics**:
+    - **Vanilla Minecraft** (without any plugins) follows a strict respawn priority:
+        1. First checks for a valid respawn anchor in the Nether dimension (if properly charged with glowstone)
+            - Respawn anchors only work when placed in the Nether dimension
+        2. Then checks for a valid bed in the Overworld dimension (if not broken or obstructed)
+            - Beds only function as spawn points when placed in the Overworld
+        3. If neither exists or they're obstructed, sends player to the world spawn point (usually near coordinates 0,0 or wherever /setworldspawn was set)
+        4. In the End dimension, players always return to the Overworld spawn regardless of beds or anchors
+
+    - **SmartSpawnPoint** completely transforms this with a more flexible priority system:
+        1. Region-Based Spawns 🥇 (Highest Priority): Checks if player died in a configured WorldGuard region
+        2. World-Based Spawns 🥈 (Secondary Priority): If no region match, checks for world-specific spawn rules
+        3. Fallback to Vanilla (Lowest Priority): Only if no SmartSpawnPoint rules match
+        4. Party System Overrides 🎉: Can override all above rules if enabled and conditions are met
+        5. Weighted Random Logic ⚖️: Dynamically calculates spawn probabilities based on player attributes
+
+   **Respawn Flow Summary:**
+   Player Dies → Check Region Rules → If match, apply region spawn → If no match, check World Rules →
+   If match, apply world spawn → If no match, use Vanilla Logic →
+   Party Respawn overrides all if applicable
+
+   **Important:** For any worlds or regions not configured in SmartSpawnPoint, the plugin will automatically fall back to vanilla respawn behavior. This allows you to selectively enhance only certain areas of your server while leaving others with default mechanics.
+
+   This enhanced flow gives server owners unprecedented control over the respawn experience while maintaining compatibility with vanilla mechanics when desired. Note that for SmartSpawnPoint to work properly, respawn handling should be disabled in other plugins like CMI or EssentialsX as mentioned in note #3.
+
 ## 🛠️ Troubleshooting
 
 If you encounter issues with the plugin:
