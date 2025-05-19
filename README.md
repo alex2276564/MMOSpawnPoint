@@ -182,7 +182,25 @@ SmartSpawnPoint isn't just a spawn point plugin - it's a complete respawn manage
 
 4. **Safe Location Finding**: The `require-safe` option should be set to `false` for known safe locations to improve performance. Only enable it when spawning in potentially dangerous areas.
 
-5. **Vanilla vs SmartSpawnPoint Respawn Mechanics**:
+5. **Waiting Room Design Considerations**: The waiting room feature is not just a temporary holding area - it's a fallback spawn location where players might remain if:
+
+    - A safe location cannot be found within the configured timeout period
+    - The server restarts during the asynchronous location search
+    - An error occurs during the teleportation process
+
+   ⚠️ **Don't Trap Players!** For this reason, waiting rooms should be:
+
+    - **Fully functional areas**: Players should be able to move around and interact
+    - **Escape-enabled**: Include a way out (NPCs, pressure plates, portals, commands)
+    - **Strategically located**: Consider placing them near cities, markets, or hubs
+    - **Properly protected**: Use WorldGuard to prevent griefing or damage
+    - **Well-designed**: Include basic amenities and clear signage explaining the situation
+
+   🏙️ **Themed Integration**: On RPG servers, consider creating themed "recovery zones" that fit your lore while serving as waiting rooms. For example, a temple of healing, a traveler's respite, or a dimensional nexus.
+
+   > If you're using SmartSpawnPoint on a large server with many regions or factions, it's a good idea to theme each waiting room to match the area the player died in.
+
+6. **Vanilla vs SmartSpawnPoint Respawn Mechanics**:
     - **Vanilla Minecraft** (without any plugins) follows a strict respawn priority:
         1. First checks for a valid respawn anchor in the Nether dimension (if properly charged with glowstone)
             - Respawn anchors only work when placed in the Nether dimension

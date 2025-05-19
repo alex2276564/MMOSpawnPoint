@@ -19,8 +19,14 @@ region-spawns:
       pitch: 0
       require-safe: false  # Set to false for known safe locations to improve performance
     # Custom waiting room for this spawn point (optional)
-    # If waiting-room is enabled in settings and require-safe is true,
-    # player will be teleported here temporarily while a safe location is found
+    # Used if require-safe = true and the waiting room system is enabled.
+    # The player will be teleported here temporarily while a safe location is being searched asynchronously.
+    #
+    # ⚠️ Important:
+    # - If a valid safe location is not found within the async search timeout,
+    #   or the server restarts/crashes during the process, players may remain here indefinitely.
+    # - Always ensure players can escape from this room — via NPCs, pressure plates, portals, or other means.
+    # - On RPG servers, consider building thematic waiting rooms near friendly towns, shrines, or other story-relevant areas.
     waiting-room:
       world: "world"
       x: 0
@@ -283,6 +289,9 @@ settings:
   # 1. Individual weighted location waiting room (highest priority)
   # 2. Spawn point waiting room (used if no location-specific room)
   # 3. Global waiting room (lowest priority, used as fallback)
+  #
+  # ⚠️ Players may stay here permanently if the plugin fails to find a valid safe location within the search timeout.
+  # Always ensure this location is not a trap and provides an escape option.
   waiting-room:
     # Enable the waiting room system - recommended if you use require-safe: true anywhere
     enabled: true
