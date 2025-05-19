@@ -37,47 +37,58 @@ region-spawns:
     # Conditions - all must be true for this spawn to be used
     # Note: Players with OP status or "*" permission will automatically pass permission checks
     conditions:
-      # Permission conditions
+      # Permission conditions with complex logic
+      # You can use any combination of && and || operators
+      # Note: && has higher precedence than ||, use parentheses to change precedence
       permissions:
-        - "smartspawnpoint.vip"
-      # PlaceholderAPI conditions (placeholder operator value)
+        - "smartspawnpoint.vip"  # Simple condition
+        - "smartspawnpoint.donor || smartspawnpoint.supporter && smartspawnpoint.vip"  # Complex condition
+        # This means: player has donor permission OR (supporter AND vip permissions)
+        - "(smartspawnpoint.basic || smartspawnpoint.premium) && smartspawnpoint.region.spawn"
+        # This means: player has (basic OR premium) AND region.spawn permissions
+
+      # PlaceholderAPI conditions with complex logic
       # Supported operators: =, ==, !=, >, >=, <, <=
       placeholders:
-        - "%player_level% > 10"
+        - "%player_level% > 10"  # Simple condition
+        - "%player_level% > 20 && %vault_eco_fixed% > 1000 || %player_kills% > 50"
+        # This means: (level > 20 AND money > 1000) OR kills > 50
+        - "(%player_health% > 15 || %player_food% > 18) && %player_world% == world"
+        # This means: (health > 15 OR food > 18) AND world is "world"
+        - "%player_level% > 30 && (%vault_eco_fixed% > 2000 || %player_kills% > 100 && %player_deaths% < 50)"
+        # This means: level > 30 AND (money > 2000 OR (kills > 100 AND deaths < 50))
+
     # Actions executed on respawn
-    # Note: These actions are only executed after the player has been successfully teleported
-    # to their final respawn location. If using a waiting room, actions will NOT execute
-    # until the player leaves the waiting room and reaches their actual spawn point.
     actions:
-      # Messages to send to player
       messages:
         - "You have respawned at the spawn region!"
-      # Commands to execute (as console)
       commands:
-        # Multiple commands with different chances and conditions
         - command: "effect give %player% minecraft:resistance 30 1"
           chance: 100  # 100% chance to execute
 
         - command: "give %player% minecraft:golden_apple 1"
           chance: 50   # 50% chance to execute
-          # Conditional chances based on player permissions or placeholders
+          # Complex conditional chances
           chance-conditions:
             - type: "permission"
-              value: "smartspawnpoint.vip"
-              weight: 80  # 80% chance for VIP players
+              value: "smartspawnpoint.vip || smartspawnpoint.donor && smartspawnpoint.supporter"
+              # This means: VIP OR (donor AND supporter)
+              weight: 80
             - type: "placeholder"
-              value: "%player_level% > 20"  # For players with level > 20
+              value: "%player_level% > 20 && (%vault_eco_fixed% > 500 || %player_kills% > 30)"
+              # This means: level > 20 AND (money > 500 OR kills > 30)
               weight: 100
 
         - command: "give %player% minecraft:golden_apple 2"
           chance: 25   # 25% chance to execute
-          # Conditional chances based on player permissions or placeholders
           chance-conditions:
             - type: "permission"
-              value: "smartspawnpoint.vip"
-              weight: 40  # 40% chance for VIP players
+              value: "(smartspawnpoint.vip || smartspawnpoint.premium) && smartspawnpoint.special"
+              # This means: (VIP OR premium) AND special permission
+              weight: 40
             - type: "placeholder"
-              value: "%player_level% > 20"  # For players with level > 20
+              value: "(%player_level% > 20 || %player_kills% > 10) && %player_world% == world && %player_health% < 10"
+              # This means: (level > 20 OR kills > 10) AND world is "world" AND health < 10
               weight: 50
 
   # Example for PvP arena with disabled party respawn
@@ -174,27 +185,24 @@ region-spawns:
         weight: 50  # 50% chance
     actions:
       commands:
-        # Apply slowness effect only in the forest world
-        # Requires Player expansion: /papi ecloud download Player
+        # Apply slowness effect only in the forest world for non-VIPs
+        # Combines two conditions into one with logical operators
         - command: "effect give %player% minecraft:slowness 60 2"
           chance: 0
           chance-conditions:
             - type: "placeholder"
-              value: "%player_world% == forest"  # Only in forest world
+              value: "%player_world% == forest && !%player_has_permission:smartspawnpoint.vip%"
+              # Only in forest world AND player does NOT have VIP permission
               weight: 100
-            - type: "permission"
-              value: "smartspawnpoint.vip"  # Not for VIPs
-              weight: 0
 
         # VIPs get night vision in all worlds, non-VIPs only in forest
+        # Combines two conditions into one with logical operators
         - command: "effect give %player% minecraft:night_vision 300 1"
           chance: 0
           chance-conditions:
-            - type: "permission"
-              value: "smartspawnpoint.vip"  # Only for VIPs
-              weight: 100
             - type: "placeholder"
-              value: "%player_world% == forest"  # Only in forest world
+              value: "%player_has_permission:smartspawnpoint.vip% || %player_world% == forest"
+              # Player is VIP OR in forest world
               weight: 100
 
         # Apply fire resistance in the desert world for everyone
@@ -202,27 +210,25 @@ region-spawns:
           chance: 0
           chance-conditions:
             - type: "placeholder"
-              value: "%player_world% == desert"  # Only in desert world
+              value: "%player_world% == desert"
               weight: 100
 
         # VIPs get speed boost in all worlds, non-VIPs only in desert
+        # Combines two conditions into one with logical operators
         - command: "effect give %player% minecraft:speed 120 1"
           chance: 0
           chance-conditions:
-            - type: "permission"
-              value: "smartspawnpoint.vip"  # Only for VIPs
-              weight: 100
             - type: "placeholder"
-              value: "%player_world% == desert"  # Only in desert world
+              value: "%player_has_permission:smartspawnpoint.vip% || %player_world% == desert"
+              # Player is VIP OR in desert world
               weight: 100
 
         # Apply special effects based on WorldGuard regions
-        # Requires WorldGuard expansion: /papi ecloud download WorldGuard
         - command: "effect give %player% minecraft:haste 120 1"
           chance: 0
           chance-conditions:
             - type: "placeholder"
-              value: "%worldguard_region_name% == mining_zone"  # Only in mining zones
+              value: "%worldguard_region_name% == mining_zone"
               weight: 100
 
   # Example for a spawn point that only executes actions without teleporting

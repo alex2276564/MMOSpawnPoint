@@ -17,7 +17,7 @@ import uz.alex2276564.smartspawnpoint.util.UpdateChecker;
 
 public final class SmartSpawnPoint extends JavaPlugin {
     @Getter
-    private static SmartSpawnPoint instance;
+    public static SmartSpawnPoint instance;
 
     @Getter
     private ConfigManager configManager;

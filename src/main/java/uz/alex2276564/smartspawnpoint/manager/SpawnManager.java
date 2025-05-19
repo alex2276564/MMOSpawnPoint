@@ -498,6 +498,18 @@ public class SpawnManager {
         String value = condition.getValue();
 
         if ("permission".equals(type)) {
+            // Validate permission expression
+            if (value.contains("&&") || value.contains("||")) {
+                if (!PlaceholderUtils.isValidLogicalExpression(value)) {
+                    if (plugin.getConfigManager().isDebugMode()) {
+                        plugin.getLogger().warning("Invalid permission expression: " + value);
+                    }
+                    return false;
+                }
+                return evaluateComplexPermissionCondition(player, value, bypass);
+            }
+
+            // Simple permission check
             boolean hasPerm = bypass || player.hasPermission(value);
 
             if (plugin.getConfigManager().isDebugMode()) {
@@ -506,6 +518,7 @@ public class SpawnManager {
 
             return hasPerm;
         } else if ("placeholder".equals(type) && plugin.isPlaceholderAPIEnabled()) {
+            // Validation is handled inside PlaceholderUtils.checkPlaceholderCondition
             boolean result = PlaceholderUtils.checkPlaceholderCondition(player, value);
 
             if (plugin.getConfigManager().isDebugMode()) {
@@ -517,6 +530,41 @@ public class SpawnManager {
 
         return true;
     }
+
+    private boolean evaluateComplexPermissionCondition(Player player, String condition, boolean bypass) {
+        // Split by OR first (lowest precedence)
+        String[] orParts = condition.split("\\|\\|");
+
+        for (String orPart : orParts) {
+            // Split by AND (higher precedence)
+            String[] andParts = orPart.trim().split("&&");
+            boolean andResult = true;
+
+            for (String andPart : andParts) {
+                String permission = andPart.trim();
+                boolean hasPerm = bypass || player.hasPermission(permission);
+
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().info("Complex permission check for " + player.getName() + ": " + permission + " = " + hasPerm);
+                }
+
+                if (!hasPerm) {
+                    andResult = false;
+                    break;
+                }
+            }
+
+            // If any OR part is true, the whole condition is true
+            if (andResult) {
+                return true;
+            }
+        }
+
+        // If no OR part was true, the whole condition is false
+        return false;
+    }
+
+
 
     private void executeActions(Player player, List<SpawnAction> actions) {
         for (SpawnAction action : actions) {
