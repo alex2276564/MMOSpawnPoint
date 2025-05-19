@@ -522,12 +522,36 @@ public class SpawnManager {
         for (SpawnAction action : actions) {
             int effectiveChance = action.getEffectiveChance(player);
 
+            if (plugin.getConfigManager().isDebugMode()) {
+                plugin.getLogger().info("Checking action for " + player.getName() +
+                        " with type: " + action.getType() +
+                        ", value: " + action.getValue() +
+                        ", chance: " + effectiveChance);
+
+                // Debug conditions
+                if (!action.getChanceConditions().isEmpty()) {
+                    for (SpawnCondition condition : action.getChanceConditions()) {
+                        boolean conditionMet = false;
+                        if (condition.getType().equals("permission")) {
+                            conditionMet = player.hasPermission(condition.getValue());
+                        } else if (condition.getType().equals("placeholder")) {
+                            conditionMet = PlaceholderUtils.checkPlaceholderCondition(player, condition.getValue());
+                        }
+
+                        plugin.getLogger().info("  Condition: " + condition.getType() +
+                                ", value: " + condition.getValue() +
+                                ", met: " + conditionMet);
+                    }
+                }
+            }
+
             // Check if action should execute based on chance
             if (effectiveChance >= 100 || random.nextInt(100) < effectiveChance) {
                 executeAction(player, action);
             }
         }
     }
+
 
     private void executeAction(Player player, SpawnAction action) {
         String type = action.getType();

@@ -200,7 +200,12 @@ SmartSpawnPoint isn't just a spawn point plugin - it's a complete respawn manage
 
    > If you're using SmartSpawnPoint on a large server with many regions or factions, it's a good idea to theme each waiting room to match the area the player died in.
 
-6. **Vanilla vs SmartSpawnPoint Respawn Mechanics**:
+6. **Action Execution Timing**: Actions (commands and messages) are only executed after a player has been successfully teleported to their final respawn location:
+    - If using the waiting room system, actions will NOT execute while the player is in the waiting room
+    - Actions will only trigger once the player reaches their actual spawn point
+    - This ensures that effects, items, and messages are applied at the appropriate time
+
+7. **Vanilla vs SmartSpawnPoint Respawn Mechanics**:
     - **Vanilla Minecraft** (without any plugins) follows a strict respawn priority:
         1. First checks for a valid respawn anchor in the Nether dimension (if properly charged with glowstone)
             - Respawn anchors only work when placed in the Nether dimension

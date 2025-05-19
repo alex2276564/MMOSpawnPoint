@@ -45,6 +45,9 @@ region-spawns:
       placeholders:
         - "%player_level% > 10"
     # Actions executed on respawn
+    # Note: These actions are only executed after the player has been successfully teleported
+    # to their final respawn location. If using a waiting room, actions will NOT execute
+    # until the player leaves the waiting room and reaches their actual spawn point.
     actions:
       # Messages to send to player
       messages:
@@ -147,6 +150,102 @@ region-spawns:
           x: 300
           y: 100
           z: 300
+
+  # Example for RPG adventure zone with location-specific actions
+  - region: "adventure_zone"
+    region-world: "*"  # Works in any world
+    type: "weighted_random"
+    locations:
+      - type: "fixed"
+        location:
+          world: "forest"
+          x: 150
+          y: 70
+          z: 150
+          require-safe: false
+        weight: 50  # 50% chance
+      - type: "fixed"
+        location:
+          world: "desert"
+          x: 150
+          y: 70
+          z: 150
+          require-safe: false
+        weight: 50  # 50% chance
+    actions:
+      commands:
+        # Apply slowness effect only in the forest world
+        # Requires Player expansion: /papi ecloud download Player
+        - command: "effect give %player% minecraft:slowness 60 2"
+          chance: 0
+          chance-conditions:
+            - type: "placeholder"
+              value: "%player_world% == forest"  # Only in forest world
+              weight: 100
+            - type: "permission"
+              value: "smartspawnpoint.vip"  # Not for VIPs
+              weight: 0
+
+        # VIPs get night vision in all worlds, non-VIPs only in forest
+        - command: "effect give %player% minecraft:night_vision 300 1"
+          chance: 0
+          chance-conditions:
+            - type: "permission"
+              value: "smartspawnpoint.vip"  # Only for VIPs
+              weight: 100
+            - type: "placeholder"
+              value: "%player_world% == forest"  # Only in forest world
+              weight: 100
+
+        # Apply fire resistance in the desert world for everyone
+        - command: "effect give %player% minecraft:fire_resistance 120 1"
+          chance: 0
+          chance-conditions:
+            - type: "placeholder"
+              value: "%player_world% == desert"  # Only in desert world
+              weight: 100
+
+        # VIPs get speed boost in all worlds, non-VIPs only in desert
+        - command: "effect give %player% minecraft:speed 120 1"
+          chance: 0
+          chance-conditions:
+            - type: "permission"
+              value: "smartspawnpoint.vip"  # Only for VIPs
+              weight: 100
+            - type: "placeholder"
+              value: "%player_world% == desert"  # Only in desert world
+              weight: 100
+
+        # Apply special effects based on WorldGuard regions
+        # Requires WorldGuard expansion: /papi ecloud download WorldGuard
+        - command: "effect give %player% minecraft:haste 120 1"
+          chance: 0
+          chance-conditions:
+            - type: "placeholder"
+              value: "%worldguard_region_name% == mining_zone"  # Only in mining zones
+              weight: 100
+
+  # Example for a spawn point that only executes actions without teleporting
+  - region: "action_region"
+    region-world: "world"
+    type: "none"  # Don't teleport, just run actions
+    actions:
+      messages:
+        - "You died in the action region! No teleport, just this message."
+      commands:
+        - command: "effect give %player% minecraft:regeneration 10 1"
+          chance: 100
+        # Example with multiple commands with different chances
+        - command: "give %player% minecraft:cooked_beef 1"
+          chance: 100  # Always give food
+        - command: "give %player% minecraft:golden_apple 1"
+          chance: 10   # 10% chance for golden apple
+        - command: "give %player% minecraft:enchanted_golden_apple 1"
+          chance: 1    # 1% chance for enchanted golden apple
+          chance-conditions:
+            - type: "permission"
+              value: "smartspawnpoint.vip"
+              weight: 5  # 5% chance for VIP players
 
 # World-based spawns (secondary priority)
 world-spawns:

@@ -18,15 +18,39 @@ public class PlaceholderUtils {
         try {
             // Parse condition format: "%placeholder% operator value"
             // Example: "%player_level% > 10"
-            String[] parts = condition.split("\\s+", 3);
 
-            if (parts.length != 3) {
+            // Find position of the first operator
+            int operatorStartPos = -1;
+            String[] possibleOperators = {"==", "!=", ">=", "<=", ">", "<", "="};
+            for (String op : possibleOperators) {
+                int pos = condition.indexOf(op);
+                if (pos > 0 && (operatorStartPos == -1 || pos < operatorStartPos)) {
+                    operatorStartPos = pos;
+                }
+            }
+
+            if (operatorStartPos == -1) {
                 return false;
             }
 
-            String placeholder = parts[0];
-            String operator = parts[1];
-            String valueStr = parts[2];
+            // Split into placeholder, operator and value
+            String placeholder = condition.substring(0, operatorStartPos).trim();
+
+            // Determine the operator
+            String operator = null;
+            for (String op : possibleOperators) {
+                if (condition.substring(operatorStartPos).startsWith(op)) {
+                    operator = op;
+                    break;
+                }
+            }
+
+            if (operator == null) {
+                return false;
+            }
+
+            // Get the value
+            String valueStr = condition.substring(operatorStartPos + operator.length()).trim();
 
             // Get the actual value from PlaceholderAPI
             String actualValueStr = PlaceholderAPI.setPlaceholders(player, placeholder);
@@ -46,6 +70,7 @@ public class PlaceholderUtils {
             return false;
         }
     }
+
 
     private static boolean compareValues(double actual, double expected, String operator) {
         switch (operator) {

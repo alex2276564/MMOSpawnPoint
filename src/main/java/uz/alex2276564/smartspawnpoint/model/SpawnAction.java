@@ -28,12 +28,8 @@ public class SpawnAction {
             if (condition.getType().equals("permission") && player.hasPermission(condition.getValue())) {
                 return condition.getWeight();
             } else if (condition.getType().equals("placeholder")) {
-                String[] parts = condition.getValue().split(":", 2);
-                if (parts.length == 2) {
-                    String placeholderCondition = parts[0];
-                    if (uz.alex2276564.smartspawnpoint.util.PlaceholderUtils.checkPlaceholderCondition(player, placeholderCondition)) {
-                        return condition.getWeight();
-                    }
+                if (uz.alex2276564.smartspawnpoint.util.PlaceholderUtils.checkPlaceholderCondition(player, condition.getValue())) {
+                    return condition.getWeight();
                 }
             }
         }
@@ -41,4 +37,5 @@ public class SpawnAction {
         // Default to base chance if no conditions match
         return chance;
     }
+
 }
