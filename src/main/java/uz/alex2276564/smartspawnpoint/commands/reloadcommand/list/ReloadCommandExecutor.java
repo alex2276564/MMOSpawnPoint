@@ -21,10 +21,8 @@ public class ReloadCommandExecutor implements SubCommand {
             return;
         }
 
-        // Clear cache
         SafeLocationFinder.clearCache();
 
-        // Reload config
         SmartSpawnPoint.getInstance().getConfigManager().reload();
 
         sender.sendMessage("§aSmartSpawnPoint configuration successfully reloaded.");
