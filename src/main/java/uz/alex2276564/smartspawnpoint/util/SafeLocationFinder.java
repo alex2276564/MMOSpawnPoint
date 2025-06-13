@@ -10,14 +10,20 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 
 public class SafeLocationFinder {
     private static final Random RANDOM = new Random();
     private static Set<Material> unsafeMaterials = new HashSet<>();
 
-    // Cache for performance optimization
+    // Configurable cache settings
+    private static boolean cacheEnabled = true;
+    private static long cacheExpiry = 300000; // 5 minutes
+    private static int maxCacheSize = 1000;
+    private static boolean debugCache = false;
+
+    // Cache storage
     private static final Map<String, Location> SAFE_LOCATION_CACHE = new HashMap<>();
-    private static final long CACHE_EXPIRY = 60000; // 1 minute
     private static final Map<String, Long> CACHE_TIMESTAMPS = new HashMap<>();
 
     static {
@@ -34,13 +40,181 @@ public class SafeLocationFinder {
         unsafeMaterials.add(Material.SWEET_BERRY_BUSH);
     }
 
+    public static void configureCaching(boolean enabled, long expiryMs, int maxSize, boolean debug) {
+        cacheEnabled = enabled;
+        cacheExpiry = expiryMs;
+        maxCacheSize = maxSize;
+        debugCache = debug;
+
+        if (!enabled) {
+            clearCache();
+        }
+    }
+
     public static void setUnsafeMaterials(Set<Material> materials) {
         if (materials != null && !materials.isEmpty()) {
             unsafeMaterials = materials;
         }
     }
 
+    public static Location findSafeLocation(Location baseLocation, int maxAttempts, UUID playerId,
+                                            boolean useCache, boolean playerSpecificCache) {
+        if (baseLocation == null || !cacheEnabled || !useCache) {
+            return findSafeLocationNoCache(baseLocation, maxAttempts);
+        }
+
+        World world = baseLocation.getWorld();
+        if (world == null) {
+            return null;
+        }
+
+        // Generate cache key
+        String cacheKey = generateCacheKey("fixed", world.getName(),
+                (int)baseLocation.getX(), (int)baseLocation.getY(), (int)baseLocation.getZ(),
+                0, 0, 0, 0, 0, 0,
+                playerId, playerSpecificCache);
+
+        // Check cache
+        Location cachedLocation = getCachedLocation(cacheKey);
+        if (cachedLocation != null) {
+            if (debugCache) {
+                System.out.println("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
+            }
+            return cachedLocation.clone();
+        }
+
+        // Find new safe location
+        Location safeLocation = findSafeLocationNoCache(baseLocation, maxAttempts);
+
+        if (safeLocation != null) {
+            cacheLocation(cacheKey, safeLocation);
+            if (debugCache) {
+                System.out.println("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
+            }
+        }
+
+        return safeLocation;
+    }
+
+    public static Location findSafeLocationInRegion(double minX, double maxX, double minY, double maxY,
+                                                    double minZ, double maxZ, World world, int maxAttempts,
+                                                    UUID playerId, boolean useCache, boolean playerSpecificCache) {
+        if (world == null || !cacheEnabled || !useCache) {
+            return findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts);
+        }
+
+        // Generate cache key for region
+        String cacheKey = generateCacheKey("region", world.getName(), 0, 0, 0,
+                (int)minX, (int)maxX, (int)minY, (int)maxY, (int)minZ, (int)maxZ,
+                playerId, playerSpecificCache);
+
+        // Check cache
+        Location cachedLocation = getCachedLocation(cacheKey);
+        if (cachedLocation != null) {
+            if (debugCache) {
+                System.out.println("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
+            }
+            return cachedLocation.clone();
+        }
+
+        // Find new safe location
+        Location safeLocation = findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts);
+
+        if (safeLocation != null) {
+            cacheLocation(cacheKey, safeLocation);
+            if (debugCache) {
+                System.out.println("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
+            }
+        }
+
+        return safeLocation;
+    }
+
+    // Overloaded methods for backward compatibility (when cache options aren't specified)
     public static Location findSafeLocation(Location baseLocation, int maxAttempts) {
+        return findSafeLocationNoCache(baseLocation, maxAttempts);
+    }
+
+    public static Location findSafeLocationInRegion(double minX, double maxX, double minY, double maxY,
+                                                    double minZ, double maxZ, World world, int maxAttempts) {
+        return findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts);
+    }
+
+    private static String generateCacheKey(String type, String worldName, int x, int y, int z,
+                                           int minX, int maxX, int minY, int maxY, int minZ, int maxZ,
+                                           UUID playerId, boolean playerSpecific) {
+        StringBuilder key = new StringBuilder();
+        key.append(worldName).append(":").append(type);
+
+        if ("fixed".equals(type)) {
+            key.append(":").append(x).append(":").append(y).append(":").append(z);
+        } else if ("region".equals(type)) {
+            key.append(":").append(minX).append(":").append(maxX)
+                    .append(":").append(minY).append(":").append(maxY)
+                    .append(":").append(minZ).append(":").append(maxZ);
+        }
+
+        // Add player ID to cache key if player-specific caching is enabled
+        if (playerSpecific && playerId != null) {
+            key.append(":player:").append(playerId.toString());
+        }
+
+        return key.toString();
+    }
+
+    private static Location getCachedLocation(String cacheKey) {
+        if (!SAFE_LOCATION_CACHE.containsKey(cacheKey)) {
+            return null;
+        }
+
+        long timestamp = CACHE_TIMESTAMPS.getOrDefault(cacheKey, 0L);
+        if (System.currentTimeMillis() - timestamp < cacheExpiry) {
+            return SAFE_LOCATION_CACHE.get(cacheKey);
+        } else {
+            // Cache expired
+            SAFE_LOCATION_CACHE.remove(cacheKey);
+            CACHE_TIMESTAMPS.remove(cacheKey);
+            return null;
+        }
+    }
+
+    private static void cacheLocation(String cacheKey, Location location) {
+        // Check cache size limit
+        if (SAFE_LOCATION_CACHE.size() >= maxCacheSize) {
+            cleanOldestCacheEntries();
+        }
+
+        SAFE_LOCATION_CACHE.put(cacheKey, location.clone());
+        CACHE_TIMESTAMPS.put(cacheKey, System.currentTimeMillis());
+    }
+
+    private static void cleanOldestCacheEntries() {
+        // Remove 20% of oldest entries when cache is full
+        int entriesToRemove = Math.max(1, maxCacheSize / 5);
+
+        CACHE_TIMESTAMPS.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .limit(entriesToRemove)
+                .map(Map.Entry::getKey)
+                .forEach(key -> {
+                    SAFE_LOCATION_CACHE.remove(key);
+                    CACHE_TIMESTAMPS.remove(key);
+                });
+    }
+
+    public static void clearPlayerCache(UUID playerId) {
+        if (playerId == null) return;
+
+        String playerPrefix = ":player:" + playerId.toString();
+        SAFE_LOCATION_CACHE.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
+        CACHE_TIMESTAMPS.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
+
+        if (debugCache) {
+            System.out.println("[SafeLocationFinder] Cleared cache for player: " + playerId);
+        }
+    }
+
+    private static Location findSafeLocationNoCache(Location baseLocation, int maxAttempts) {
         if (baseLocation == null) {
             return null;
         }
@@ -50,27 +224,8 @@ public class SafeLocationFinder {
             return null;
         }
 
-        // Generate cache key
-        String cacheKey = world.getName() + ":" +
-                (int)baseLocation.getX() + ":" +
-                (int)baseLocation.getY() + ":" +
-                (int)baseLocation.getZ();
-
-        // Check cache
-        if (SAFE_LOCATION_CACHE.containsKey(cacheKey)) {
-            long timestamp = CACHE_TIMESTAMPS.getOrDefault(cacheKey, 0L);
-            if (System.currentTimeMillis() - timestamp < CACHE_EXPIRY) {
-                return SAFE_LOCATION_CACHE.get(cacheKey).clone();
-            } else {
-                // Cache expired
-                SAFE_LOCATION_CACHE.remove(cacheKey);
-                CACHE_TIMESTAMPS.remove(cacheKey);
-            }
-        }
-
         // Check if the original location is safe
         if (isSafeLocation(baseLocation)) {
-            cacheLocation(cacheKey, baseLocation);
             return baseLocation.clone();
         }
 
@@ -104,7 +259,6 @@ public class SafeLocationFinder {
             testLocation.setY(highestY + 1.0); // Add 1.0 to ensure we're above the block
 
             if (isSafeLocation(testLocation)) {
-                cacheLocation(cacheKey, testLocation);
                 return testLocation.clone();
             }
 
@@ -116,32 +270,13 @@ public class SafeLocationFinder {
 
         // If no safe location found, return the world spawn
         Location worldSpawn = world.getSpawnLocation();
-        cacheLocation(cacheKey, worldSpawn);
         return worldSpawn;
     }
 
-    public static Location findSafeLocationInRegion(double minX, double maxX, double minY, double maxY, double minZ, double maxZ,
-                                                    World world, int maxAttempts) {
+    private static Location findSafeLocationInRegionNoCache(double minX, double maxX, double minY, double maxY,
+                                                            double minZ, double maxZ, World world, int maxAttempts) {
         if (world == null) {
             return null;
-        }
-
-        // Cache key for this region
-        String cacheKey = world.getName() + ":region:" +
-                (int)minX + ":" + (int)maxX + ":" +
-                (int)minY + ":" + (int)maxY + ":" +
-                (int)minZ + ":" + (int)maxZ;
-
-        // Check cache
-        if (SAFE_LOCATION_CACHE.containsKey(cacheKey)) {
-            long timestamp = CACHE_TIMESTAMPS.getOrDefault(cacheKey, 0L);
-            if (System.currentTimeMillis() - timestamp < CACHE_EXPIRY) {
-                return SAFE_LOCATION_CACHE.get(cacheKey).clone();
-            } else {
-                // Cache expired
-                SAFE_LOCATION_CACHE.remove(cacheKey);
-                CACHE_TIMESTAMPS.remove(cacheKey);
-            }
         }
 
         // Calculate center of region for default
@@ -165,7 +300,6 @@ public class SafeLocationFinder {
         Location centerLoc = new Location(world, centerX, centerHighestY + 1.0, centerZ);
 
         if (isSafeLocation(centerLoc)) {
-            cacheLocation(cacheKey, centerLoc);
             return centerLoc.clone();
         }
 
@@ -190,7 +324,6 @@ public class SafeLocationFinder {
             Location location = new Location(world, x, y, z);
 
             if (isSafeLocation(location)) {
-                cacheLocation(cacheKey, location);
                 return location.clone();
             }
 
@@ -209,7 +342,6 @@ public class SafeLocationFinder {
                 Location highestLocation = new Location(world, x, y2 + 1.0, z);
 
                 if (isSafeLocation(highestLocation)) {
-                    cacheLocation(cacheKey, highestLocation);
                     return highestLocation.clone();
                 }
             }
@@ -218,17 +350,14 @@ public class SafeLocationFinder {
         // If still no safe location found, use world spawn if within bounds
         Location worldSpawn = world.getSpawnLocation();
         if (isWithinBounds(worldSpawn, minX, maxX, minY, maxY, minZ, maxZ)) {
-            cacheLocation(cacheKey, worldSpawn);
             return worldSpawn.clone();
         }
 
         // Last resort - use center of region (even if not safe)
         Location centerLocation = new Location(world, centerX, centerY, centerZ);
-        cacheLocation(cacheKey, centerLocation);
         return centerLocation.clone();
     }
 
-    // Helper method to find a safe Y coordinate in the Nether
     private static int findSafeYInNether(World world, int x, int z, int maxY, int minY) {
         // Start from the middle of the range
         int startY = (maxY + minY) / 2;
@@ -267,16 +396,10 @@ public class SafeLocationFinder {
         return 64; // Common safe height in Nether
     }
 
-
     private static boolean isWithinBounds(Location loc, double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {
         return loc.getX() >= minX && loc.getX() <= maxX &&
                 loc.getY() >= minY && loc.getY() <= maxY &&
                 loc.getZ() >= minZ && loc.getZ() <= maxZ;
-    }
-
-    private static void cacheLocation(String key, Location location) {
-        SAFE_LOCATION_CACHE.put(key, location.clone());
-        CACHE_TIMESTAMPS.put(key, System.currentTimeMillis());
     }
 
     private static boolean isSafeLocation(Location location) {
@@ -298,7 +421,6 @@ public class SafeLocationFinder {
         return ground.getType().isSolid() && !unsafeMaterials.contains(ground.getType());
     }
 
-    // Clear cache method - can be called periodically or on reload
     public static void clearCache() {
         SAFE_LOCATION_CACHE.clear();
         CACHE_TIMESTAMPS.clear();

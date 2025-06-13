@@ -38,6 +38,42 @@ public class ConfigManager {
     private int safeLocationRadius;
 
     @Getter
+    private boolean safeCacheEnabled;
+
+    @Getter
+    private int safeCacheExpiryTime;
+
+    @Getter
+    private int safeCacheMaxSize;
+
+    @Getter
+    private boolean safeCacheFixedEnabled;
+
+    @Getter
+    private boolean safeCacheFixedPlayerSpecific;
+
+    @Getter
+    private boolean safeCacheRandomEnabled;
+
+    @Getter
+    private boolean safeCacheRandomPlayerSpecific;
+
+    @Getter
+    private boolean safeCacheWeightedEnabled;
+
+    @Getter
+    private boolean safeCacheWeightedPlayerSpecific;
+
+    @Getter
+    private boolean safeCacheClearOnWorldChange;
+
+    @Getter
+    private boolean safeCacheClearPlayerOnWorldChange;
+
+    @Getter
+    private boolean safeCacheDebug;
+
+    @Getter
     private boolean debugMode;
 
     @Getter
@@ -474,6 +510,32 @@ public class ConfigManager {
     private void loadSettings() {
         maxSafeLocationAttempts = config.getInt("settings.max-safe-location-attempts", 20);
         safeLocationRadius = config.getInt("settings.safe-location-radius", 5);
+        // Load safe location cache settings
+        safeCacheEnabled = config.getBoolean("settings.safe-location-cache.enabled", true);
+        safeCacheExpiryTime = config.getInt("settings.safe-location-cache.expiry-time", 60);
+        safeCacheMaxSize = config.getInt("settings.safe-location-cache.max-cache-size", 1000);
+
+        safeCacheFixedEnabled = config.getBoolean("settings.safe-location-cache.spawn-type-caching.fixed-spawns.enabled", true);
+        safeCacheFixedPlayerSpecific = config.getBoolean("settings.safe-location-cache.spawn-type-caching.fixed-spawns.player-specific", false);
+
+        safeCacheRandomEnabled = config.getBoolean("settings.safe-location-cache.spawn-type-caching.random-spawns.enabled", true);
+        safeCacheRandomPlayerSpecific = config.getBoolean("settings.safe-location-cache.spawn-type-caching.random-spawns.player-specific", true);
+
+        safeCacheWeightedEnabled = config.getBoolean("settings.safe-location-cache.spawn-type-caching.weighted-random-spawns.enabled", true);
+        safeCacheWeightedPlayerSpecific = config.getBoolean("settings.safe-location-cache.spawn-type-caching.weighted-random-spawns.player-specific", false);
+
+        safeCacheClearOnWorldChange = config.getBoolean("settings.safe-location-cache.advanced.clear-on-world-change", false);
+        safeCacheClearPlayerOnWorldChange = config.getBoolean("settings.safe-location-cache.advanced.clear-player-cache-on-world-change", true);
+        safeCacheDebug = config.getBoolean("settings.safe-location-cache.advanced.debug-cache", false);
+
+        // Apply cache settings to SafeLocationFinder
+        SafeLocationFinder.configureCaching(
+                safeCacheEnabled,
+                safeCacheExpiryTime * 1000L, // Convert to milliseconds
+                safeCacheMaxSize,
+                safeCacheDebug
+        );
+
         debugMode = config.getBoolean("settings.debug-mode", false);
         forceDelayedTeleport = config.getBoolean("settings.force-delayed-teleport", true);
 

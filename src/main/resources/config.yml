@@ -378,6 +378,48 @@ settings:
   # Radius to search for safe locations (smaller = better performance)
   safe-location-radius: 5
 
+  # Safe location caching system
+  safe-location-cache:
+    # Enable caching system for performance
+    enabled: true
+
+    # Cache expiry time in seconds
+    expiry-time: 300
+
+    # Maximum number of cached locations before cleanup
+    max-cache-size: 1000
+
+    # Caching behavior for different spawn types
+    spawn-type-caching:
+      # Fixed spawn points (exact coordinates)
+      fixed-spawns:
+        enabled: true
+        # Whether to use player-specific cache (each player gets different cached location)
+        player-specific: false
+
+      # Random spawn points (random coordinates in area)
+      random-spawns:
+        enabled: true
+        # Recommended: true for random spawns to avoid players getting same "random" spot
+        player-specific: true
+
+      # Weighted random spawn points
+      weighted-random-spawns:
+        enabled: true
+        # Whether each weighted option should have player-specific cache
+        player-specific: false
+
+    # Advanced cache options
+    advanced:
+      # Clear cache when world changes (recommended for dynamic worlds)
+      clear-on-world-change: false
+
+      # Clear specific player's cache when they change worlds
+      clear-player-cache-on-world-change: true
+
+      # Debug cache operations
+      debug-cache: false
+
   # Enable debug mode for detailed logs
   debug-mode: true
 

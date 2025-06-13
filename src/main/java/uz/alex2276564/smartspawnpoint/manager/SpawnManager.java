@@ -319,6 +319,7 @@ public class SpawnManager {
     private Location getLocationFromSpawnPoint(Player player, SpawnPoint spawnPoint) {
         String type = spawnPoint.getType();
         int maxAttempts = plugin.getConfigManager().getMaxSafeLocationAttempts();
+        UUID playerId = player.getUniqueId();
 
         if (plugin.getConfigManager().isDebugMode()) {
             plugin.getLogger().info("Getting location from spawn point type: " + type);
@@ -345,7 +346,11 @@ public class SpawnManager {
             }
 
             if (spawnLocation.isRequireSafe()) {
-                Location safeLocation = SafeLocationFinder.findSafeLocation(location, maxAttempts);
+                // Get cache settings for fixed spawns
+                boolean useCache = plugin.getConfigManager().isSafeCacheFixedEnabled();
+                boolean playerSpecific = plugin.getConfigManager().isSafeCacheFixedPlayerSpecific();
+
+                Location safeLocation = SafeLocationFinder.findSafeLocation(location, maxAttempts, playerId, useCache, playerSpecific);
 
                 if (plugin.getConfigManager().isDebugMode()) {
                     plugin.getLogger().info("Safe fixed location: " + (safeLocation != null ? locationToString(safeLocation) : "null"));
@@ -367,11 +372,15 @@ public class SpawnManager {
             }
 
             if (spawnLocation.isRequireSafe()) {
+                // Get cache settings for random spawns
+                boolean useCache = plugin.getConfigManager().isSafeCacheRandomEnabled();
+                boolean playerSpecific = plugin.getConfigManager().isSafeCacheRandomPlayerSpecific();
+
                 Location safeLocation = SafeLocationFinder.findSafeLocationInRegion(
                         spawnLocation.getMinX(), spawnLocation.getMaxX(),
                         spawnLocation.getMinY(), spawnLocation.getMaxY(),
                         spawnLocation.getMinZ(), spawnLocation.getMaxZ(),
-                        world, maxAttempts
+                        world, maxAttempts, playerId, useCache, playerSpecific
                 );
 
                 if (plugin.getConfigManager().isDebugMode() && safeLocation != null) {
@@ -407,6 +416,8 @@ public class SpawnManager {
             }
             return null;
         }
+
+        UUID playerId = player.getUniqueId();
 
         // Calculate total effective weight
         int totalWeight = 0;
@@ -447,7 +458,11 @@ public class SpawnManager {
                 }
 
                 if (location.isRequireSafe()) {
-                    Location safeLocation = SafeLocationFinder.findSafeLocation(bukkitLoc, maxAttempts);
+                    // Get cache settings for weighted spawns
+                    boolean useCache = plugin.getConfigManager().isSafeCacheWeightedEnabled();
+                    boolean playerSpecific = plugin.getConfigManager().isSafeCacheWeightedPlayerSpecific();
+
+                    Location safeLocation = SafeLocationFinder.findSafeLocation(bukkitLoc, maxAttempts, playerId, useCache, playerSpecific);
 
                     if (plugin.getConfigManager().isDebugMode() && safeLocation != null) {
                         plugin.getLogger().info("Safe weighted random location: " + locationToString(safeLocation));
@@ -471,11 +486,16 @@ public class SpawnManager {
         Location bukkitLoc = firstLocation.toBukkitLocation();
 
         if (firstLocation.isRequireSafe() && bukkitLoc != null) {
-            return SafeLocationFinder.findSafeLocation(bukkitLoc, maxAttempts);
+            // Get cache settings for weighted spawns
+            boolean useCache = plugin.getConfigManager().isSafeCacheWeightedEnabled();
+            boolean playerSpecific = plugin.getConfigManager().isSafeCacheWeightedPlayerSpecific();
+
+            return SafeLocationFinder.findSafeLocation(bukkitLoc, maxAttempts, playerId, useCache, playerSpecific);
         }
 
         return bukkitLoc;
     }
+
 
     private boolean checkConditions(Player player, SpawnPoint spawnPoint) {
         List<SpawnCondition> conditions = spawnPoint.getConditions();
