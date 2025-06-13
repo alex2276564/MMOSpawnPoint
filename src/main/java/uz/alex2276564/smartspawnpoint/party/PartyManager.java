@@ -19,7 +19,6 @@ public class PartyManager {
     private final Map<UUID, Party> parties = new HashMap<>();
     private final Map<UUID, UUID> playerPartyMap = new HashMap<>();
     private final Map<UUID, UUID> pendingInvitations = new HashMap<>();
-    private BukkitTask cleanupTask;
 
     @Getter
     private final int maxPartySize;
@@ -87,6 +86,42 @@ public class PartyManager {
             if (party == null || !party.hasInvitation(entry.getKey())) {
                 it.remove();
             }
+        }
+    }
+
+    public void cleanupPlayerData(UUID playerId) {
+        try {
+            // Remove from any party
+            if (isInParty(playerId)) {
+                Party party = getPlayerParty(playerId);
+                if (party != null) {
+                    party.removeMember(playerId);
+                    playerPartyMap.remove(playerId);
+
+                    // If party is now empty, remove it
+                    if (party.isEmpty()) {
+                        parties.remove(party.getId());
+                    }
+
+                    if (plugin.getConfigManager().isDebugMode()) {
+                        plugin.getLogger().info("Removed player " + playerId + " from party");
+                    }
+                }
+            }
+
+            // Remove pending invitations FROM this player
+            pendingInvitations.remove(playerId);
+
+            // Remove any invitations sent TO this player
+            for (Party party : parties.values()) {
+                party.getInvitations().remove(playerId);
+            }
+
+            if (plugin.getConfigManager().isDebugMode()) {
+                plugin.getLogger().info("Cleaned up party data for player: " + playerId);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error cleaning up party data for " + playerId + ": " + e.getMessage());
         }
     }
 

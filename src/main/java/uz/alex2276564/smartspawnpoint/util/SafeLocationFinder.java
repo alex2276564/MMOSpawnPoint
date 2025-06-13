@@ -4,13 +4,10 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SafeLocationFinder {
     private static final Random RANDOM = new Random();
@@ -23,8 +20,8 @@ public class SafeLocationFinder {
     private static boolean debugCache = false;
 
     // Cache storage
-    private static final Map<String, Location> SAFE_LOCATION_CACHE = new HashMap<>();
-    private static final Map<String, Long> CACHE_TIMESTAMPS = new HashMap<>();
+    private static final Map<String, Location> SAFE_LOCATION_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Long> CACHE_TIMESTAMPS = new ConcurrentHashMap<>();
 
     static {
         // Default unsafe materials
@@ -78,7 +75,7 @@ public class SafeLocationFinder {
         Location cachedLocation = getCachedLocation(cacheKey);
         if (cachedLocation != null) {
             if (debugCache) {
-                System.out.println("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
+                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
             }
             return cachedLocation.clone();
         }
@@ -89,7 +86,7 @@ public class SafeLocationFinder {
         if (safeLocation != null) {
             cacheLocation(cacheKey, safeLocation);
             if (debugCache) {
-                System.out.println("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
+                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
             }
         }
 
@@ -112,7 +109,7 @@ public class SafeLocationFinder {
         Location cachedLocation = getCachedLocation(cacheKey);
         if (cachedLocation != null) {
             if (debugCache) {
-                System.out.println("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
+                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
             }
             return cachedLocation.clone();
         }
@@ -123,7 +120,7 @@ public class SafeLocationFinder {
         if (safeLocation != null) {
             cacheLocation(cacheKey, safeLocation);
             if (debugCache) {
-                System.out.println("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
+                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
             }
         }
 
@@ -189,28 +186,42 @@ public class SafeLocationFinder {
     }
 
     private static void cleanOldestCacheEntries() {
-        // Remove 20% of oldest entries when cache is full
-        int entriesToRemove = Math.max(1, maxCacheSize / 5);
+        try {
+            // Remove 20% of oldest entries when cache is full
+            int entriesToRemove = Math.max(1, maxCacheSize / 5);
 
-        CACHE_TIMESTAMPS.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue())
-                .limit(entriesToRemove)
-                .map(Map.Entry::getKey)
-                .forEach(key -> {
-                    SAFE_LOCATION_CACHE.remove(key);
-                    CACHE_TIMESTAMPS.remove(key);
-                });
+            List<String> keysToRemove = CACHE_TIMESTAMPS.entrySet().stream()
+                    .sorted(Map.Entry.comparingByValue())
+                    .limit(entriesToRemove)
+                    .map(Map.Entry::getKey)
+                    .collect(java.util.stream.Collectors.toList());
+
+            for (String key : keysToRemove) {
+                SAFE_LOCATION_CACHE.remove(key);
+                CACHE_TIMESTAMPS.remove(key);
+            }
+
+            if (debugCache) {
+                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cleaned " + keysToRemove.size() + " oldest cache entries");
+            }
+        } catch (Exception e) {
+            SmartSpawnPoint.getInstance().getLogger().warning("[SafeLocationFinder] Error cleaning cache entries: " + e.getMessage());
+        }
     }
 
     public static void clearPlayerCache(UUID playerId) {
         if (playerId == null) return;
 
-        String playerPrefix = ":player:" + playerId.toString();
-        SAFE_LOCATION_CACHE.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
-        CACHE_TIMESTAMPS.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
+        try {
+            String playerPrefix = ":player:" + playerId.toString();
+            SAFE_LOCATION_CACHE.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
+            CACHE_TIMESTAMPS.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
 
-        if (debugCache) {
-            System.out.println("[SafeLocationFinder] Cleared cache for player: " + playerId);
+            if (debugCache) {
+                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cleared cache for player: " + playerId);
+            }
+        } catch (Exception e) {
+            SmartSpawnPoint.getInstance().getLogger().warning("[SafeLocationFinder] Error clearing player cache: " + e.getMessage());
         }
     }
 

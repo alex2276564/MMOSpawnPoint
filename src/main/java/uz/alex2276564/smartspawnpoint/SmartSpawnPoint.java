@@ -3,6 +3,7 @@ package uz.alex2276564.smartspawnpoint;
 import uz.alex2276564.smartspawnpoint.config.ConfigManager;
 import uz.alex2276564.smartspawnpoint.listener.PlayerDeathListener;
 import uz.alex2276564.smartspawnpoint.listener.PlayerJoinListener;
+import uz.alex2276564.smartspawnpoint.listener.PlayerQuitListener;
 import uz.alex2276564.smartspawnpoint.listener.PlayerRespawnListener;
 import uz.alex2276564.smartspawnpoint.manager.SpawnManager;
 import uz.alex2276564.smartspawnpoint.party.PartyManager;
@@ -92,6 +93,7 @@ public final class SmartSpawnPoint extends JavaPlugin {
         pm.registerEvents(new PlayerDeathListener(this), this);
         pm.registerEvents(new PlayerRespawnListener(this), this);
         pm.registerEvents(new PlayerJoinListener(this), this);
+        pm.registerEvents(new PlayerQuitListener(this), this);
     }
 
     private void registerCommands() {

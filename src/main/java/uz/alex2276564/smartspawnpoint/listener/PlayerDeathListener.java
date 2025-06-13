@@ -16,8 +16,16 @@ public class PlayerDeathListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        // Record death location for later use in respawn event
-        plugin.getSpawnManager().recordDeathLocation(player, player.getLocation());
+        try {
+            Player player = event.getEntity();
+            // Record death location for later use in respawn event
+            plugin.getSpawnManager().recordDeathLocation(player, player.getLocation());
+
+            if (plugin.getConfigManager().isDebugMode()) {
+                plugin.getLogger().info("Recorded death location for " + player.getName());
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error handling player death for " + event.getEntity().getName() + ": " + e.getMessage());
+        }
     }
 }

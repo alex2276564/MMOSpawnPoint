@@ -210,6 +210,9 @@ public class ConfigManager {
         // Load party settings
         loadPartySettings();
 
+        // Validate configuration after loading everything
+        validateConfiguration();
+
         // Log loaded config
         if (debugMode) {
             logLoadedConfig();
@@ -829,5 +832,139 @@ public class ConfigManager {
         }
 
         return message;
+    }
+
+    private void validateConfiguration() {
+        // Validate cache settings
+        if (safeCacheExpiryTime < 0) {
+            plugin.getLogger().warning("Invalid cache expiry time, using default: 60 seconds");
+            safeCacheExpiryTime = 60;
+        }
+
+        if (safeCacheMaxSize < 1) {
+            plugin.getLogger().warning("Invalid cache max size, using default: 1000");
+            safeCacheMaxSize = 1000;
+        }
+
+        // Validate party settings
+        if (partyInvitationExpiry <= 0) {
+            plugin.getLogger().warning("Invalid party invitation expiry, using default: 60 seconds");
+            partyInvitationExpiry = 60;
+        }
+
+        if (partyMaxSize < 0) {
+            plugin.getLogger().warning("Invalid party max size, using default: 10");
+            partyMaxSize = 10;
+        }
+
+        // Validate spawn points
+        validateSpawnPoints();
+
+        if (debugMode) {
+            plugin.getLogger().info("Configuration validation completed");
+        }
+    }
+
+    private void validateSpawnPoints() {
+        // Validate region spawns
+        regionSpawns.removeIf(spawnPoint -> {
+            if (spawnPoint.getRegion() == null || spawnPoint.getRegion().isEmpty()) {
+                plugin.getLogger().warning("Removing invalid region spawn point: missing region name");
+                return true;
+            }
+
+            // Check if spawn point needs a location (not "none" type)
+            if (spawnPoint.hasLocation()) {
+                // For weighted_random, check locations list
+                if ("weighted_random".equals(spawnPoint.getType())) {
+                    if (spawnPoint.getWeightedLocations() == null || spawnPoint.getWeightedLocations().isEmpty()) {
+                        plugin.getLogger().warning("Removing invalid region spawn point " + spawnPoint.getRegion() + ": no weighted locations");
+                        return true;
+                    }
+
+                    // Validate each weighted location
+                    boolean hasValidLocation = false;
+                    for (SpawnLocation weightedLoc : spawnPoint.getWeightedLocations()) {
+                        if (weightedLoc != null && weightedLoc.getWorld() != null && !weightedLoc.getWorld().isEmpty()) {
+                            hasValidLocation = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasValidLocation) {
+                        plugin.getLogger().warning("Removing invalid region spawn point " + spawnPoint.getRegion() + ": no valid weighted locations");
+                        return true;
+                    }
+                } else {
+                    // For fixed and random types, check main location
+                    if (spawnPoint.getLocation() == null) {
+                        plugin.getLogger().warning("Removing invalid region spawn point " + spawnPoint.getRegion() + ": invalid location");
+                        return true;
+                    }
+
+                    if (spawnPoint.getLocation().getWorld() == null || spawnPoint.getLocation().getWorld().isEmpty()) {
+                        plugin.getLogger().warning("Removing invalid region spawn point " + spawnPoint.getRegion() + ": missing world");
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        });
+
+        // Validate world spawns
+        worldSpawns.entrySet().removeIf(entry -> {
+            String worldName = entry.getKey();
+            if (worldName == null || worldName.isEmpty()) {
+                plugin.getLogger().warning("Removing invalid world spawn: missing world name");
+                return true;
+            }
+
+            entry.getValue().removeIf(spawnPoint -> {
+                // Check if spawn point needs a location (not "none" type)
+                if (spawnPoint.hasLocation()) {
+                    // For weighted_random, check locations list
+                    if ("weighted_random".equals(spawnPoint.getType())) {
+                        if (spawnPoint.getWeightedLocations() == null || spawnPoint.getWeightedLocations().isEmpty()) {
+                            plugin.getLogger().warning("Removing invalid world spawn for " + worldName + ": no weighted locations");
+                            return true;
+                        }
+
+                        // Validate each weighted location
+                        boolean hasValidLocation = false;
+                        for (SpawnLocation weightedLoc : spawnPoint.getWeightedLocations()) {
+                            if (weightedLoc != null && weightedLoc.getWorld() != null && !weightedLoc.getWorld().isEmpty()) {
+                                hasValidLocation = true;
+                                break;
+                            }
+                        }
+
+                        if (!hasValidLocation) {
+                            plugin.getLogger().warning("Removing invalid world spawn for " + worldName + ": no valid weighted locations");
+                            return true;
+                        }
+                    } else {
+                        // For fixed and random types, check main location
+                        if (spawnPoint.getLocation() == null) {
+                            plugin.getLogger().warning("Removing invalid world spawn for " + worldName + ": invalid location");
+                            return true;
+                        }
+
+                        if (spawnPoint.getLocation().getWorld() == null || spawnPoint.getLocation().getWorld().isEmpty()) {
+                            plugin.getLogger().warning("Removing invalid world spawn for " + worldName + ": missing world");
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            });
+
+            return entry.getValue().isEmpty();
+        });
+
+        if (debugMode) {
+            plugin.getLogger().info("Validated " + regionSpawns.size() + " region spawns and " +
+                    worldSpawns.size() + " world spawns");
+        }
     }
 }

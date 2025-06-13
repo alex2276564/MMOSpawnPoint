@@ -16,9 +16,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class SpawnManager {
     private final SmartSpawnPoint plugin;
@@ -55,115 +53,127 @@ public class SpawnManager {
         }
     }
 
+    public void cleanupPlayerData(UUID playerId) {
+        try {
+            // Remove death location
+            deathLocations.remove(playerId);
+
+            // Remove selected weighted location
+            selectedWeightedLocations.remove(playerId);
+
+            // Cancel and remove pending teleports
+            BukkitTask task = pendingTeleports.remove(playerId);
+            if (task != null) {
+                task.cancel();
+            }
+
+            // Cancel and remove pending location searches
+            CompletableFuture<Location> future = pendingLocations.remove(playerId);
+            if (future != null) {
+                future.cancel(true);
+            }
+
+            if (plugin.getConfigManager().isDebugMode()) {
+                plugin.getLogger().info("Cleaned up spawn manager data for player: " + playerId);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error cleaning up player data for " + playerId + ": " + e.getMessage());
+        }
+    }
+
 
     public Location getSpawnLocation(Player player) {
-        Location deathLocation = deathLocations.remove(player.getUniqueId());
-        if (deathLocation == null) {
-            if (plugin.getConfigManager().isDebugMode()) {
-                plugin.getLogger().info("No death location found for " + player.getName() + ", using default spawn");
+        try {
+            Location deathLocation = deathLocations.remove(player.getUniqueId());
+            if (deathLocation == null) {
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().info("No death location found for " + player.getName() + ", using default spawn");
+                }
+                return null;
             }
-            return null; // Use default spawn if no death location found
-        }
-
-        if (plugin.getConfigManager().isDebugMode()) {
-            plugin.getLogger().info("Getting spawn location for " + player.getName() + " who died at " + locationToString(deathLocation));
-        }
-
-        // Check for pending async teleports
-        if (pendingTeleports.containsKey(player.getUniqueId())) {
-            pendingTeleports.get(player.getUniqueId()).cancel();
-            pendingTeleports.remove(player.getUniqueId());
 
             if (plugin.getConfigManager().isDebugMode()) {
-                plugin.getLogger().info("Cancelled pending teleport for " + player.getName());
+                plugin.getLogger().info("Getting spawn location for " + player.getName() + " who died at " + locationToString(deathLocation));
             }
-        }
 
-        // Check for party respawn if party system is enabled
-        if (plugin.getConfigManager().isPartyEnabled() && partyManager != null) {
-            Location partyLocation = partyManager.findPartyRespawnLocation(player, deathLocation);
+            // Check for pending async teleports
+            if (pendingTeleports.containsKey(player.getUniqueId())) {
+                pendingTeleports.get(player.getUniqueId()).cancel();
+                pendingTeleports.remove(player.getUniqueId());
 
-            // Check for fallback marker
-            if (partyLocation == PartyManager.FALLBACK_TO_NORMAL_SPAWN_MARKER) {
                 if (plugin.getConfigManager().isDebugMode()) {
-                    plugin.getLogger().info("Walking spawn point requested fallback to normal spawn for " + player.getName());
+                    plugin.getLogger().info("Cancelled pending teleport for " + player.getName());
                 }
-                // Skip party system and continue with normal spawn logic
-            } else if (partyLocation != null) {
-                if (plugin.getConfigManager().isDebugMode()) {
-                    plugin.getLogger().info("Using party respawn location for " + player.getName() + ": " + locationToString(partyLocation));
-                }
-                return partyLocation;
             }
-        }
 
-        // Find appropriate spawn point and location
-        SpawnPoint spawnPoint = null;
-        Location finalLocation = null;
-
-        // Try to find a region-based spawn first (higher priority)
-        if (plugin.isWorldGuardEnabled()) {
-            spawnPoint = findRegionBasedSpawnPoint(player, deathLocation);
-            if (spawnPoint != null) {
-                // Check if this spawn point has a location (might be "none" type)
-                if (spawnPoint.hasLocation()) {
-                    // Check if we should use async search
-                    if (plugin.getConfigManager().isUseWaitingRoom()) {
-                        // Get appropriate waiting room location
-                        Location waitingRoom = getWaitingRoomLocation(player, spawnPoint);
-                        if (waitingRoom != null) {
-                            // Start async location search
-                            startAsyncLocationSearch(player, spawnPoint);
-                            return waitingRoom;
-                        }
+            // Check for party respawn if party system is enabled
+            if (plugin.getConfigManager().isPartyEnabled() && partyManager != null) {
+                Location partyLocation = partyManager.findPartyRespawnLocation(player, deathLocation);
+                if (partyLocation != null) {
+                    if (plugin.getConfigManager().isDebugMode()) {
+                        plugin.getLogger().info("Using party respawn location for " + player.getName() + ": " + locationToString(partyLocation));
                     }
-
-                    // Use synchronous search
-                    finalLocation = getLocationFromSpawnPoint(player, spawnPoint);
+                    return partyLocation;
                 }
-
-                // Execute actions regardless of location
-                executeActions(player, spawnPoint.getActions());
             }
-        }
 
-        // Fall back to world-based spawn if no region spawn or no location
-        if (finalLocation == null) {
-            spawnPoint = findWorldBasedSpawnPoint(player, deathLocation.getWorld().getName());
+            // Find appropriate spawn point and location
+            SpawnPoint spawnPoint = null;
+            Location finalLocation = null;
 
-            if (spawnPoint != null) {
-                // Check if this spawn point has a location (might be "none" type)
-                if (spawnPoint.hasLocation()) {
-                    // Check if we should use async search
-                    if (plugin.getConfigManager().isUseWaitingRoom()) {
-                        // Get appropriate waiting room location
-                        Location waitingRoom = getWaitingRoomLocation(player, spawnPoint);
-                        if (waitingRoom != null) {
-                            // Start async location search
-                            startAsyncLocationSearch(player, spawnPoint);
-                            return waitingRoom;
+            // Try to find a region-based spawn first (higher priority)
+            if (plugin.isWorldGuardEnabled()) {
+                spawnPoint = findRegionBasedSpawnPoint(player, deathLocation);
+                if (spawnPoint != null) {
+                    if (spawnPoint.hasLocation()) {
+                        if (plugin.getConfigManager().isUseWaitingRoom()) {
+                            Location waitingRoom = getWaitingRoomLocation(player, spawnPoint);
+                            if (waitingRoom != null) {
+                                startAsyncLocationSearch(player, spawnPoint);
+                                return waitingRoom;
+                            }
                         }
+                        finalLocation = getLocationFromSpawnPoint(player, spawnPoint);
                     }
-
-                    // Use synchronous search
-                    finalLocation = getLocationFromSpawnPoint(player, spawnPoint);
+                    executeActions(player, spawnPoint.getActions());
                 }
-
-                // Execute actions regardless of location
-                executeActions(player, spawnPoint.getActions());
             }
-        }
 
-        // Log the final location
-        if (plugin.getConfigManager().isDebugMode()) {
-            if (finalLocation != null) {
-                plugin.getLogger().info("Final respawn location for " + player.getName() + ": " + locationToString(finalLocation));
-            } else {
-                plugin.getLogger().warning("No respawn location found for " + player.getName() + ", using default");
+            // Fall back to world-based spawn if no region spawn or no location
+            if (finalLocation == null) {
+                spawnPoint = findWorldBasedSpawnPoint(player, deathLocation.getWorld().getName());
+
+                if (spawnPoint != null) {
+                    if (spawnPoint.hasLocation()) {
+                        if (plugin.getConfigManager().isUseWaitingRoom()) {
+                            Location waitingRoom = getWaitingRoomLocation(player, spawnPoint);
+                            if (waitingRoom != null) {
+                                startAsyncLocationSearch(player, spawnPoint);
+                                return waitingRoom;
+                            }
+                        }
+                        finalLocation = getLocationFromSpawnPoint(player, spawnPoint);
+                    }
+                    executeActions(player, spawnPoint.getActions());
+                }
             }
-        }
 
-        return finalLocation;
+            if (plugin.getConfigManager().isDebugMode()) {
+                if (finalLocation != null) {
+                    plugin.getLogger().info("Final respawn location for " + player.getName() + ": " + locationToString(finalLocation));
+                } else {
+                    plugin.getLogger().warning("No respawn location found for " + player.getName() + ", using default");
+                }
+            }
+
+            return finalLocation;
+        } catch (Exception e) {
+            plugin.getLogger().severe("Error getting spawn location for " + player.getName() + ": " + e.getMessage());
+            if (plugin.getConfigManager().isDebugMode()) {
+                e.printStackTrace();
+            }
+            return null;
+        }
     }
 
     private Location getWaitingRoomLocation(Player player, SpawnPoint spawnPoint) {
@@ -211,37 +221,60 @@ public class SpawnManager {
             plugin.getLogger().info("Starting async location search for " + player.getName());
         }
 
+        // Cancel any existing search for this player
+        CompletableFuture<Location> existingFuture = pendingLocations.remove(playerId);
+        if (existingFuture != null) {
+            existingFuture.cancel(true);
+            if (plugin.getConfigManager().isDebugMode()) {
+                plugin.getLogger().info("Cancelled existing async search for " + player.getName());
+            }
+        }
+
         // Create future for location search
         CompletableFuture<Location> locationFuture = CompletableFuture.supplyAsync(() -> {
-            // Calculate the actual spawn location on a different thread
-            return getLocationFromSpawnPoint(player, spawnPoint);
+            try {
+                // Check if task was canceled before starting
+                if (Thread.currentThread().isInterrupted()) {
+                    return null;
+                }
+
+                return getLocationFromSpawnPoint(player, spawnPoint);
+            } catch (Exception e) {
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().warning("Error in async location search for " + player.getName() + ": " + e.getMessage());
+                }
+                return null;
+            }
         });
 
         // Store the future
         pendingLocations.put(playerId, locationFuture);
 
-        // Set timeout
+        // Set timeout and handle completion
         locationFuture.orTimeout(plugin.getConfigManager().getAsyncSearchTimeout(), TimeUnit.SECONDS)
-                .thenAcceptAsync(location -> {
-                    // Once we have the location, schedule teleport on main thread
-                    if (location != null) {
+                .whenCompleteAsync((location, ex) -> {
+                    // Clean up immediately
+                    pendingLocations.remove(playerId);
+                    selectedWeightedLocations.remove(playerId);
+
+                    if (ex != null) {
+                        if (ex instanceof TimeoutException) {
+                            if (plugin.getConfigManager().isDebugMode()) {
+                                plugin.getLogger().warning("Async location search timed out for " + player.getName());
+                            }
+                        } else if (!(ex instanceof CancellationException)) {
+                            if (plugin.getConfigManager().isDebugMode()) {
+                                plugin.getLogger().warning("Async location search failed for " + player.getName() + ": " + ex.getMessage());
+                            }
+                        }
+                        return;
+                    }
+
+                    if (location != null && player.isOnline()) {
                         scheduleTeleport(player, location, spawnPoint.getActions());
                     } else if (plugin.getConfigManager().isDebugMode()) {
                         plugin.getLogger().warning("Async location search returned null for " + player.getName());
                     }
-
-                    // Clean up
-                    pendingLocations.remove(playerId);
-                    selectedWeightedLocations.remove(playerId);
-                })
-                .exceptionally(ex -> {
-                    // Handle exceptions/timeout
-                    if (plugin.getConfigManager().isDebugMode()) {
-                        plugin.getLogger().warning("Async location search failed for " + player.getName() + ": " + ex.getMessage());
-                    }
-                    pendingLocations.remove(playerId);
-                    selectedWeightedLocations.remove(playerId);
-                    return null;
                 });
     }
 
