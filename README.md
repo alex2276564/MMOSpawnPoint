@@ -58,6 +58,14 @@ Are you tired of players always respawning at the server spawn or their bed afte
 
 SmartSpawnPoint revolutionizes player respawning with features like:
 
+### 🗺️ Adventure Map & Custom Map Support
+
+* Perfect for adventure maps and custom map experiences
+* Create checkpoint-based respawn systems for challenging parkour or puzzle maps
+* Design story-driven respawn experiences that enhance narrative flow
+* Support for map makers who want players to respawn at specific story points rather than beds
+* Ideal for escape rooms, quest maps, and linear adventure experiences where traditional respawn mechanics would break immersion
+
 ### 🌍 Region-Based Respawning
 
 * Send players who die in a PvP arena directly to a spectator area
@@ -172,7 +180,11 @@ SmartSpawnPoint isn't just a spawn point plugin - it's a complete respawn manage
 
 ## ⚠️ Important Notes
 
-1. **Nether Teleportation**: If you want to teleport players to the Nether, refer to the example in the configuration. Make sure to set `require-safe: true` to avoid players spawning in dangerous locations.
+1. **Nether and End Teleportation**: If you want to teleport players to the Nether or End dimensions, refer to the examples in the configuration. Make sure to set `require-safe: true` to avoid players spawning in dangerous locations like lava pools in the Nether or void areas in the End.
+
+   **Recommended Y-coordinates:**
+   - **Nether**: Use `min-y: 30` and `max-y: 100` to avoid spawning players on the Nether roof (y=128) or in lava lakes at bedrock level
+   - **End**: Use `min-y: 50` and `max-y: 80` to prevent spawning in the void or too close to the ground where endermen might be aggressive
 
 2. **Region Entry vs Respawn**: SmartSpawnPoint only handles player respawning after death, not entry into regions or worlds. For region entry commands, use WorldGuard flags like `entry-command` or `entry-deny`. For first-join teleportation, consider using Multiverse-Core's `firstspawnoverride` setting.
 
@@ -238,7 +250,28 @@ If you encounter issues with the plugin:
 2. **Enable debug mode**: Set `debug-mode: true` in the config to get detailed logs
 3. **Check for conflicts**: Ensure no other plugins are handling respawn events
 4. **Verify dependencies**: Make sure you have the correct versions of WorldGuard and PlaceholderAPI if you're using those features
-5. **Plugin conflicts**: Avoid configuring SmartSpawnPoint respawn mechanics in regions or worlds that are already managed by plugins like MythicDungeons. These plugins often have their own respawn handling, which can conflict with SmartSpawnPoint.
+5. **Plugin conflicts**: Avoid configuring SmartSpawnPoint respawn mechanics in regions or worlds where plugins like MythicDungeons already manage respawn handling. These plugins have their own respawn systems, which can conflict with SmartSpawnPoint.
+
+   **Party System Compatibility with Dungeon Plugins**: The SmartSpawnPoint party system may interfere with dungeon plugins' respawn mechanics (such as MythicDungeons, DungeonsXL, etc.). If you experience conflicts, disable party respawn in specific worlds or regions where dungeons exist.
+
+   **For MythicDungeons worlds**, disable party respawn like this:
+   ```yaml
+   world-spawns:
+     - world: "MythicDungeonWorld_0"
+       type: "none"
+       party-respawn-disabled: true
+   ```
+
+   **For region-based dungeon plugins**, create a WorldGuard region (make sure you set appropriate flags for your dungeon system, such as block-break permissions if needed) and configure it like this:
+   ```yaml
+   region-spawns:
+     - region: "DungeonRegion_0"
+       region-world: "DungeonWorld"
+       type: "none"
+       party-respawn-disabled: true
+   ```
+
+   Always test thoroughly after making these changes to ensure your dungeon systems work correctly with SmartSpawnPoint.
 6. **Delayed teleportation**: If you're experiencing issues with other plugins that handle teleportation or respawning, try setting `force-delayed-teleport: true` in the config. This can help resolve timing conflicts by ensuring SmartSpawnPoint's teleportation happens after other plugins have processed the respawn event.
 
 ## 📦 Compatibility
