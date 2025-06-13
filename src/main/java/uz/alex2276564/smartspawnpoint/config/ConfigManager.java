@@ -80,6 +80,69 @@ public class ConfigManager {
     @Getter
     private String respawnAtDeathMessage;
 
+    @Getter
+    private boolean respawnAtDeathRespectRestrictions;
+
+    @Getter
+    private String respawnAtDeathRestrictedBehavior;
+
+    @Getter
+    private boolean respawnAtDeathCheckDeathLocation;
+
+    @Getter
+    private boolean respawnAtDeathCheckTargetLocation;
+
+    @Getter
+    private String respawnAtDeathRestrictedMessage;
+
+    @Getter
+    private boolean partyCheckDeathLocation;
+
+    @Getter
+    private boolean partyCheckTargetLocation;
+
+    @Getter
+    private String partyDeathRestrictedBehavior;
+
+    @Getter
+    private String partyTargetRestrictedBehavior;
+
+    @Getter
+    private String partyBothRestrictedBehavior;
+
+    @Getter
+    private boolean partyFindAlternativeTarget;
+
+    @Getter
+    private int partyAlternativeTargetAttempts;
+
+    @Getter
+    private String partyTargetSelectionPrimary;
+
+    @Getter
+    private String partyTargetSelectionFallback;
+
+    @Getter
+    private boolean partyPreferSameWorld;
+
+    @Getter
+    private boolean partyPreferLeader;
+
+    @Getter
+    private boolean partyConsiderWorldPopulation;
+
+    @Getter
+    private boolean partyConsiderRegionPopulation;
+
+    @Getter
+    private int partyMinPopulationThreshold;
+
+    @Getter
+    private int partyMaxAlternativeAttempts;
+
+    @Getter
+    private Map<String, String> commandMessages;
+
     public ConfigManager(SmartSpawnPoint plugin) {
         this.plugin = plugin;
         this.regionSpawns = new ArrayList<>();
@@ -351,6 +414,32 @@ public class ConfigManager {
 
         respawnAtDeathMessage = config.getString("settings.party.respawn-at-death.message", "&aYou have respawned at your death location as a walking spawn point");
 
+        // Load walking spawn point restriction settings
+        respawnAtDeathRespectRestrictions = config.getBoolean("settings.party.respawn-at-death.restriction-behavior.respect-restrictions", true);
+        respawnAtDeathRestrictedBehavior = config.getString("settings.party.respawn-at-death.restriction-behavior.restricted-area-behavior", "deny");
+        respawnAtDeathCheckDeathLocation = config.getBoolean("settings.party.respawn-at-death.restriction-behavior.check-death-location", true);
+        respawnAtDeathCheckTargetLocation = config.getBoolean("settings.party.respawn-at-death.restriction-behavior.check-target-location", false);
+        respawnAtDeathRestrictedMessage = config.getString("settings.party.respawn-at-death.restriction-behavior.restricted-message", "&cWalking spawn point is disabled in this area.");
+
+        // Load party respawn behavior settings
+        partyCheckDeathLocation = config.getBoolean("settings.party.respawn-behavior.check-death-location", true);
+        partyCheckTargetLocation = config.getBoolean("settings.party.respawn-behavior.check-target-location", true);
+        partyDeathRestrictedBehavior = config.getString("settings.party.respawn-behavior.death-restricted-behavior", "allow");
+        partyTargetRestrictedBehavior = config.getString("settings.party.respawn-behavior.target-restricted-behavior", "deny");
+        partyBothRestrictedBehavior = config.getString("settings.party.respawn-behavior.both-restricted-behavior", "deny");
+        partyFindAlternativeTarget = config.getBoolean("settings.party.respawn-behavior.find-alternative-target", true);
+        partyAlternativeTargetAttempts = config.getInt("settings.party.respawn-behavior.alternative-target-attempts", 3);
+
+        // Load target selection settings
+        partyTargetSelectionPrimary = config.getString("settings.party.respawn-behavior.target-selection.primary-strategy", "closest_same_world");
+        partyTargetSelectionFallback = config.getString("settings.party.respawn-behavior.target-selection.fallback-strategy", "closest_any_world");
+        partyPreferSameWorld = config.getBoolean("settings.party.respawn-behavior.target-selection.prefer-same-world", true);
+        partyPreferLeader = config.getBoolean("settings.party.respawn-behavior.target-selection.prefer-leader", false);
+        partyConsiderWorldPopulation = config.getBoolean("settings.party.respawn-behavior.target-selection.consider-world-population", false);
+        partyConsiderRegionPopulation = config.getBoolean("settings.party.respawn-behavior.target-selection.consider-region-population", false);
+        partyMinPopulationThreshold = config.getInt("settings.party.respawn-behavior.target-selection.min-population-threshold", 2);
+        partyMaxAlternativeAttempts = config.getInt("settings.party.respawn-behavior.target-selection.max-alternative-attempts", 3);
+
         // Load party messages
         if (config.contains("settings.party.messages")) {
             ConfigurationSection messagesSection = config.getConfigurationSection("settings.party.messages");
@@ -430,6 +519,21 @@ public class ConfigManager {
                 SafeLocationFinder.setUnsafeMaterials(unsafeMaterials);
             }
         }
+        // Load command messages
+        commandMessages = new HashMap<>();
+        if (config.contains("settings.command-messages")) {
+            ConfigurationSection commandSection = config.getConfigurationSection("settings.command-messages");
+            if (commandSection != null) {
+                for (String key : commandSection.getKeys(false)) {
+                    commandMessages.put(key, commandSection.getString(key, ""));
+                }
+            }
+        }
+    }
+
+    // Add helper method to get command messages
+    public String getCommandMessage(String key) {
+        return commandMessages.getOrDefault(key, "").replace("&", "§");
     }
 
     private SpawnLocation parseFixedLocation(Map<?, ?> locationMap) {

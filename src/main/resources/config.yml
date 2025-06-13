@@ -439,7 +439,75 @@ settings:
     respawn-at-death:
       enabled: true
       permission: "smartspawnpoint.party.respawnatdeath"
-      message: "&aYou have respawned at your death location as a walking spawn point"
+      message: "&8[&4Death&8] &7You have risen at your death location as a &cwalking spawn point&7."
+
+      # How walking spawn point interacts with restrictions
+      restriction-behavior:
+        # Whether walking spawn point should respect party-respawn-disabled areas
+        respect-restrictions: true
+
+        # What to do when walking spawn point player dies in restricted area
+        # Options: "deny", "allow", "fallback_to_party", "fallback_to_normal_spawn"
+        restricted-area-behavior: "deny"
+
+        # Whether to check both death location and target location restrictions
+        check-death-location: true
+        check-target-location: false
+
+        # Custom message when walking spawn point is denied due to restrictions
+        restricted-message: "&8[&4Death&8] &cDark forces prevent you from rising here..."
+
+    # Party respawn behavior control
+    respawn-behavior:
+      # Check dying player's location for restrictions
+      check-death-location: true
+
+      # Check target player's location for restrictions
+      check-target-location: true
+
+      # What to do when only death location is restricted
+      # Options: "allow", "deny", "fallback_to_normal_spawn"
+      death-restricted-behavior: "deny"
+
+      # What to do when only target location is restricted
+      # Options: "allow", "deny", "find_other_member"
+      target-restricted-behavior: "deny"
+
+      # What to do when both locations are restricted
+      both-restricted-behavior: "deny"
+
+      # Try to find alternative party members if target is in restricted area
+      find-alternative-target: true
+
+      # Maximum attempts to find alternative party member
+      alternative-target-attempts: 3
+
+      # Target selection strategy
+      target-selection:
+        # Primary strategy: "closest_same_world", "closest_any_world", "most_members_world",
+        # "most_members_region", "random", "leader_priority", "specific_target_only"
+        primary-strategy: "closest_same_world"
+
+        # Fallback strategy if primary fails
+        fallback-strategy: "closest_any_world"
+
+        # Whether to prefer players in same world
+        prefer-same-world: true
+
+        # Whether to prefer party leader over other members
+        prefer-leader: false
+
+        # Whether to consider world population when selecting target
+        consider-world-population: false
+
+        # Whether to consider region population when selecting target
+        consider-region-population: false
+
+        # Minimum members required in a world/region to prefer it
+        min-population-threshold: 2
+
+        # Maximum attempts to find alternative target
+        max-alternative-attempts: 3
 
     # Invitation expiry time (seconds)
     invitation-expiry: 60
@@ -447,26 +515,26 @@ settings:
     # Message settings
     messages:
       # Colors: You can use '&' for color codes
-      prefix: "&8[&bParty&8] &r"
-      invite-sent: "&aInvitation sent to %player%"
-      invite-received: "&aYou've been invited to join %player%'s party. Type /smartspawnpoint party accept to join"
-      invite-declined: "&c%player% has declined your party invitation"
-      invite-expired: "&cParty invitation expired"
-      party-joined: "&a%player% has joined your party!"
-      party-left: "&c%player% has left the party"
-      player-kicked: "&c%player% has been removed from the party"
-      player-not-found: "&cPlayer not found or offline"
-      not-in-party: "&cYou are not in a party"
-      not-leader: "&cOnly the party leader can do this"
-      player-not-in-party: "&cThis player is not in your party"
-      leader-changed: "&a%player% is now the party leader"
-      party-disbanded: "&cThe party has been disbanded"
-      respawned-at-member: "&aYou have respawned at %player%'s location"
-      respawn-mode-changed: "&aParty respawn mode set to: %mode%"
-      respawn-target-set: "&aYou will now respawn at %player%'s location"
-      respawn-disabled-region: "&cParty respawn is disabled in this region"
-      respawn-disabled-world: "&cParty respawn is disabled in this world"
-      respawn-cooldown: "&cYou must wait %time% seconds before using party respawn again"
+      prefix: "&8[&4Death Party&8] &r"
+      invite-sent: "&7Soul bond invitation sent to &c%player%"
+      invite-received: "&7%player% &7invites you to join their &4death party&7. Type &f/smartspawnpoint party accept &7to bind your souls"
+      invite-declined: "&c%player% &7has rejected the soul bond"
+      invite-expired: "&7The soul bond invitation has faded into darkness"
+      party-joined: "&c%player% &7has joined your death party!"
+      party-left: "&7%player%'s &7soul has departed from the party"
+      player-kicked: "&c%player% &7has been cast out from the death party"
+      player-not-found: "&7Lost soul not found or wandering offline"
+      not-in-party: "&7Your soul walks alone in darkness"
+      not-leader: "&cOnly the death party leader can command the souls"
+      player-not-in-party: "&cThis soul is not bound to your death party"
+      leader-changed: "&c%player% &7now commands the death party"
+      party-disbanded: "&7The death party has dissolved into the void"
+      respawned-at-member: "&7Your soul has been drawn to &c%player%'s &7essence"
+      respawn-mode-changed: "&7Death party binding changed to: &c%mode%"
+      respawn-target-set: "&7Your soul will now seek &c%player% &7in death"
+      respawn-disabled-region: "&cThe necromantic bonds are severed in this sacred ground"
+      respawn-disabled-world: "&cDeath party bonds cannot pierce this realm's barriers"
+      respawn-cooldown: "&7Your soul must rest for &c%time% &7seconds before the next summoning"
 
   # List of materials considered unsafe (will avoid spawning on these)
   unsafe-materials:
@@ -480,3 +548,21 @@ settings:
     - "SOUL_CAMPFIRE"
     - "WITHER_ROSE"
     - "SWEET_BERRY_BUSH"
+
+  command-messages:
+    main-help-header: "&8[&4SmartSpawnPoint&8] &7Available necromantic arts:"
+    main-help-reload: "&7» &f/ssp reload &8- &7Reload the &cdark configuration"
+    main-help-party: "&7» &f/ssp party &8- &7Soul binding &ccommands"
+
+    party-help-header: "&8[&4Soul Binding&8] &7Available death party commands:"
+    party-help-invite: "&7» &f/ssp party invite &8<&csoul&8> &8- &7Bind a soul to your &cdeath party"
+    party-help-accept: "&7» &f/ssp party accept &8- &7Accept a &csoul bond &7invitation"
+    party-help-deny: "&7» &f/ssp party deny &8- &7Reject a &csoul bond &7invitation"
+    party-help-leave: "&7» &f/ssp party leave &8- &7Sever your soul from the &cdeath party"
+    party-help-list: "&7» &f/ssp party list &8- &7View all &cbound souls"
+    party-help-remove: "&7» &f/ssp party remove &8<&csoul&8> &8- &7Cast out a soul from your &cdeath party"
+    party-help-setleader: "&7» &f/ssp party setleader &8<&csoul&8> &8- &7Transfer &cdark leadership"
+    party-help-options: "&7» &f/ssp party options &8- &7Configure &csoul binding &7options"
+
+    unknown-command: "&8[&4Error&8] &cUnknown necromantic command. &7Use &f/ssp &7for guidance."
+    party-disabled: "&8[&4Error&8] &cSoul binding is forbidden in this realm."

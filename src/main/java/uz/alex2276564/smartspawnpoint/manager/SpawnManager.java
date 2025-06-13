@@ -82,7 +82,14 @@ public class SpawnManager {
         // Check for party respawn if party system is enabled
         if (plugin.getConfigManager().isPartyEnabled() && partyManager != null) {
             Location partyLocation = partyManager.findPartyRespawnLocation(player, deathLocation);
-            if (partyLocation != null) {
+
+            // Check for fallback marker
+            if (partyLocation == PartyManager.FALLBACK_TO_NORMAL_SPAWN_MARKER) {
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().info("Walking spawn point requested fallback to normal spawn for " + player.getName());
+                }
+                // Skip party system and continue with normal spawn logic
+            } else if (partyLocation != null) {
                 if (plugin.getConfigManager().isDebugMode()) {
                     plugin.getLogger().info("Using party respawn location for " + player.getName() + ": " + locationToString(partyLocation));
                 }

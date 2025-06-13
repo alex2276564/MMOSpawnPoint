@@ -27,9 +27,7 @@ public class MainCommandExecutor implements TabExecutor {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 0) {
-            sender.sendMessage("§6=== SmartSpawnPoint Help ===");
-            sender.sendMessage("§e/ssp reload §7- Reload the plugin configuration");
-            sender.sendMessage("§e/ssp party §7- Party commands");
+            sendMainHelp(sender);
             return true;
         }
 
@@ -41,18 +39,19 @@ public class MainCommandExecutor implements TabExecutor {
         }
 
         // Handle party commands
-        if (subCommand.equals("party") && plugin.getConfigManager().isPartyEnabled()) {
+        if (subCommand.equals("party")) {
+            if (!plugin.getConfigManager().isPartyEnabled()) {
+                String disabledMessage = plugin.getConfigManager().getCommandMessage("party-disabled");
+                if (!disabledMessage.isEmpty()) {
+                    sender.sendMessage(disabledMessage);
+                } else {
+                    sender.sendMessage("§cParty system is disabled.");
+                }
+                return true;
+            }
+
             if (args.length == 1) {
-                // Show party help
-                sender.sendMessage("§6=== Party Commands ===");
-                sender.sendMessage("§e/ssp party invite <player> §7- Invite player to your party");
-                sender.sendMessage("§e/ssp party accept §7- Accept a party invitation");
-                sender.sendMessage("§e/ssp party deny §7- Decline a party invitation");
-                sender.sendMessage("§e/ssp party leave §7- Leave your current party");
-                sender.sendMessage("§e/ssp party list §7- List all party members");
-                sender.sendMessage("§e/ssp party remove <player> §7- Remove a player from your party");
-                sender.sendMessage("§e/ssp party setleader <player> §7- Transfer party leadership");
-                sender.sendMessage("§e/ssp party options §7- View and change party options");
+                sendPartyHelp(sender);
                 return true;
             }
 
@@ -60,8 +59,81 @@ public class MainCommandExecutor implements TabExecutor {
         }
 
         // Unknown command
-        sender.sendMessage("§cUnknown command. Use /ssp for help.");
+        String unknownMessage = plugin.getConfigManager().getCommandMessage("unknown-command");
+        if (!unknownMessage.isEmpty()) {
+            sender.sendMessage(unknownMessage);
+        } else {
+            sender.sendMessage("§cUnknown command. Use /ssp for help.");
+        }
         return true;
+    }
+
+    private void sendMainHelp(CommandSender sender) {
+        String header = plugin.getConfigManager().getCommandMessage("main-help-header");
+        String reloadHelp = plugin.getConfigManager().getCommandMessage("main-help-reload");
+        String partyHelp = plugin.getConfigManager().getCommandMessage("main-help-party");
+
+        if (!header.isEmpty()) {
+            sender.sendMessage(header);
+        } else {
+            sender.sendMessage("§6=== SmartSpawnPoint Help ===");
+        }
+
+        if (!reloadHelp.isEmpty()) {
+            sender.sendMessage(reloadHelp);
+        } else {
+            sender.sendMessage("§e/ssp reload §7- Reload the plugin configuration");
+        }
+
+        if (plugin.getConfigManager().isPartyEnabled()) {
+            if (!partyHelp.isEmpty()) {
+                sender.sendMessage(partyHelp);
+            } else {
+                sender.sendMessage("§e/ssp party §7- Party commands");
+            }
+        }
+    }
+
+    private void sendPartyHelp(CommandSender sender) {
+        String header = plugin.getConfigManager().getCommandMessage("party-help-header");
+
+        if (!header.isEmpty()) {
+            sender.sendMessage(header);
+        } else {
+            sender.sendMessage("§6=== Party Commands ===");
+        }
+
+        // Send all party help messages
+        String[] helpKeys = {
+                "party-help-invite",
+                "party-help-accept",
+                "party-help-deny",
+                "party-help-leave",
+                "party-help-list",
+                "party-help-remove",
+                "party-help-setleader",
+                "party-help-options"
+        };
+
+        String[] fallbackMessages = {
+                "§e/ssp party invite <player> §7- Invite player to your party",
+                "§e/ssp party accept §7- Accept a party invitation",
+                "§e/ssp party deny §7- Decline a party invitation",
+                "§e/ssp party leave §7- Leave your current party",
+                "§e/ssp party list §7- List all party members",
+                "§e/ssp party remove <player> §7- Remove a player from your party",
+                "§e/ssp party setleader <player> §7- Transfer party leadership",
+                "§e/ssp party options §7- View and change party options"
+        };
+
+        for (int i = 0; i < helpKeys.length; i++) {
+            String message = plugin.getConfigManager().getCommandMessage(helpKeys[i]);
+            if (!message.isEmpty()) {
+                sender.sendMessage(message);
+            } else {
+                sender.sendMessage(fallbackMessages[i]);
+            }
+        }
     }
 
     @Override

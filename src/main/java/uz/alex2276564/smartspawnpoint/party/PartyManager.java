@@ -5,7 +5,6 @@ import uz.alex2276564.smartspawnpoint.config.ConfigManager;
 import uz.alex2276564.smartspawnpoint.model.SpawnPoint;
 import uz.alex2276564.smartspawnpoint.util.WorldGuardUtils;
 import lombok.Getter;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
@@ -13,6 +12,9 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.*;
 
 public class PartyManager {
+    // Special marker location to indicate fallback to normal spawn
+    public static final Location FALLBACK_TO_NORMAL_SPAWN_MARKER = new Location(null, 0, 0, 0);
+
     private final SmartSpawnPoint plugin;
     private final Map<UUID, Party> parties = new HashMap<>();
     private final Map<UUID, UUID> playerPartyMap = new HashMap<>();
@@ -44,16 +46,13 @@ public class PartyManager {
     }
 
     private void startCleanupTask() {
-        cleanupTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        plugin.getRunner().runPeriodical(() -> {
             cleanupParties();
             cleanupInvitations();
         }, 1200L, 1200L); // Run every minute (20 ticks * 60 seconds)
     }
 
     public void shutdown() {
-        if (cleanupTask != null) {
-            cleanupTask.cancel();
-        }
         parties.clear();
         playerPartyMap.clear();
         pendingInvitations.clear();
@@ -356,108 +355,60 @@ public class PartyManager {
             return null;
         }
 
-        // Check for "Walking Spawn Point" feature - players with permission respawn at their death location
-        if (plugin.getConfigManager().isRespawnAtDeathEnabled() &&
-                player.hasPermission(plugin.getConfigManager().getRespawnAtDeathPermission())) {
-
-            // Send message to player
-            String message = plugin.getConfigManager().getRespawnAtDeathMessage();
-            if (!message.isEmpty()) {
-                player.sendMessage(message.replace("&", "§"));
-            }
-
-            if (plugin.getConfigManager().isDebugMode()) {
-                plugin.getLogger().info("Player " + player.getName() + " respawning at death location (walking spawn point)");
-            }
-
-            // Return death location
-            return deathLocation;
-        }
-
-        // Check if player is on cooldown (skip if respawnCooldown <= 0 for unlimited)
+        // Check if player is on cooldown
         if (respawnCooldown > 0 && party.isOnRespawnCooldown(playerId)) {
             long remainingSeconds = party.getRemainingCooldown(playerId);
-
-            // Send cooldown message
             Map<String, String> replacements = new HashMap<>();
             replacements.put("time", String.valueOf(remainingSeconds));
             String message = plugin.getConfigManager().formatPartyMessage("respawn-cooldown", replacements);
             if (!message.isEmpty()) {
                 player.sendMessage(message);
             }
-
             return null;
         }
 
-        // Find target player to respawn near
-        Player target = null;
-        if (party.getRespawnTarget() != null) {
-            target = party.getRespawnTargetPlayer();
+        // Check for "Walking Spawn Point" feature
+        if (plugin.getConfigManager().isRespawnAtDeathEnabled() &&
+                player.hasPermission(plugin.getConfigManager().getRespawnAtDeathPermission())) {
+
+            return handleWalkingSpawnPoint(player, deathLocation, party);
         }
 
-        // If no specific target, find any online member
-        if (target == null || !target.isOnline()) {
-            List<Player> onlineMembers = party.getOnlineMembers();
-            onlineMembers.remove(player); // Remove self from list
+        // Continue with normal party respawn logic...
+        boolean deathRestricted = plugin.getConfigManager().isPartyCheckDeathLocation() &&
+                isPartyRespawnDisabled(deathLocation);
 
-            if (onlineMembers.isEmpty()) {
-                return null;
-            }
-
-            // Find closest party member
-            Player closest = null;
-            double closestDist = Double.MAX_VALUE;
-
-            for (Player member : onlineMembers) {
-                if (member.getWorld().equals(deathLocation.getWorld())) {
-                    double dist = member.getLocation().distance(deathLocation);
-                    if (dist < closestDist) {
-                        closestDist = dist;
-                        closest = member;
-                    }
-                }
-            }
-
-            if (closest != null) {
-                target = closest;
-            } else {
-                // No member in same world, just pick first online member
-                target = onlineMembers.get(0);
-            }
-        }
-
-        if (target == null || !target.isOnline()) {
+        Player target = findBestTarget(party, player, deathLocation);
+        if (target == null) {
             return null;
         }
 
-        // Get target location
         Location targetLocation = target.getLocation();
+        boolean targetRestricted = plugin.getConfigManager().isPartyCheckTargetLocation() &&
+                isPartyRespawnDisabled(targetLocation);
 
-        // Check if target location is in a region/world where party respawn is disabled
-        if (isPartyRespawnDisabled(targetLocation)) {
-            // Send message
-            String message = plugin.getConfigManager().getPartyMessage("respawn-disabled-region");
-            if (!message.isEmpty()) {
-                player.sendMessage(message.replace("&", "§"));
-            }
-            return null;
+        // Handle restriction logic based on configuration
+        if (deathRestricted && targetRestricted) {
+            return handleBothRestricted(player, party, deathLocation);
+        } else if (deathRestricted) {
+            return handleDeathRestricted(player, party, target, deathLocation);
+        } else if (targetRestricted) {
+            return handleTargetRestricted(player, party, deathLocation);
         }
 
-        // Check distance limitation (skip if maxRespawnDistance <= 0 for unlimited)
+        // Check distance limitation
         if (maxRespawnDistance > 0 && !target.getWorld().equals(deathLocation.getWorld())) {
-            // Different world, apply distance check only if same world
-            // For different worlds, we always allow teleport regardless of distance
+            // Different world allowed
         } else if (maxRespawnDistance > 0 && target.getLocation().distance(deathLocation) > maxRespawnDistance) {
             player.sendMessage("§cThe party member is too far away to respawn at their location.");
             return null;
         }
 
-        // Set cooldown (only if respawnCooldown > 0)
+        // Set cooldown and send success message
         if (respawnCooldown > 0) {
             party.setRespawnCooldown(playerId, respawnCooldown);
         }
 
-        // Send message
         Map<String, String> replacements = new HashMap<>();
         replacements.put("player", target.getName());
         String message = plugin.getConfigManager().formatPartyMessage("respawned-at-member", replacements);
@@ -466,6 +417,368 @@ public class PartyManager {
         }
 
         return targetLocation;
+    }
+
+    private Location handleWalkingSpawnPoint(Player player, Location deathLocation, Party party) {
+        // Check if walking spawn point should respect restrictions
+        if (!plugin.getConfigManager().isRespawnAtDeathRespectRestrictions()) {
+            // Old behavior - always allow walking spawn point, ignore restrictions
+            sendWalkingSpawnPointMessage(player);
+            return deathLocation;
+        }
+
+        // Check restrictions based on configuration
+        boolean deathRestricted = plugin.getConfigManager().isRespawnAtDeathCheckDeathLocation() &&
+                isPartyRespawnDisabled(deathLocation);
+
+        boolean targetRestricted = false;
+        if (plugin.getConfigManager().isRespawnAtDeathCheckTargetLocation()) {
+            // For walking spawn point, "target" is also the death location
+            targetRestricted = isPartyRespawnDisabled(deathLocation);
+        }
+
+        // If no restrictions, allow walking spawn point
+        if (!deathRestricted && !targetRestricted) {
+            sendWalkingSpawnPointMessage(player);
+            return deathLocation;
+        }
+
+        // Handle restricted walking spawn point based on configuration
+        String behavior = plugin.getConfigManager().getRespawnAtDeathRestrictedBehavior();
+
+        switch (behavior.toLowerCase()) {
+            case "allow":
+                // Force allow walking spawn point even in restricted areas
+                sendWalkingSpawnPointMessage(player);
+                return deathLocation;
+
+            case "fallback_to_party":
+                // Try normal party respawn instead
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().info("Walking spawn point denied for " + player.getName() +
+                            ", falling back to party respawn");
+                }
+                return null; // This will continue to normal party logic
+
+            case "fallback_to_normal_spawn":
+                // Skip party system entirely, use normal spawn logic
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().info("Walking spawn point denied for " + player.getName() +
+                            ", falling back to normal spawn");
+                }
+                // Return a special marker that tells the main spawn system to ignore party
+                return FALLBACK_TO_NORMAL_SPAWN_MARKER;
+
+            case "deny":
+            default:
+                // Deny walking spawn point and send message
+                String restrictedMessage = plugin.getConfigManager().getRespawnAtDeathRestrictedMessage();
+                if (!restrictedMessage.isEmpty()) {
+                    player.sendMessage(restrictedMessage.replace("&", "§"));
+                }
+
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().info("Walking spawn point denied for " + player.getName() +
+                            " due to restrictions");
+                }
+
+                return null; // This will continue to normal party logic
+        }
+    }
+
+    private void sendWalkingSpawnPointMessage(Player player) {
+        String message = plugin.getConfigManager().getRespawnAtDeathMessage();
+        if (!message.isEmpty()) {
+            player.sendMessage(message.replace("&", "§"));
+        }
+
+        if (plugin.getConfigManager().isDebugMode()) {
+            plugin.getLogger().info("Player " + player.getName() + " respawning at death location (walking spawn point)");
+        }
+    }
+
+    private Player findBestTarget(Party party, Player excludePlayer, Location deathLocation) {
+        // Try specific target first if set
+        if (party.getRespawnTarget() != null) {
+            Player specificTarget = party.getRespawnTargetPlayer();
+            if (specificTarget != null && specificTarget.isOnline() && !specificTarget.equals(excludePlayer)) {
+                return specificTarget;
+            }
+        }
+
+        // Get all online party members except the dying player
+        List<Player> candidates = party.getOnlineMembers();
+        candidates.remove(excludePlayer);
+
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        // Apply primary strategy
+        Player target = selectTargetByStrategy(candidates, deathLocation,
+                plugin.getConfigManager().getPartyTargetSelectionPrimary());
+
+        // If primary strategy failed, try fallback
+        if (target == null) {
+            target = selectTargetByStrategy(candidates, deathLocation,
+                    plugin.getConfigManager().getPartyTargetSelectionFallback());
+        }
+
+        // If still no target, just return first available
+        return target != null ? target : candidates.get(0);
+    }
+
+    private Player selectTargetByStrategy(List<Player> candidates, Location deathLocation, String strategy) {
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        switch (strategy.toLowerCase()) {
+            case "closest_same_world":
+                return findClosestInSameWorld(candidates, deathLocation);
+
+            case "closest_any_world":
+                return findClosestAnyWorld(candidates, deathLocation);
+
+            case "most_members_world":
+                return findTargetInMostPopulatedWorld(candidates);
+
+            case "most_members_region":
+                return findTargetInMostPopulatedRegion(candidates);
+
+            case "random":
+                return candidates.get(new Random().nextInt(candidates.size()));
+
+            case "leader_priority":
+                return findWithLeaderPriority(candidates);
+
+            case "specific_target_only":
+                // Only use specifically set target, no fallback
+                return null;
+
+            default:
+                return findClosestInSameWorld(candidates, deathLocation);
+        }
+    }
+
+    private Player findClosestInSameWorld(List<Player> candidates, Location deathLocation) {
+        Player closest = null;
+        double closestDist = Double.MAX_VALUE;
+
+        for (Player candidate : candidates) {
+            if (candidate.getWorld().equals(deathLocation.getWorld())) {
+                double dist = candidate.getLocation().distance(deathLocation);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closest = candidate;
+                }
+            }
+        }
+
+        return closest;
+    }
+
+    private Player findClosestAnyWorld(List<Player> candidates, Location deathLocation) {
+        if (plugin.getConfigManager().isPartyPreferSameWorld()) {
+            Player sameWorldTarget = findClosestInSameWorld(candidates, deathLocation);
+            if (sameWorldTarget != null) {
+                return sameWorldTarget;
+            }
+        }
+
+        // If no same-world target or not preferring same world, find closest regardless of world
+        Player closest = null;
+        double closestDist = Double.MAX_VALUE;
+
+        for (Player candidate : candidates) {
+            if (candidate.getWorld().equals(deathLocation.getWorld())) {
+                double dist = candidate.getLocation().distance(deathLocation);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closest = candidate;
+                }
+            }
+        }
+
+        // If no same-world players, just return first from different world
+        if (closest == null) {
+            for (Player candidate : candidates) {
+                if (!candidate.getWorld().equals(deathLocation.getWorld())) {
+                    return candidate;
+                }
+            }
+        }
+
+        return closest;
+    }
+
+    private Player findTargetInMostPopulatedWorld(List<Player> candidates) {
+        Map<String, List<Player>> worldGroups = new HashMap<>();
+
+        // Group candidates by world
+        for (Player candidate : candidates) {
+            String worldName = candidate.getWorld().getName();
+            worldGroups.computeIfAbsent(worldName, k -> new ArrayList<>()).add(candidate);
+        }
+
+        // Find world with most party members
+        String bestWorld = null;
+        int maxMembers = 0;
+
+        for (Map.Entry<String, List<Player>> entry : worldGroups.entrySet()) {
+            int memberCount = entry.getValue().size();
+            if (memberCount > maxMembers && memberCount >= plugin.getConfigManager().getPartyMinPopulationThreshold()) {
+                maxMembers = memberCount;
+                bestWorld = entry.getKey();
+            }
+        }
+
+        if (bestWorld != null) {
+            List<Player> worldCandidates = worldGroups.get(bestWorld);
+            return worldCandidates.get(new Random().nextInt(worldCandidates.size()));
+        }
+
+        return null;
+    }
+
+    private Player findTargetInMostPopulatedRegion(List<Player> candidates) {
+        if (!plugin.isWorldGuardEnabled()) {
+            // Fallback to world population if WorldGuard not available
+            return findTargetInMostPopulatedWorld(candidates);
+        }
+
+        Map<String, List<Player>> regionGroups = new HashMap<>();
+
+        // Group candidates by their current region
+        for (Player candidate : candidates) {
+            Set<String> regions = WorldGuardUtils.getRegionsAt(candidate.getLocation());
+            String regionKey = regions.isEmpty() ? "wilderness" : String.join(",", regions);
+            regionGroups.computeIfAbsent(regionKey, k -> new ArrayList<>()).add(candidate);
+        }
+
+        // Find region with most party members
+        String bestRegion = null;
+        int maxMembers = 0;
+
+        for (Map.Entry<String, List<Player>> entry : regionGroups.entrySet()) {
+            int memberCount = entry.getValue().size();
+            if (memberCount > maxMembers && memberCount >= plugin.getConfigManager().getPartyMinPopulationThreshold()) {
+                maxMembers = memberCount;
+                bestRegion = entry.getKey();
+            }
+        }
+
+        if (bestRegion != null) {
+            List<Player> regionCandidates = regionGroups.get(bestRegion);
+            return regionCandidates.get(new Random().nextInt(regionCandidates.size()));
+        }
+
+        return null;
+    }
+
+    private Player findWithLeaderPriority(List<Player> candidates) {
+        if (plugin.getConfigManager().isPartyPreferLeader()) {
+            // Find the party leader among candidates
+            for (Player candidate : candidates) {
+                Party party = getPlayerParty(candidate.getUniqueId());
+                if (party != null && party.isLeader(candidate.getUniqueId())) {
+                    return candidate;
+                }
+            }
+        }
+
+        // If leader not found or not preferring leader, return random
+        return candidates.get(new Random().nextInt(candidates.size()));
+    }
+
+    private Location handleBothRestricted(Player player, Party party, Location deathLocation) {
+        String behavior = plugin.getConfigManager().getPartyBothRestrictedBehavior();
+
+        switch (behavior.toLowerCase()) {
+            case "allow":
+                // Force allow anyway (admin choice)
+                Player target = findBestTarget(party, player, deathLocation);
+                return target != null ? target.getLocation() : null;
+
+            case "fallback_to_normal_spawn":
+                // Let normal spawn system handle it
+                return null;
+
+            case "deny":
+            default:
+                String message = plugin.getConfigManager().getPartyMessage("respawn-disabled-region");
+                if (!message.isEmpty()) {
+                    player.sendMessage(message.replace("&", "§"));
+                }
+                return null;
+        }
+    }
+
+    private Location handleDeathRestricted(Player player, Party party, Player target, Location deathLocation) {
+        String behavior = plugin.getConfigManager().getPartyDeathRestrictedBehavior();
+
+        switch (behavior.toLowerCase()) {
+            case "deny":
+                String message = plugin.getConfigManager().getPartyMessage("respawn-disabled-region");
+                if (!message.isEmpty()) {
+                    player.sendMessage(message.replace("&", "§"));
+                }
+                return null;
+
+            case "fallback_to_normal_spawn":
+                return null;
+
+            case "allow":
+            default:
+                return target.getLocation();
+        }
+    }
+
+    private Location handleTargetRestricted(Player player, Party party, Location deathLocation) {
+        String behavior = plugin.getConfigManager().getPartyTargetRestrictedBehavior();
+
+        switch (behavior.toLowerCase()) {
+            case "allow":
+                Player target = findBestTarget(party, player, deathLocation);
+                return target != null ? target.getLocation() : null;
+
+            case "find_other_member":
+                if (plugin.getConfigManager().isPartyFindAlternativeTarget()) {
+                    return findAlternativeTarget(player, party, deathLocation);
+                }
+                return null;
+
+            case "deny":
+            default:
+                String message = plugin.getConfigManager().getPartyMessage("respawn-disabled-region");
+                if (!message.isEmpty()) {
+                    player.sendMessage(message.replace("&", "§"));
+                }
+                return null;
+        }
+    }
+
+    private Location findAlternativeTarget(Player player, Party party, Location deathLocation) {
+        List<Player> onlineMembers = party.getOnlineMembers();
+        onlineMembers.remove(player);
+
+        int attempts = plugin.getConfigManager().getPartyAlternativeTargetAttempts();
+
+        for (int i = 0; i < Math.min(attempts, onlineMembers.size()); i++) {
+            Player member = onlineMembers.get(i);
+            if (!isPartyRespawnDisabled(member.getLocation())) {
+                if (plugin.getConfigManager().isDebugMode()) {
+                    plugin.getLogger().info("Found alternative party target: " + member.getName());
+                }
+                return member.getLocation();
+            }
+        }
+
+        String message = plugin.getConfigManager().getPartyMessage("respawn-disabled-region");
+        if (!message.isEmpty()) {
+            player.sendMessage(message.replace("&", "§"));
+        }
+        return null;
     }
 
 
