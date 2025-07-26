@@ -6,6 +6,9 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "[Gradle]"
+    ignore:
+      - dependency-name: "com.sk89q.worldguard:worldguard-bukkit"
+        update-types: [ "version-update:semver-patch", "version-update:semver-minor" ]
 
   - package-ecosystem: "github-actions"
     directory: "/"
