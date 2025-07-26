@@ -5,6 +5,7 @@ api-version: '1.16'
 authors: [alex2276564]
 description: SmartSpawnPoint is a powerful and flexible Minecraft plugin that revolutionizes how player respawning works on your server. With region-based, world-based, and condition-based spawn points, you can create immersive experiences for your players that go far beyond the vanilla respawn mechanics.
 softdepend: [WorldGuard, PlaceholderAPI]
+website: https://github.com/alex2276564/SmartSpawnPoint
 commands:
   smartspawnpoint:
     description: Main command for SmartSpawnPoint plugin

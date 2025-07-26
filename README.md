@@ -38,7 +38,7 @@ SmartSpawnPoint offers extensive configuration options to customize the respawn 
 
 ## 📜 Commands
 
-SmartSpawnPoint supports both the full command `/smartspawnpoint` and the shorter alias `/ssp` for all commands.
+SmartSpawnPoint supports both the full command `/smartspawnpoint` and the shorter alias `/ssp` for all commands (requires `smartspawnpoint.command` permission).
 
 - `/smartspawnpoint reload` - Reloads the plugin configuration (requires `smartspawnpoint.reload` permission)
 - `/smartspawnpoint party invite <player>` - Invites a player to your party (requires `smartspawnpoint.party.invite` permission)
