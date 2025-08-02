@@ -3,11 +3,10 @@ package uz.alex2276564.smartspawnpoint.party;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 import uz.alex2276564.smartspawnpoint.config.ConfigManager;
 import uz.alex2276564.smartspawnpoint.model.SpawnPoint;
-import uz.alex2276564.smartspawnpoint.util.WorldGuardUtils;
+import uz.alex2276564.smartspawnpoint.utils.WorldGuardUtils;
 import lombok.Getter;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
@@ -19,6 +18,8 @@ public class PartyManager {
     private final Map<UUID, Party> parties = new HashMap<>();
     private final Map<UUID, UUID> playerPartyMap = new HashMap<>();
     private final Map<UUID, UUID> pendingInvitations = new HashMap<>();
+
+    private Random random = new Random();
 
     @Getter
     private final int maxPartySize;
@@ -582,7 +583,7 @@ public class PartyManager {
                 return findTargetInMostPopulatedRegion(candidates);
 
             case "random":
-                return candidates.get(new Random().nextInt(candidates.size()));
+                return candidates.get(this.random.nextInt(candidates.size()));
 
             case "leader_priority":
                 return findWithLeaderPriority(candidates);
@@ -670,7 +671,7 @@ public class PartyManager {
 
         if (bestWorld != null) {
             List<Player> worldCandidates = worldGroups.get(bestWorld);
-            return worldCandidates.get(new Random().nextInt(worldCandidates.size()));
+            return worldCandidates.get(this.random.nextInt(worldCandidates.size()));
         }
 
         return null;
@@ -705,7 +706,7 @@ public class PartyManager {
 
         if (bestRegion != null) {
             List<Player> regionCandidates = regionGroups.get(bestRegion);
-            return regionCandidates.get(new Random().nextInt(regionCandidates.size()));
+            return regionCandidates.get(this.random.nextInt(regionCandidates.size()));
         }
 
         return null;
@@ -723,7 +724,7 @@ public class PartyManager {
         }
 
         // If leader not found or not preferring leader, return random
-        return candidates.get(new Random().nextInt(candidates.size()));
+        return candidates.get(this.random.nextInt(candidates.size()));
     }
 
     private Location handleBothRestricted(Player player, Party party, Location deathLocation) {

@@ -7,14 +7,14 @@ import uz.alex2276564.smartspawnpoint.listener.PlayerQuitListener;
 import uz.alex2276564.smartspawnpoint.listener.PlayerRespawnListener;
 import uz.alex2276564.smartspawnpoint.manager.SpawnManager;
 import uz.alex2276564.smartspawnpoint.party.PartyManager;
-import uz.alex2276564.smartspawnpoint.runner.BukkitRunner;
-import uz.alex2276564.smartspawnpoint.runner.Runner;
+import uz.alex2276564.smartspawnpoint.utils.runner.BukkitRunner;
+import uz.alex2276564.smartspawnpoint.utils.runner.Runner;
 import uz.alex2276564.smartspawnpoint.commands.MainCommandExecutor;
-import uz.alex2276564.smartspawnpoint.util.SafeLocationFinder;
+import uz.alex2276564.smartspawnpoint.utils.SafeLocationFinder;
 import lombok.Getter;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
-import uz.alex2276564.smartspawnpoint.util.UpdateChecker;
+import uz.alex2276564.smartspawnpoint.utils.UpdateChecker;
 
 public final class SmartSpawnPoint extends JavaPlugin {
     @Getter
@@ -42,28 +42,29 @@ public final class SmartSpawnPoint extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
-        setupRunner();
+        try {
+            setupRunner();
+            checkDependencies();
+            configManager = new ConfigManager(this);
+            spawnManager = new SpawnManager(this);
+            configManager.reload();
 
-        checkDependencies();
+            if (configManager.isPartyEnabled()) {
+                partyManager = new PartyManager(this);
+                spawnManager.setPartyManager(partyManager);
+                getLogger().info("Party system enabled");
+            }
 
-        configManager = new ConfigManager(this);
-        spawnManager = new SpawnManager(this);
+            registerListeners();
+            registerCommands();
+            checkUpdates();
 
-        configManager.reload();
-
-        if (configManager.isPartyEnabled()) {
-            partyManager = new PartyManager(this);
-            spawnManager.setPartyManager(partyManager);
-            getLogger().info("Party system enabled");
+            getLogger().info("SmartSpawnPoint has been enabled successfully!");
+        } catch (Exception e) {
+            getLogger().severe("Failed to enable SmartSpawnPoint: " + e.getMessage());
+            e.printStackTrace();
+            getServer().getPluginManager().disablePlugin(this);
         }
-
-        registerListeners();
-
-        registerCommands();
-
-        checkUpdates();
-
-        getLogger().info("SmartSpawnPoint has been enabled!");
     }
 
     private void setupRunner() {

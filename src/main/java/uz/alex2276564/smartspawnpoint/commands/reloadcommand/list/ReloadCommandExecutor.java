@@ -2,7 +2,7 @@ package uz.alex2276564.smartspawnpoint.commands.reloadcommand.list;
 
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 import uz.alex2276564.smartspawnpoint.commands.SubCommand;
-import uz.alex2276564.smartspawnpoint.util.SafeLocationFinder;
+import uz.alex2276564.smartspawnpoint.utils.SafeLocationFinder;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

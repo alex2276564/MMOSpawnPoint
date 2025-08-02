@@ -1,8 +1,7 @@
-package uz.alex2276564.smartspawnpoint.util;
+package uz.alex2276564.smartspawnpoint.utils;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import lombok.Getter;
 
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -11,16 +10,7 @@ import java.nio.charset.StandardCharsets;
 
 public class HttpUtils {
 
-    @Getter
-    public static class HttpResponse {
-        private final int responseCode;
-        private final JsonObject jsonBody;
-
-        public HttpResponse(int responseCode, JsonObject jsonBody) {
-            this.responseCode = responseCode;
-            this.jsonBody = jsonBody;
-        }
-    }
+    public record HttpResponse(int responseCode, JsonObject jsonBody) {}
 
     /**
      * Executes a GET request and returns an HttpResponse containing the response code and JSON body.

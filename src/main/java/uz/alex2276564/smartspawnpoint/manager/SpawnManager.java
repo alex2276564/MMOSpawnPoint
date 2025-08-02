@@ -1,14 +1,15 @@
 package uz.alex2276564.smartspawnpoint.manager;
 
+import lombok.Setter;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 import uz.alex2276564.smartspawnpoint.model.SpawnAction;
 import uz.alex2276564.smartspawnpoint.model.SpawnCondition;
 import uz.alex2276564.smartspawnpoint.model.SpawnLocation;
 import uz.alex2276564.smartspawnpoint.model.SpawnPoint;
 import uz.alex2276564.smartspawnpoint.party.PartyManager;
-import uz.alex2276564.smartspawnpoint.util.PlaceholderUtils;
-import uz.alex2276564.smartspawnpoint.util.SafeLocationFinder;
-import uz.alex2276564.smartspawnpoint.util.WorldGuardUtils;
+import uz.alex2276564.smartspawnpoint.utils.PlaceholderUtils;
+import uz.alex2276564.smartspawnpoint.utils.SafeLocationFinder;
+import uz.alex2276564.smartspawnpoint.utils.WorldGuardUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -31,14 +32,11 @@ public class SpawnManager {
     private final Map<UUID, CompletableFuture<Location>> pendingLocations = new ConcurrentHashMap<>();
 
     // Party manager reference
+    @Setter
     private PartyManager partyManager;
 
     public SpawnManager(SmartSpawnPoint plugin) {
         this.plugin = plugin;
-    }
-
-    public void setPartyManager(PartyManager partyManager) {
-        this.partyManager = partyManager;
     }
 
     public void recordDeathLocation(Player player, Location location) {

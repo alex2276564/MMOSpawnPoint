@@ -1,4 +1,4 @@
-package uz.alex2276564.smartspawnpoint.util;
+package uz.alex2276564.smartspawnpoint.utils;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.entity.Player;

@@ -1,4 +1,4 @@
-package uz.alex2276564.smartspawnpoint.util;
+package uz.alex2276564.smartspawnpoint.utils;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;

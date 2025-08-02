@@ -5,7 +5,7 @@ import uz.alex2276564.smartspawnpoint.model.SpawnAction;
 import uz.alex2276564.smartspawnpoint.model.SpawnCondition;
 import uz.alex2276564.smartspawnpoint.model.SpawnLocation;
 import uz.alex2276564.smartspawnpoint.model.SpawnPoint;
-import uz.alex2276564.smartspawnpoint.util.SafeLocationFinder;
+import uz.alex2276564.smartspawnpoint.utils.SafeLocationFinder;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;

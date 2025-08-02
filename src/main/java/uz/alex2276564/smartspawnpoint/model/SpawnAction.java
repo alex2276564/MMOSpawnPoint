@@ -28,7 +28,7 @@ public class SpawnAction {
             if (condition.getType().equals("permission") && player.hasPermission(condition.getValue())) {
                 return condition.getWeight();
             } else if (condition.getType().equals("placeholder")) {
-                if (uz.alex2276564.smartspawnpoint.util.PlaceholderUtils.checkPlaceholderCondition(player, condition.getValue())) {
+                if (uz.alex2276564.smartspawnpoint.utils.PlaceholderUtils.checkPlaceholderCondition(player, condition.getValue())) {
                     return condition.getWeight();
                 }
             }

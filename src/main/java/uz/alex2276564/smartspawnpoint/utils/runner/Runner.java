@@ -1,4 +1,4 @@
-package uz.alex2276564.smartspawnpoint.runner;
+package uz.alex2276564.smartspawnpoint.utils.runner;
 
 import org.jetbrains.annotations.NotNull;
 

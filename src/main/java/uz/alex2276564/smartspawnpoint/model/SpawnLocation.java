@@ -75,7 +75,7 @@ public class SpawnLocation {
                 String[] parts = condition.getValue().split(":", 2);
                 if (parts.length == 2) {
                     String placeholderCondition = parts[0];
-                    if (uz.alex2276564.smartspawnpoint.util.PlaceholderUtils.checkPlaceholderCondition(player, placeholderCondition)) {
+                    if (uz.alex2276564.smartspawnpoint.utils.PlaceholderUtils.checkPlaceholderCondition(player, placeholderCondition)) {
                         return condition.getWeight();
                     }
                 }

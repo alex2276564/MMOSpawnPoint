@@ -6,7 +6,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
-import uz.alex2276564.smartspawnpoint.util.SafeLocationFinder;
+import uz.alex2276564.smartspawnpoint.utils.SafeLocationFinder;
 
 public class PlayerQuitListener implements Listener {
     private final SmartSpawnPoint plugin;

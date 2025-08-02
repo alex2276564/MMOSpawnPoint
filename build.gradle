@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id("xyz.jpenilla.run-paper") version "2.3.1"
+    id 'com.gradleup.shadow' version '9.0.0-rc3'
 }
 
 group = 'uz.alex2276564'
@@ -24,10 +25,15 @@ repositories {
         name = "enginehub"
         url = "https://maven.enginehub.org/repo/"
     }
+    maven {
+        name = "okaeri"
+        url = "https://storehouse.okaeri.eu/repository/maven-public/"
+    }
 }
 
 dependencies {
     compileOnly "com.destroystokyo.paper:paper-api:1.16.5-R0.1-SNAPSHOT"
+
     compileOnly 'org.projectlombok:lombok:1.18.38'
     annotationProcessor 'org.projectlombok:lombok:1.18.38'
 
@@ -35,9 +41,29 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.38'
 
     compileOnly("me.clip:placeholderapi:2.11.6")
+
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.5")
 
     implementation 'com.google.code.gson:gson:2.13.1'
+
+    compileOnly "net.kyori:adventure-text-minimessage:4.23.0"
+
+    implementation("eu.okaeri:okaeri-configs-yaml-snakeyaml:5.0.9")
+}
+
+// ⚠️ NOTE: Shading is required for legacy compatibility!
+// Libraries like Gson may not work correctly on older server versions (1.16.x and below) if not shaded.
+// Shadowing ensures that all required dependencies are bundled and isolated within your final plugin JAR.
+shadowJar {
+    archiveClassifier.set('')
+
+    relocate 'eu.okaeri.configs', 'uz.alex2276564.permguard.libs.okaeri.configs'
+
+    relocate 'com.google.gson', 'uz.alex2276564.permguard.libs.gson'
+}
+
+build {
+    dependsOn shadowJar
 }
 
 tasks {
@@ -49,7 +75,7 @@ tasks {
     }
 }
 
-def targetJavaVersion = 16
+def targetJavaVersion = 17
 
 java {
     def javaVersion = JavaVersion.toVersion(targetJavaVersion)
