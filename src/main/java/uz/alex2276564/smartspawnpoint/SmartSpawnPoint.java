@@ -1,5 +1,8 @@
 package uz.alex2276564.smartspawnpoint;
 
+import uz.alex2276564.smartspawnpoint.commands.SmartSpawnPointCommands;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.BuiltCommand;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.MultiCommandManager;
 import uz.alex2276564.smartspawnpoint.config.ConfigManager;
 import uz.alex2276564.smartspawnpoint.listener.PlayerDeathListener;
 import uz.alex2276564.smartspawnpoint.listener.PlayerJoinListener;
@@ -7,9 +10,11 @@ import uz.alex2276564.smartspawnpoint.listener.PlayerQuitListener;
 import uz.alex2276564.smartspawnpoint.listener.PlayerRespawnListener;
 import uz.alex2276564.smartspawnpoint.manager.SpawnManager;
 import uz.alex2276564.smartspawnpoint.party.PartyManager;
+import uz.alex2276564.smartspawnpoint.utils.adventure.AdventureMessageManager;
+import uz.alex2276564.smartspawnpoint.utils.adventure.LegacyMessageManager;
+import uz.alex2276564.smartspawnpoint.utils.adventure.MessageManager;
 import uz.alex2276564.smartspawnpoint.utils.runner.BukkitRunner;
 import uz.alex2276564.smartspawnpoint.utils.runner.Runner;
-import uz.alex2276564.smartspawnpoint.commands.MainCommandExecutor;
 import uz.alex2276564.smartspawnpoint.utils.SafeLocationFinder;
 import lombok.Getter;
 import org.bukkit.plugin.PluginManager;
@@ -33,6 +38,9 @@ public final class SmartSpawnPoint extends JavaPlugin {
     private Runner runner;
 
     @Getter
+    private MessageManager messageManager;
+
+    @Getter
     private boolean worldGuardEnabled;
 
     @Getter
@@ -44,6 +52,7 @@ public final class SmartSpawnPoint extends JavaPlugin {
 
         try {
             setupRunner();
+            setupMessageManager();
             checkDependencies();
             configManager = new ConfigManager(this);
             spawnManager = new SpawnManager(this);
@@ -69,6 +78,35 @@ public final class SmartSpawnPoint extends JavaPlugin {
 
     private void setupRunner() {
         runner = new BukkitRunner(this);
+    }
+
+    private void setupMessageManager() {
+        if (isMiniMessageAvailable()) {
+            try {
+                messageManager = new AdventureMessageManager();
+                getLogger().info("Using Adventure MiniMessage for text formatting - full MiniMessage syntax supported");
+                return;
+            } catch (Exception e) {
+                getLogger().warning("Failed to initialize Adventure MiniMessage: " + e.getMessage());
+                getLogger().warning("Falling back to Legacy formatting...");
+            }
+        }
+
+        messageManager = new LegacyMessageManager();
+        getLogger().info("Using Legacy ChatColor formatting with MiniMessage syntax compatibility");
+        getLogger().info("You can continue using MiniMessage syntax in your config - basic tags will be converted automatically");
+        getLogger().info("Supported: colors, bold, italic, underlined, strikethrough, obfuscated, reset");
+        getLogger().info("Note: Complex features (gradients, hover, click events) are not available on older server versions");
+    }
+
+    private boolean isMiniMessageAvailable() {
+        try {
+            Class.forName("net.kyori.adventure.text.minimessage.MiniMessage");
+            return true;
+        } catch (ClassNotFoundException e) {
+            getLogger().info("MiniMessage library not found - this is normal for Paper versions below 1.18");
+            return false;
+        }
     }
 
     private void checkDependencies() {
@@ -98,8 +136,10 @@ public final class SmartSpawnPoint extends JavaPlugin {
     }
 
     private void registerCommands() {
-        // Register main command executor that handles all subcommands
-        getCommand("smartspawnpoint").setExecutor(new MainCommandExecutor(this));
+        MultiCommandManager multiManager = new MultiCommandManager(this);
+
+        BuiltCommand smartSpawnPointCommand = SmartSpawnPointCommands.createSmartSpawnPointCommand();
+        multiManager.registerCommand(smartSpawnPointCommand);
     }
 
     private void checkUpdates() {
