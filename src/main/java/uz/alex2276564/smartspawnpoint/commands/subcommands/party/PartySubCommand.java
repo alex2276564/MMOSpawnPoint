@@ -1,15 +1,17 @@
 package uz.alex2276564.smartspawnpoint.commands.subcommands.party;
 
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
-import uz.alex2276564.smartspawnpoint.commands.framework.builder.*;
-import uz.alex2276564.smartspawnpoint.commands.subcommands.party.invite.InviteSubCommand;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.CommandBuilder;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.SubCommandBuilder;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.SubCommandProvider;
 import uz.alex2276564.smartspawnpoint.commands.subcommands.party.accept.AcceptSubCommand;
 import uz.alex2276564.smartspawnpoint.commands.subcommands.party.deny.DenySubCommand;
+import uz.alex2276564.smartspawnpoint.commands.subcommands.party.invite.InviteSubCommand;
 import uz.alex2276564.smartspawnpoint.commands.subcommands.party.leave.LeaveSubCommand;
 import uz.alex2276564.smartspawnpoint.commands.subcommands.party.list.ListSubCommand;
+import uz.alex2276564.smartspawnpoint.commands.subcommands.party.options.OptionsSubCommand;
 import uz.alex2276564.smartspawnpoint.commands.subcommands.party.remove.RemoveSubCommand;
 import uz.alex2276564.smartspawnpoint.commands.subcommands.party.setleader.SetLeaderSubCommand;
-import uz.alex2276564.smartspawnpoint.commands.subcommands.party.options.OptionsSubCommand;
 
 public class PartySubCommand implements SubCommandProvider {
 
@@ -21,21 +23,23 @@ public class PartySubCommand implements SubCommandProvider {
                 .executor((sender, context) -> {
                     SmartSpawnPoint plugin = SmartSpawnPoint.getInstance();
 
-                    if (!plugin.getConfigManager().isPartyEnabled()) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Party system is disabled on this server.");
+                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
                     // Show party help
-                    plugin.getMessageManager().sendMessage(sender, "<gold>=== Party Commands ===");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party invite <player> <gray>- Invite player to your party");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party accept <gray>- Accept a party invitation");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party deny <gray>- Decline a party invitation");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party leave <gray>- Leave your current party");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party list <gray>- List all party members");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party remove <player> <gray>- Remove a player from your party");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party setleader <player> <gray>- Transfer party leadership");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party options <gray>- View and change party options");
+                    var messages = plugin.getConfigManager().getMessagesConfig().party.help;
+                    plugin.getMessageManager().sendMessage(sender, messages.header);
+                    plugin.getMessageManager().sendMessage(sender, messages.invite);
+                    plugin.getMessageManager().sendMessage(sender, messages.accept);
+                    plugin.getMessageManager().sendMessage(sender, messages.deny);
+                    plugin.getMessageManager().sendMessage(sender, messages.leave);
+                    plugin.getMessageManager().sendMessage(sender, messages.list);
+                    plugin.getMessageManager().sendMessage(sender, messages.remove);
+                    plugin.getMessageManager().sendMessage(sender, messages.setleader);
+                    plugin.getMessageManager().sendMessage(sender, messages.options);
                 });
 
         // Register nested party subcommands

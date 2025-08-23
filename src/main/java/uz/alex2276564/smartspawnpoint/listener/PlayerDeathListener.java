@@ -1,11 +1,11 @@
 package uz.alex2276564.smartspawnpoint.listener;
 
-import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 
 public class PlayerDeathListener implements Listener {
     private final SmartSpawnPoint plugin;
@@ -21,7 +21,7 @@ public class PlayerDeathListener implements Listener {
             // Record death location for later use in respawn event
             plugin.getSpawnManager().recordDeathLocation(player, player.getLocation());
 
-            if (plugin.getConfigManager().isDebugMode()) {
+            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                 plugin.getLogger().info("Recorded death location for " + player.getName());
             }
         } catch (Exception e) {

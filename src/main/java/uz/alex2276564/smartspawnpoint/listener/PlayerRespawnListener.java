@@ -1,12 +1,11 @@
 package uz.alex2276564.smartspawnpoint.listener;
 
-import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 
 public class PlayerRespawnListener implements Listener {
     private final SmartSpawnPoint plugin;
@@ -19,34 +18,21 @@ public class PlayerRespawnListener implements Listener {
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         try {
             Player player = event.getPlayer();
-            Location respawnLocation = plugin.getSpawnManager().getSpawnLocation(player);
 
-            if (respawnLocation != null) {
-                if (plugin.getConfigManager().isDebugMode()) {
-                    plugin.getLogger().info("Setting respawn location for " + player.getName() + " to: " +
-                            respawnLocation.getWorld().getName() + " " +
-                            respawnLocation.getX() + "," +
-                            respawnLocation.getY() + "," +
-                            respawnLocation.getZ());
+            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                plugin.getLogger().info("Processing respawn for " + player.getName());
+            }
+
+            boolean success = plugin.getSpawnManager().processDeathSpawn(player);
+
+            if (!success) {
+                if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                    plugin.getLogger().warning("No death spawn location found for " + player.getName() + ", using server default");
                 }
-
-                // Set the respawn location
-                event.setRespawnLocation(respawnLocation);
-
-                // For safety, teleport the player after the next tick
-                if (plugin.getConfigManager().isForceDelayedTeleport()) {
-                    plugin.getRunner().runDelayed(() -> {
-                        if (player.isOnline()) {
-                            player.teleport(respawnLocation);
-                        }
-                    }, 1L);
-                }
-            } else if (plugin.getConfigManager().isDebugMode()) {
-                plugin.getLogger().warning("No respawn location found for " + player.getName() + ", using server default");
             }
         } catch (Exception e) {
             plugin.getLogger().severe("Error handling player respawn for " + event.getPlayer().getName() + ": " + e.getMessage());
-            if (plugin.getConfigManager().isDebugMode()) {
+            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                 e.printStackTrace();
             }
         }

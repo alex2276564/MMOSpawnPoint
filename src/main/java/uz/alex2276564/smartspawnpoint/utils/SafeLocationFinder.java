@@ -8,10 +8,15 @@ import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public class SafeLocationFinder {
     private static final Random RANDOM = new Random();
     private static Set<Material> unsafeMaterials = new HashSet<>();
+
+    // Search settings (configurable)
+    private static int baseSearchRadius = 5; // will be overridden by config
+    private static int maxSearchRadius = 20; // will be derived from base radius
 
     // Configurable cache settings
     private static boolean cacheEnabled = true;
@@ -23,19 +28,10 @@ public class SafeLocationFinder {
     private static final Map<String, Location> SAFE_LOCATION_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Long> CACHE_TIMESTAMPS = new ConcurrentHashMap<>();
 
-    static {
-        // Default unsafe materials
-        unsafeMaterials.add(Material.LAVA);
-        unsafeMaterials.add(Material.FIRE);
-        unsafeMaterials.add(Material.CACTUS);
-        unsafeMaterials.add(Material.WATER);
-        unsafeMaterials.add(Material.AIR);
-        unsafeMaterials.add(Material.MAGMA_BLOCK);
-        unsafeMaterials.add(Material.CAMPFIRE);
-        unsafeMaterials.add(Material.SOUL_CAMPFIRE);
-        unsafeMaterials.add(Material.WITHER_ROSE);
-        unsafeMaterials.add(Material.SWEET_BERRY_BUSH);
-    }
+    // Cache statistics
+    private static long cacheHits = 0;
+    private static long cacheMisses = 0;
+    private static long totalSearches = 0;
 
     public static void configureCaching(boolean enabled, long expiryMs, int maxSize, boolean debug) {
         cacheEnabled = enabled;
@@ -46,16 +42,45 @@ public class SafeLocationFinder {
         if (!enabled) {
             clearCache();
         }
+
+        if (debugCache) {
+            SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache configured - enabled: " + enabled +
+                    ", expiry: " + (expiryMs / 1000) + "s, maxSize: " + maxSize);
+        }
     }
 
-    public static void setUnsafeMaterials(Set<Material> materials) {
-        if (materials != null && !materials.isEmpty()) {
-            unsafeMaterials = materials;
+    public static void configureUnsafeMaterials(List<String> materialNames) {
+        Set<Material> materials = new HashSet<>();
+
+        for (String materialName : materialNames) {
+            try {
+                Material material = Material.valueOf(materialName.toUpperCase());
+                materials.add(material);
+            } catch (IllegalArgumentException e) {
+                SmartSpawnPoint.getInstance().getLogger().warning("Unknown material in unsafe-materials list: " + materialName);
+            }
+        }
+
+        unsafeMaterials = materials;
+
+        if (debugCache) {
+            SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Configured " + materials.size() + " unsafe materials");
+        }
+    }
+
+    public static void configureSearchRadius(int radius) {
+        // Configure base search radius and derived cap
+        baseSearchRadius = Math.max(1, radius);
+        maxSearchRadius = Math.max(baseSearchRadius, baseSearchRadius * 4);
+        if (debugCache) {
+            SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Search radius configured - base: " + baseSearchRadius + ", cap: " + maxSearchRadius);
         }
     }
 
     public static Location findSafeLocation(Location baseLocation, int maxAttempts, UUID playerId,
                                             boolean useCache, boolean playerSpecificCache) {
+        totalSearches++;
+
         if (baseLocation == null || !cacheEnabled || !useCache) {
             return findSafeLocationNoCache(baseLocation, maxAttempts);
         }
@@ -65,76 +90,64 @@ public class SafeLocationFinder {
             return null;
         }
 
-        // Generate cache key
         String cacheKey = generateCacheKey("fixed", world.getName(),
-                (int)baseLocation.getX(), (int)baseLocation.getY(), (int)baseLocation.getZ(),
+                (int) baseLocation.getX(), (int) baseLocation.getY(), (int) baseLocation.getZ(),
                 0, 0, 0, 0, 0, 0,
                 playerId, playerSpecificCache);
 
-        // Check cache
-        Location cachedLocation = getCachedLocation(cacheKey);
-        if (cachedLocation != null) {
-            if (debugCache) {
-                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
-            }
-            return cachedLocation.clone();
-        }
-
-        // Find new safe location
-        Location safeLocation = findSafeLocationNoCache(baseLocation, maxAttempts);
-
-        if (safeLocation != null) {
-            cacheLocation(cacheKey, safeLocation);
-            if (debugCache) {
-                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
-            }
-        }
-
-        return safeLocation;
+        return getCachedOrCompute(cacheKey, () -> findSafeLocationNoCache(baseLocation, maxAttempts));
     }
 
     public static Location findSafeLocationInRegion(double minX, double maxX, double minY, double maxY,
                                                     double minZ, double maxZ, World world, int maxAttempts,
                                                     UUID playerId, boolean useCache, boolean playerSpecificCache) {
+        totalSearches++;
+
         if (world == null || !cacheEnabled || !useCache) {
             return findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts);
         }
 
-        // Generate cache key for region
         String cacheKey = generateCacheKey("region", world.getName(), 0, 0, 0,
-                (int)minX, (int)maxX, (int)minY, (int)maxY, (int)minZ, (int)maxZ,
+                (int) minX, (int) maxX, (int) minY, (int) maxY, (int) minZ, (int) maxZ,
                 playerId, playerSpecificCache);
 
-        // Check cache
+        return getCachedOrCompute(cacheKey, () -> findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts));
+    }
+
+    private static Location getCachedOrCompute(String cacheKey, Supplier<Location> supplier) {
+        // Cache hit
         Location cachedLocation = getCachedLocation(cacheKey);
         if (cachedLocation != null) {
+            cacheHits++;
             if (debugCache) {
                 SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
+                logCacheStatistics();
             }
             return cachedLocation.clone();
         }
 
-        // Find new safe location
-        Location safeLocation = findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts);
+        // Cache miss
+        cacheMisses++;
+        Location safeLocation = supplier.get();
 
+        // Store in cache
         if (safeLocation != null) {
             cacheLocation(cacheKey, safeLocation);
             if (debugCache) {
                 SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
+                logCacheStatistics();
             }
         }
 
         return safeLocation;
     }
 
-    // Overloaded methods for backward compatibility (when cache options aren't specified)
-    public static Location findSafeLocation(Location baseLocation, int maxAttempts) {
-        return findSafeLocationNoCache(baseLocation, maxAttempts);
-    }
-
-    public static Location findSafeLocationInRegion(double minX, double maxX, double minY, double maxY,
-                                                    double minZ, double maxZ, World world, int maxAttempts) {
-        return findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts);
+    private static void logCacheStatistics() {
+        double hitRate = totalSearches > 0 ? (cacheHits * 100.0) / totalSearches : 0;
+        SmartSpawnPoint.getInstance().getLogger().info(String.format(
+                "[SafeLocationFinder] Stats: %d searches, %d hits, %d misses, %.1f%% hit rate, %d cached",
+                totalSearches, cacheHits, cacheMisses, hitRate, SAFE_LOCATION_CACHE.size()
+        ));
     }
 
     private static String generateCacheKey(String type, String worldName, int x, int y, int z,
@@ -151,9 +164,8 @@ public class SafeLocationFinder {
                     .append(":").append(minZ).append(":").append(maxZ);
         }
 
-        // Add player ID to cache key if player-specific caching is enabled
         if (playerSpecific && playerId != null) {
-            key.append(":player:").append(playerId.toString());
+            key.append(":player:").append(playerId);
         }
 
         return key.toString();
@@ -168,7 +180,6 @@ public class SafeLocationFinder {
         if (System.currentTimeMillis() - timestamp < cacheExpiry) {
             return SAFE_LOCATION_CACHE.get(cacheKey);
         } else {
-            // Cache expired
             SAFE_LOCATION_CACHE.remove(cacheKey);
             CACHE_TIMESTAMPS.remove(cacheKey);
             return null;
@@ -176,7 +187,6 @@ public class SafeLocationFinder {
     }
 
     private static void cacheLocation(String cacheKey, Location location) {
-        // Check cache size limit
         if (SAFE_LOCATION_CACHE.size() >= maxCacheSize) {
             cleanOldestCacheEntries();
         }
@@ -187,14 +197,13 @@ public class SafeLocationFinder {
 
     private static void cleanOldestCacheEntries() {
         try {
-            // Remove 20% of oldest entries when cache is full
             int entriesToRemove = Math.max(1, maxCacheSize / 5);
 
             List<String> keysToRemove = CACHE_TIMESTAMPS.entrySet().stream()
                     .sorted(Map.Entry.comparingByValue())
                     .limit(entriesToRemove)
                     .map(Map.Entry::getKey)
-                    .collect(java.util.stream.Collectors.toList());
+                    .toList();
 
             for (String key : keysToRemove) {
                 SAFE_LOCATION_CACHE.remove(key);
@@ -213,12 +222,22 @@ public class SafeLocationFinder {
         if (playerId == null) return;
 
         try {
-            String playerPrefix = ":player:" + playerId.toString();
-            SAFE_LOCATION_CACHE.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
+            String playerPrefix = ":player:" + playerId;
+            int removedCount = 0;
+
+            Iterator<Map.Entry<String, Location>> it = SAFE_LOCATION_CACHE.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, Location> entry = it.next();
+                if (entry.getKey().contains(playerPrefix)) {
+                    it.remove();
+                    removedCount++;
+                }
+            }
+
             CACHE_TIMESTAMPS.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
 
-            if (debugCache) {
-                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cleared cache for player: " + playerId);
+            if (debugCache && removedCount > 0) {
+                SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cleared " + removedCount + " cache entries for player: " + playerId);
             }
         } catch (Exception e) {
             SmartSpawnPoint.getInstance().getLogger().warning("[SafeLocationFinder] Error clearing player cache: " + e.getMessage());
@@ -226,86 +245,65 @@ public class SafeLocationFinder {
     }
 
     private static Location findSafeLocationNoCache(Location baseLocation, int maxAttempts) {
-        if (baseLocation == null) {
-            return null;
-        }
+        if (baseLocation == null) return null;
 
         World world = baseLocation.getWorld();
-        if (world == null) {
-            return null;
-        }
+        if (world == null) return null;
 
-        // Check if the original location is safe
+        // If original location is already safe
         if (isSafeLocation(baseLocation)) {
             return baseLocation.clone();
         }
 
-        // Special handling for Nether
         boolean isNether = world.getEnvironment() == World.Environment.NETHER;
 
-        // Try to find a safe location nearby
         int attempts = 0;
-        int radius = 5; // Smaller radius for better performance
+        int radius = baseSearchRadius;
 
         while (attempts < maxAttempts) {
             attempts++;
 
-            // Get random location within radius
             double offsetX = RANDOM.nextDouble() * (radius * 2) - radius;
             double offsetZ = RANDOM.nextDouble() * (radius * 2) - radius;
 
             Location testLocation = baseLocation.clone().add(offsetX, 0.0, offsetZ);
 
-            // Find the highest block at this X,Z coordinate
             int highestY;
             if (isNether) {
-                // For Nether, find a safe Y coordinate
-                highestY = findSafeYInNether(world, testLocation.getBlockX(), testLocation.getBlockZ(),
-                        120, 30); // Common Nether height range
+                highestY = findSafeYInNether(world, testLocation.getBlockX(), testLocation.getBlockZ(), 120, 30);
             } else {
-                // For other worlds, use highest block
                 highestY = world.getHighestBlockYAt(testLocation.getBlockX(), testLocation.getBlockZ());
             }
 
-            testLocation.setY(highestY + 1.0); // Add 1.0 to ensure we're above the block
+            testLocation.setY(highestY + 1.0);
 
             if (isSafeLocation(testLocation)) {
                 return testLocation.clone();
             }
 
-            // Increase search radius after several attempts
-            if (attempts > maxAttempts / 2 && radius < 20) {
-                radius *= 2;
+            if (attempts > maxAttempts / 2 && radius < maxSearchRadius) {
+                radius = Math.min(maxSearchRadius, radius * 2);
             }
         }
 
-        // If no safe location found, return the world spawn
-        Location worldSpawn = world.getSpawnLocation();
-        return worldSpawn;
+        return world.getSpawnLocation();
     }
 
     private static Location findSafeLocationInRegionNoCache(double minX, double maxX, double minY, double maxY,
                                                             double minZ, double maxZ, World world, int maxAttempts) {
-        if (world == null) {
-            return null;
-        }
+        if (world == null) return null;
 
-        // Calculate center of region for default
         double centerX = (minX + maxX) / 2;
         double centerY = (minY + maxY) / 2;
         double centerZ = (minZ + maxZ) / 2;
 
-        // Special handling for Nether
         boolean isNether = world.getEnvironment() == World.Environment.NETHER;
 
-        // Try to find a good default by using highest block at center
         int centerHighestY;
         if (isNether) {
-            // For Nether, start from the middle and search down
-            centerHighestY = findSafeYInNether(world, (int)centerX, (int)centerZ, (int)maxY, (int)minY);
+            centerHighestY = findSafeYInNether(world, (int) centerX, (int) centerZ, (int) maxY, (int) minY);
         } else {
-            // For other worlds, use highest block
-            centerHighestY = world.getHighestBlockYAt((int)centerX, (int)centerZ);
+            centerHighestY = world.getHighestBlockYAt((int) centerX, (int) centerZ);
         }
 
         Location centerLoc = new Location(world, centerX, centerHighestY + 1.0, centerZ);
@@ -314,21 +312,17 @@ public class SafeLocationFinder {
             return centerLoc.clone();
         }
 
-        // Try random locations
         int attempts = 0;
         while (attempts < maxAttempts) {
             attempts++;
 
-            // Generate random coordinates within the specified bounds
             double x = minX + RANDOM.nextDouble() * (maxX - minX);
             double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
 
             double y;
             if (isNether) {
-                // For Nether, find a safe Y coordinate
-                y = findSafeYInNether(world, (int)x, (int)z, (int)maxY, (int)minY);
+                y = findSafeYInNether(world, (int) x, (int) z, (int) maxY, (int) minY);
             } else {
-                // For other worlds, use random Y within bounds
                 y = minY + RANDOM.nextDouble() * (maxY - minY);
             }
 
@@ -338,16 +332,15 @@ public class SafeLocationFinder {
                 return location.clone();
             }
 
-            // After half attempts, try using highest block Y
             if (attempts == maxAttempts / 2) {
                 x = minX + RANDOM.nextDouble() * (maxX - minX);
                 z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
 
                 int y2;
                 if (isNether) {
-                    y2 = findSafeYInNether(world, (int)x, (int)z, (int)maxY, (int)minY);
+                    y2 = findSafeYInNether(world, (int) x, (int) z, (int) maxY, (int) minY);
                 } else {
-                    y2 = world.getHighestBlockYAt((int)x, (int)z);
+                    y2 = world.getHighestBlockYAt((int) x, (int) z);
                 }
 
                 Location highestLocation = new Location(world, x, y2 + 1.0, z);
@@ -358,53 +351,38 @@ public class SafeLocationFinder {
             }
         }
 
-        // If still no safe location found, use world spawn if within bounds
         Location worldSpawn = world.getSpawnLocation();
         if (isWithinBounds(worldSpawn, minX, maxX, minY, maxY, minZ, maxZ)) {
             return worldSpawn.clone();
         }
 
-        // Last resort - use center of region (even if not safe)
-        Location centerLocation = new Location(world, centerX, centerY, centerZ);
-        return centerLocation.clone();
+        return new Location(world, centerX, centerY, centerZ);
     }
 
     private static int findSafeYInNether(World world, int x, int z, int maxY, int minY) {
-        // Start from the middle of the range
         int startY = (maxY + minY) / 2;
 
-        // First try going down from the middle
+        // Scan down
         for (int y = startY; y >= minY; y--) {
-            Block block = world.getBlockAt(x, y, z);
-            Block blockAbove = world.getBlockAt(x, y + 1, z);
-            Block blockAbove2 = world.getBlockAt(x, y + 2, z);
-
-            // Check if we have 2 air blocks above a solid block
-            if (block.getType().isSolid() &&
-                    !unsafeMaterials.contains(block.getType()) &&
-                    blockAbove.getType().isAir() &&
-                    blockAbove2.getType().isAir()) {
-                return y;
-            }
+            if (isSolidWithTwoAirAbove(world, x, y, z)) return y;
         }
-
-        // If not found, try going up
+        // Scan up
         for (int y = startY + 1; y <= maxY - 2; y++) {
-            Block block = world.getBlockAt(x, y, z);
-            Block blockAbove = world.getBlockAt(x, y + 1, z);
-            Block blockAbove2 = world.getBlockAt(x, y + 2, z);
-
-            // Check if we have 2 air blocks above a solid block
-            if (block.getType().isSolid() &&
-                    !unsafeMaterials.contains(block.getType()) &&
-                    blockAbove.getType().isAir() &&
-                    blockAbove2.getType().isAir()) {
-                return y;
-            }
+            if (isSolidWithTwoAirAbove(world, x, y, z)) return y;
         }
 
-        // If nothing found, return a reasonable default
-        return 64; // Common safe height in Nether
+        return 64;
+    }
+
+    private static boolean isSolidWithTwoAirAbove(World world, int x, int y, int z) {
+        Block block = world.getBlockAt(x, y, z);
+        Block blockAbove = world.getBlockAt(x, y + 1, z);
+        Block blockAbove2 = world.getBlockAt(x, y + 2, z);
+
+        return block.getType().isSolid() &&
+                !unsafeMaterials.contains(block.getType()) &&
+                blockAbove.getType().isAir() &&
+                blockAbove2.getType().isAir();
     }
 
     private static boolean isWithinBounds(Location loc, double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {
@@ -423,17 +401,19 @@ public class SafeLocationFinder {
         Block ground = location.clone().subtract(0, 1, 0).getBlock();
         Block head = location.clone().add(0, 1, 0).getBlock();
 
-        // Check if feet and head positions are safe (not solid blocks)
         if (!feet.getType().isAir() || !head.getType().isAir()) {
             return false;
         }
 
-        // Check if the ground is solid and safe to stand on
         return ground.getType().isSolid() && !unsafeMaterials.contains(ground.getType());
     }
 
     public static void clearCache() {
         SAFE_LOCATION_CACHE.clear();
         CACHE_TIMESTAMPS.clear();
+
+        if (debugCache) {
+            SmartSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache cleared");
+        }
     }
 }

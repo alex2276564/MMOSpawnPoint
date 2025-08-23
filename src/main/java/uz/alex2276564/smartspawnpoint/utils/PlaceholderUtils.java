@@ -4,80 +4,12 @@ import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.entity.Player;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 
-import java.util.Stack;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.*;
+import java.util.function.Function;
 
 public class PlaceholderUtils {
 
-    // Regular expression to validate logical expressions
-    private static final Pattern LOGICAL_EXPR_PATTERN = Pattern.compile(
-            "(?:\\s*\\(\\s*)*" +                  // Opening parentheses with spaces
-                    "(?:[^&|()]+)" +                      // Expression without operators
-                    "(?:\\s*(?:&&|\\|\\|)\\s*[^&|()]+)*" + // && or || operators followed by expression
-                    "(?:\\s*\\)\\s*)*"                    // Closing parentheses with spaces
-    );
-
-    // Check for balanced parentheses
-    private static boolean hasBalancedParentheses(String expression) {
-        Stack<Character> stack = new Stack<>();
-        for (char c : expression.toCharArray()) {
-            if (c == '(') {
-                stack.push(c);
-            } else if (c == ')') {
-                if (stack.isEmpty() || stack.pop() != '(') {
-                    return false;
-                }
-            }
-        }
-        return stack.isEmpty();
-    }
-
-    // Check for consecutive operators
-    private static boolean hasConsecutiveOperators(String expression) {
-        return expression.contains("&&&&") || expression.contains("||||") ||
-                expression.contains("&&||") || expression.contains("||&&");
-    }
-
-    // Check for operators at the beginning or end of expression
-    private static boolean hasOperatorsAtEnds(String expression) {
-        String trimmed = expression.trim();
-        return trimmed.startsWith("&&") || trimmed.startsWith("||") ||
-                trimmed.endsWith("&&") || trimmed.endsWith("||");
-    }
-
-    // Check for empty parentheses
-    private static boolean hasEmptyParentheses(String expression) {
-        return expression.contains("()");
-    }
-
-    // Main validation method
-    public static boolean isValidLogicalExpression(String expression) {
-        if (expression == null || expression.trim().isEmpty()) {
-            return false;
-        }
-
-        // Check for basic errors
-        if (!hasBalancedParentheses(expression)) {
-            return false; // Unbalanced parentheses
-        }
-
-        if (hasConsecutiveOperators(expression)) {
-            return false; // Consecutive operators
-        }
-
-        if (hasOperatorsAtEnds(expression)) {
-            return false; // Operators at beginning or end
-        }
-
-        if (hasEmptyParentheses(expression)) {
-            return false; // Empty parentheses
-        }
-
-        // Check using regular expression
-        Matcher matcher = LOGICAL_EXPR_PATTERN.matcher(expression);
-        return matcher.matches();
-    }
+    // ------------- Public API -------------
 
     public static String setPlaceholders(Player player, String text) {
         try {
@@ -88,135 +20,358 @@ public class PlaceholderUtils {
         }
     }
 
+    /**
+     * Evaluate placeholder-based condition with full expression support:
+     * - Parentheses ()
+     * - Operators: !, &&, ||
+     * - Comparisons: ==, !=, >, >=, <, <=
+     * - Numbers or quoted strings
+     * - Variables: %placeholder% (resolved via PAPI), or bare literals (true/false/numbers/strings)
+     */
     public static boolean checkPlaceholderCondition(Player player, String condition) {
+        if (condition == null || condition.trim().isEmpty()) return false;
+
         try {
-            // Validate expression
-            if (!isValidLogicalExpression(condition)) {
-                // Log error and return false
-                SmartSpawnPoint.getInstance().getLogger().warning("[SmartSpawnPoint] Invalid logical expression: " + condition);
-                return false;
-            }
+            ExpressionEngine engine = new ExpressionEngine();
 
-            // Check for complex conditions with && or ||
-            if (condition.contains("&&") || condition.contains("||")) {
-                return evaluateComplexCondition(player, condition);
-            }
+            Function<String, String> resolver = var -> {
+                // If %...% -> resolve via PAPI
+                if (var.startsWith("%") && var.endsWith("%")) {
+                    try {
+                        return PlaceholderAPI.setPlaceholders(player, var);
+                    } catch (Exception e) {
+                        SmartSpawnPoint.getInstance().getLogger().warning("[SmartSpawnPoint] Placeholder error for: " + var + " -> " + e.getMessage());
+                        return "";
+                    }
+                }
+                // Otherwise raw token (could be number/boolean/string)
+                return var;
+            };
 
-            // Simple condition handling (original code)
-            return evaluateSimpleCondition(player, condition);
+            return engine.evaluate(condition, resolver);
         } catch (Exception e) {
-            e.printStackTrace();
+            if (SmartSpawnPoint.getInstance().getConfigManager().getMainConfig().settings.debugMode) {
+                e.printStackTrace();
+            }
             return false;
         }
     }
 
-    private static boolean evaluateComplexCondition(Player player, String condition) {
-        // Split by OR first (lowest precedence)
-        String[] orParts = condition.split("\\|\\|");
+    /**
+     * Validate expression syntax quickly (used by validators).
+     * Returns true if expression is invalid.
+     */
+    public static boolean isInvalidLogicalExpression(String expression) {
+        if (expression == null || expression.trim().isEmpty()) return true;
 
-        for (String orPart : orParts) {
-            // Split by AND (higher precedence)
-            String[] andParts = orPart.trim().split("&&");
-            boolean andResult = true;
+        try {
+            ExpressionEngine engine = new ExpressionEngine();
+            engine.parseToRPN(expression); // parse only
+            return false;
+        } catch (Exception e) {
+            return true;
+        }
+    }
 
-            for (String andPart : andParts) {
-                if (!evaluateSimpleCondition(player, andPart.trim())) {
-                    andResult = false;
-                    break;
+    /**
+     * Evaluate permissions expression using the same expression engine.
+     * Variables are permission nodes; resolver returns "true"/"false" string.
+     */
+    public static boolean evaluatePermissionExpression(Player player, String expression, boolean bypass) {
+        if (expression == null || expression.trim().isEmpty()) return false;
+
+        if (bypass) return true;
+
+        try {
+            ExpressionEngine engine = new ExpressionEngine();
+
+            Function<String, String> resolver = var -> {
+                // treat bare token as permission node
+                boolean has = player.hasPermission(var);
+                return has ? "true" : "false";
+            };
+
+            return engine.evaluate(expression, resolver);
+        } catch (Exception e) {
+            if (SmartSpawnPoint.getInstance().getConfigManager().getMainConfig().settings.debugMode) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+    }
+
+    // ------------- Expression Engine -------------
+
+    /**
+     * Simple boolean expression engine:
+     * - tokens: parentheses, !, &&, ||, ==, !=, >, >=, <, <=
+     * - operands: numbers, booleans, quoted strings ("..." or '...'), variables
+     * - variables resolved via provided resolver
+     * - precedence: ! > comparisons > && > ||
+     */
+    private static class ExpressionEngine {
+
+        private static final Set<String> OPERATORS = Set.of("!", "&&", "||", "==", "!=", ">", "<", ">=", "<=");
+        private static final Map<String, Integer> PRECEDENCE = Map.of(
+                "!", 4,
+                "==", 3, "!=", 3, ">", 3, "<", 3, ">=", 3, "<=", 3,
+                "&&", 2,
+                "||", 1
+        );
+
+        public boolean evaluate(String expr, Function<String, String> resolver) {
+            List<String> rpn = parseToRPN(expr);
+            Deque<Object> stack = new ArrayDeque<>();
+
+            for (String token : rpn) {
+                if (OPERATORS.contains(token)) {
+                    if (token.equals("!")) {
+                        Object a = stack.pop();
+                        boolean av = asBoolean(a);
+                        stack.push(!av);
+                    } else if (token.equals("&&") || token.equals("||")) {
+                        Object b = stack.pop();
+                        Object a = stack.pop();
+                        boolean av = asBoolean(a);
+                        boolean bv = asBoolean(b);
+                        stack.push(token.equals("&&") ? (av && bv) : (av || bv));
+                    } else {
+                        // comparison operators
+                        Object b = stack.pop();
+                        Object a = stack.pop();
+                        int cmpMode = compareOperands(a, b);
+                        boolean res = switch (token) {
+                            case "==" -> cmpMode == 0;
+                            case "!=" -> cmpMode != 0;
+                            case ">" -> cmpMode > 0;
+                            case ">=" -> cmpMode >= 0;
+                            case "<" -> cmpMode < 0;
+                            case "<=" -> cmpMode <= 0;
+                            default -> false;
+                        };
+                        stack.push(res);
+                    }
+                } else {
+                    // operand: resolve variables and normalize
+                    stack.push(resolveOperand(token, resolver));
                 }
             }
 
-            // If any OR part is true, the whole condition is true
-            if (andResult) {
-                return true;
-            }
+            if (stack.isEmpty()) return false;
+            return asBoolean(stack.pop());
         }
 
-        // If no OR part was true, the whole condition is false
-        return false;
-    }
+        public List<String> parseToRPN(String expr) {
+            List<String> tokens = tokenize(expr);
+            List<String> output = new ArrayList<>();
+            Deque<String> ops = new ArrayDeque<>();
 
-    private static boolean evaluateSimpleCondition(Player player, String condition) {
-        // Parse condition format: "%placeholder% operator value"
-        // Example: "%player_level% > 10"
-
-        // Find position of the first operator
-        int operatorStartPos = -1;
-        String[] possibleOperators = {"==", "!=", ">=", "<=", ">", "<", "="};
-        for (String op : possibleOperators) {
-            int pos = condition.indexOf(op);
-            if (pos > 0 && (operatorStartPos == -1 || pos < operatorStartPos)) {
-                operatorStartPos = pos;
+            for (String t : tokens) {
+                if (isLeftParen(t)) {
+                    ops.push(t);
+                } else if (isRightParen(t)) {
+                    while (!ops.isEmpty() && !isLeftParen(ops.peek())) {
+                        output.add(ops.pop());
+                    }
+                    if (ops.isEmpty() || !isLeftParen(ops.peek())) {
+                        throw new IllegalArgumentException("Mismatched parentheses");
+                    }
+                    ops.pop(); // remove '('
+                } else if (OPERATORS.contains(t)) {
+                    while (!ops.isEmpty() && OPERATORS.contains(ops.peek())) {
+                        String top = ops.peek();
+                        if ((isRightAssociative(t) && precedence(t) < precedence(top)) ||
+                                (!isRightAssociative(t) && precedence(t) <= precedence(top))) {
+                            output.add(ops.pop());
+                        } else break;
+                    }
+                    ops.push(t);
+                } else {
+                    // operand
+                    output.add(t);
+                }
             }
+
+            while (!ops.isEmpty()) {
+                String op = ops.pop();
+                if (isLeftParen(op)) throw new IllegalArgumentException("Mismatched parentheses");
+                output.add(op);
+            }
+
+            return output;
         }
 
-        if (operatorStartPos == -1) {
+        private List<String> tokenize(String expr) {
+            List<String> tokens = new ArrayList<>();
+            char[] arr = expr.toCharArray();
+            int n = arr.length;
+            int i = 0;
+
+            while (i < n) {
+                char c = arr[i];
+
+                if (Character.isWhitespace(c)) {
+                    i++;
+                    continue;
+                }
+
+                // parentheses
+                if (c == '(' || c == ')') {
+                    tokens.add(String.valueOf(c));
+                    i++;
+                    continue;
+                }
+
+                // multi-char operators
+                if (i + 1 < n) {
+                    String two = "" + arr[i] + arr[i + 1];
+                    if (two.equals("&&") || two.equals("||") || two.equals("==") || two.equals("!=") || two.equals(">=") || two.equals("<=")) {
+                        tokens.add(two);
+                        i += 2;
+                        continue;
+                    }
+                }
+
+                // single-char operators
+                if (c == '!' || c == '>' || c == '<') {
+                    tokens.add(String.valueOf(c));
+                    i++;
+                    continue;
+                }
+
+                // quoted string
+                if (c == '"' || c == '\'') {
+                    char quote = c;
+                    int j = i + 1;
+                    StringBuilder sb = new StringBuilder();
+                    while (j < n) {
+                        if (arr[j] == quote) {
+                            break;
+                        }
+                        // allow escaping with backslash
+                        if (arr[j] == '\\' && j + 1 < n) {
+                            sb.append(arr[j + 1]);
+                            j += 2;
+                            continue;
+                        }
+                        sb.append(arr[j]);
+                        j++;
+                    }
+                    if (j >= n || arr[j] != quote) {
+                        throw new IllegalArgumentException("Unclosed string literal");
+                    }
+                    tokens.add("\"" + sb + "\""); // normalized as double-quoted
+                    i = j + 1;
+                    continue;
+                }
+
+                // placeholder %...% or identifier/number
+                if (c == '%') {
+                    int j = i + 1;
+                    while (j < n && arr[j] != '%') j++;
+                    if (j >= n) throw new IllegalArgumentException("Unclosed placeholder");
+                    String ph = expr.substring(i, j + 1);
+                    tokens.add(ph);
+                    i = j + 1;
+                    continue;
+                }
+
+                // identifier or number: [A-Za-z0-9._:-]+
+                int j = i;
+                String allowed = "._:-";
+                while (j < n) {
+                    char ch = arr[j];
+                    if (Character.isLetterOrDigit(ch) || allowed.indexOf(ch) >= 0) {
+                        j++;
+                    } else {
+                        break;
+                    }
+                }
+                if (j == i) {
+                    throw new IllegalArgumentException("Unexpected character at " + i + ": '" + c + "'");
+                }
+                String ident = expr.substring(i, j);
+                tokens.add(ident);
+                i = j;
+            }
+
+            return tokens;
+        }
+
+        private boolean isLeftParen(String t) {
+            return "(".equals(t);
+        }
+
+        private boolean isRightParen(String t) {
+            return ")".equals(t);
+        }
+
+        private int precedence(String op) {
+            return PRECEDENCE.getOrDefault(op, 0);
+        }
+
+        private boolean isRightAssociative(String op) {
+            return "!".equals(op);
+        }
+
+        private Object resolveOperand(String token, Function<String, String> resolver) {
+            // quoted string -> strip quotes
+            if ((token.startsWith("\"") && token.endsWith("\""))) {
+                return token.substring(1, token.length() - 1);
+            }
+            // booleans
+            if ("true".equalsIgnoreCase(token)) return true;
+            if ("false".equalsIgnoreCase(token)) return false;
+
+            // try number
+            try {
+                if (token.contains(".")) {
+                    return Double.parseDouble(token);
+                } else {
+                    // still parse as double to unify comparisons
+                    return Double.parseDouble(token);
+                }
+            } catch (NumberFormatException ignored) {
+            }
+
+            // variable -> resolve to string
+            String val = resolver.apply(token);
+            if (val == null) val = "";
+
+            // Try boolean
+            if ("true".equalsIgnoreCase(val)) return true;
+            if ("false".equalsIgnoreCase(val)) return false;
+
+            // Try number
+            try {
+                return Double.parseDouble(val);
+            } catch (NumberFormatException ignored) {
+            }
+
+            return val; // treat as string
+        }
+
+        private boolean asBoolean(Object o) {
+            if (o instanceof Boolean b) return b;
+            if (o instanceof Number n) return n.doubleValue() != 0.0;
+            if (o instanceof String s) {
+                if ("true".equalsIgnoreCase(s)) return true;
+                if ("false".equalsIgnoreCase(s)) return false;
+                // non-empty string -> true
+                return !s.isEmpty();
+            }
             return false;
         }
 
-        // Split into placeholder, operator and value
-        String placeholder = condition.substring(0, operatorStartPos).trim();
-
-        // Determine the operator
-        String operator = null;
-        for (String op : possibleOperators) {
-            if (condition.substring(operatorStartPos).startsWith(op)) {
-                operator = op;
-                break;
+        private int compareOperands(Object a, Object b) {
+            // number vs number
+            if (a instanceof Number an && b instanceof Number bn) {
+                return Double.compare(an.doubleValue(), bn.doubleValue());
             }
-        }
-
-        if (operator == null) {
-            return false;
-        }
-
-        // Get the value
-        String valueStr = condition.substring(operatorStartPos + operator.length()).trim();
-
-        // Get the actual value from PlaceholderAPI
-        String actualValueStr = PlaceholderAPI.setPlaceholders(player, placeholder);
-
-        // Try to convert to numbers if possible
-        try {
-            double actualValue = Double.parseDouble(actualValueStr);
-            double expectedValue = Double.parseDouble(valueStr);
-
-            return compareValues(actualValue, expectedValue, operator);
-        } catch (NumberFormatException e) {
-            // If not numbers, compare as strings
-            return compareStrings(actualValueStr, valueStr, operator);
-        }
-    }
-
-    private static boolean compareValues(double actual, double expected, String operator) {
-        switch (operator) {
-            case "=":
-            case "==":
-                return actual == expected;
-            case "!=":
-                return actual != expected;
-            case ">":
-                return actual > expected;
-            case ">=":
-                return actual >= expected;
-            case "<":
-                return actual < expected;
-            case "<=":
-                return actual <= expected;
-            default:
-                return false;
-        }
-    }
-
-    private static boolean compareStrings(String actual, String expected, String operator) {
-        switch (operator) {
-            case "=":
-            case "==":
-                return actual.equals(expected);
-            case "!=":
-                return !actual.equals(expected);
-            default:
-                return false;
+            // compare as strings
+            String as = String.valueOf(a);
+            String bs = String.valueOf(b);
+            return as.compareTo(bs);
         }
     }
 }

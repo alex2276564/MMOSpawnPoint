@@ -2,7 +2,10 @@ package uz.alex2276564.smartspawnpoint.commands.subcommands.party.options.mode;
 
 import org.bukkit.entity.Player;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
-import uz.alex2276564.smartspawnpoint.commands.framework.builder.*;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.ArgumentBuilder;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.ArgumentType;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.NestedSubCommandProvider;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.smartspawnpoint.party.Party;
 
 public class ModeSubCommand implements NestedSubCommandProvider {
@@ -18,17 +21,20 @@ public class ModeSubCommand implements NestedSubCommandProvider {
                     SmartSpawnPoint plugin = SmartSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Only players can use this command!");
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
-                    if (!plugin.getConfigManager().isPartyEnabled()) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Party system is disabled.");
+                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
                     if (!plugin.getPartyManager().isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player, "<red>You are not in a party.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
 
@@ -36,7 +42,8 @@ public class ModeSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player, "<red>Only the party leader can change options.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.notLeader);
                         return;
                     }
 
@@ -45,10 +52,11 @@ public class ModeSubCommand implements NestedSubCommandProvider {
                         Party.RespawnMode respawnMode = Party.RespawnMode.valueOf(mode.toUpperCase());
                         plugin.getPartyManager().setRespawnMode(player, respawnMode);
 
-                        plugin.getMessageManager().sendMessage(player,
-                                "<green>Party respawn mode set to: <yellow>" + respawnMode.name());
+                        String modeMessage = plugin.getConfigManager().getMessagesConfig().party.respawnModeChanged;
+                        plugin.getMessageManager().sendMessage(player, modeMessage, "mode", respawnMode.name());
                     } catch (IllegalArgumentException e) {
-                        plugin.getMessageManager().sendMessage(player, "<red>Invalid respawn mode. Use 'NORMAL' or 'PARTY_MEMBER'.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.invalidRespawnMode);
                     }
                 });
     }

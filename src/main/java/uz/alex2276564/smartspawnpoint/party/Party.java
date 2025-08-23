@@ -35,12 +35,12 @@ public class Party {
         return leader.equals(playerId);
     }
 
-    public boolean isMember(UUID playerId) {
-        return members.contains(playerId);
+    public boolean isNotMember(UUID playerId) {
+        return !members.contains(playerId);
     }
 
-    public boolean hasInvitation(UUID playerId) {
-        return invitations.containsKey(playerId);
+    public boolean hasNoInvitation(UUID playerId) {
+        return !invitations.containsKey(playerId);
     }
 
     public void invite(UUID playerId, long expiryTimeSeconds) {

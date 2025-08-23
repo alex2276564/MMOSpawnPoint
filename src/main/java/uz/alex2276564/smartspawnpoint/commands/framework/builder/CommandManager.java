@@ -7,7 +7,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 public class CommandManager implements TabExecutor {
@@ -33,8 +36,8 @@ public class CommandManager implements TabExecutor {
             CommandPath path = findCommandPath(command, args);
             executeCommandPath(sender, path, args);
         } catch (Exception e) {
-            SmartSpawnPoint.getInstance().getMessageManager().sendMessage(sender,
-                    "<red>Error executing command: " + e.getMessage());
+            String tmpl = "<red>Error executing command:</red> <gray><err></gray>";
+            SmartSpawnPoint.getInstance().getMessageManager().sendMessage(sender, tmpl, "err", (e.getMessage() != null ? e.getMessage() : "unknown"));
         }
         return true;
     }
@@ -74,8 +77,8 @@ public class CommandManager implements TabExecutor {
     private void executeCommandPath(CommandSender sender, CommandPath path, String[] args) {
         // Check permission
         if (path.permission != null && !sender.hasPermission(path.permission)) {
-            SmartSpawnPoint.getInstance().getMessageManager().sendMessage(sender,
-                    "<red>You don't have permission: <yellow>" + path.permission);
+            String tmpl = "<red>You don't have permission:</red> <yellow><perm>";
+            SmartSpawnPoint.getInstance().getMessageManager().sendMessage(sender, tmpl, "perm", path.permission);
             return;
         }
 
@@ -92,10 +95,10 @@ public class CommandManager implements TabExecutor {
             BuiltSubCommand helpCmd = path.subCommands.get("help");
             if ((helpCmd.permission() == null || sender.hasPermission(helpCmd.permission()))
                     && helpCmd.executor() != null) {
-                    CommandContext context = parseArguments(helpCmd.arguments(), new String[0]);
-                    helpCmd.executor().accept(sender, context);
-                    return;
-                }
+                CommandContext context = parseArguments(helpCmd.arguments(), new String[0]);
+                helpCmd.executor().accept(sender, context);
+                return;
+            }
 
         }
 

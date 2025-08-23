@@ -1,5 +1,6 @@
 package uz.alex2276564.smartspawnpoint.utils.runner;
 
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
 public interface Runner {
@@ -8,7 +9,7 @@ public interface Runner {
 
     void runAsync(@NotNull Runnable task);
 
-    void runDelayed(@NotNull Runnable task, long delayTicks);
+    BukkitTask runDelayed(@NotNull Runnable task, long delayTicks);
 
     void runDelayedAsync(@NotNull Runnable task, long delayTicks);
 

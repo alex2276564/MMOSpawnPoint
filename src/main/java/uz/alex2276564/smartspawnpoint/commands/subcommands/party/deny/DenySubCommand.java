@@ -2,7 +2,8 @@ package uz.alex2276564.smartspawnpoint.commands.subcommands.party.deny;
 
 import org.bukkit.entity.Player;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
-import uz.alex2276564.smartspawnpoint.commands.framework.builder.*;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.NestedSubCommandProvider;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.smartspawnpoint.party.Party;
 import uz.alex2276564.smartspawnpoint.party.PartyManager;
 
@@ -19,12 +20,14 @@ public class DenySubCommand implements NestedSubCommandProvider {
                     SmartSpawnPoint plugin = SmartSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Only players can use this command!");
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
-                    if (!plugin.getConfigManager().isPartyEnabled()) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Party system is disabled.");
+                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
@@ -34,7 +37,8 @@ public class DenySubCommand implements NestedSubCommandProvider {
                     // Check if player has a pending invitation
                     UUID pendingInvitation = partyManager.getPendingInvitation(playerId);
                     if (pendingInvitation == null) {
-                        plugin.getMessageManager().sendMessage(player, "<red>You don't have any pending party invitations.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.noInvitations);
                         return;
                     }
 
@@ -47,15 +51,17 @@ public class DenySubCommand implements NestedSubCommandProvider {
 
                     if (success) {
                         // Message to the player who declined
-                        plugin.getMessageManager().sendMessage(player, "<green>You have declined the party invitation.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.invitationDeclined);
 
                         // Notify party leader
                         if (leader != null && leader.isOnline()) {
-                            plugin.getMessageManager().sendMessage(leader,
-                                    "<red>" + player.getName() + " has declined your party invitation.");
+                            String declineMessage = plugin.getConfigManager().getMessagesConfig().party.invitationDeclinedToLeader;
+                            plugin.getMessageManager().sendMessage(leader, declineMessage, "player", player.getName());
                         }
                     } else {
-                        plugin.getMessageManager().sendMessage(player, "<red>Couldn't decline invitation. It may have expired.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.invitationExpiredOrInvalid);
                     }
                 });
     }

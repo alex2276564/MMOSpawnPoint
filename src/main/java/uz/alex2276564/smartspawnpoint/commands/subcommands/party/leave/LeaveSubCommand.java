@@ -2,7 +2,8 @@ package uz.alex2276564.smartspawnpoint.commands.subcommands.party.leave;
 
 import org.bukkit.entity.Player;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
-import uz.alex2276564.smartspawnpoint.commands.framework.builder.*;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.NestedSubCommandProvider;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.smartspawnpoint.party.Party;
 import uz.alex2276564.smartspawnpoint.party.PartyManager;
 
@@ -20,12 +21,14 @@ public class LeaveSubCommand implements NestedSubCommandProvider {
                     SmartSpawnPoint plugin = SmartSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Only players can use this command!");
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
-                    if (!plugin.getConfigManager().isPartyEnabled()) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Party system is disabled.");
+                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
@@ -33,7 +36,8 @@ public class LeaveSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is in a party
                     if (!partyManager.isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player, "<red>You are not in a party.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
 
@@ -49,26 +53,30 @@ public class LeaveSubCommand implements NestedSubCommandProvider {
 
                     if (success) {
                         // Message to the player who left
-                        plugin.getMessageManager().sendMessage(player, "<green>You have left the party.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.leftParty);
 
                         // Notify other party members
+                        String leftMessage = plugin.getConfigManager().getMessagesConfig().party.playerLeftParty;
+
                         for (Player member : partyMembers) {
-                            plugin.getMessageManager().sendMessage(member,
-                                    "<red>" + player.getName() + " has left the party.");
+                            plugin.getMessageManager().sendMessage(member, leftMessage, "player", player.getName());
                         }
 
                         // If player was leader and party still exists
                         if (isLeader && partyManager.getParty(party.getId()) != null) {
                             Player newLeader = party.getLeaderPlayer();
                             if (newLeader != null) {
+                                String newLeaderMessage = plugin.getConfigManager().getMessagesConfig().party.newLeaderAssigned;
+
                                 for (Player member : party.getOnlineMembers()) {
-                                    plugin.getMessageManager().sendMessage(member,
-                                            "<green>" + newLeader.getName() + " is now the party leader.");
+                                    plugin.getMessageManager().sendMessage(member, newLeaderMessage, "player", newLeader.getName());
                                 }
                             }
                         }
                     } else {
-                        plugin.getMessageManager().sendMessage(player, "<red>Couldn't leave the party. An error occurred.");
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
                     }
                 });
     }

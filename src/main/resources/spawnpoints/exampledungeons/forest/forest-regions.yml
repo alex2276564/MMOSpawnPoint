@@ -1,0 +1,73 @@
+# Forest Dungeon Spawn Configuration
+configType: "deaths"
+priority: 1600
+
+regionSpawns:
+  # Death near forest dungeon entrance (outside)
+  - region: "forest_dungeon_entrance"
+    regionWorld: "forest_dungeon"
+    priority: 1800
+    type: "fixed"
+    location:
+      world: "world"
+      x: -200
+      y: 65
+      z: -200
+      yaw: 0
+      pitch: 0
+      requireSafe: true
+    conditions:
+      permissions:
+        - "dungeon.forest.access"
+    actions:
+      messages:
+        - "<dark_green>🌲 You died near the Forest Dungeon entrance 🌲</dark_green>"
+        - "<yellow>You've been moved to safety outside</yellow>"
+      commands:
+        - command: "effect give %player% minecraft:regeneration 10 1"
+          chance: 100
+          executeInWaitingRoom: false
+
+  # Death inside  boss room
+  - region: "forest_boss_room"
+    regionWorld: "forest_dungeon"
+    priority: 2000
+    type: "weighted_random"
+    weightedLocations:
+      - type: "fixed"
+        location:
+          world: "world"
+          x: -200
+          y: 65
+          z: -200
+          requireSafe: true
+        weight: 80
+        actions:
+          messages:
+            - "<red>💀 You died in the boss room! 💀</red>"
+            - "<gold>Teleported to safety outside the dungeon</gold>"
+          commands:
+            - command: "give %player% minecraft:bread 3"
+              chance: 100
+              chanceConditions:
+                - type: "placeholder"
+                  value: "%player_level% < 20"
+                  weight: 100  # Give food to low level players
+      - type: "fixed"
+        location:
+          world: "world"
+          x: -190
+          y: 65
+          z: -190
+          requireSafe: true
+        weight: 20
+        actions:
+          messages:
+            - "<yellow>You died in the dungeon and respawned at the alternative exit</yellow>"
+          commands:
+            - command: "effect give %player% minecraft:weakness 30 0"
+              chance: 50
+    partyRespawnDisabled: true  # Disable party respawn in dangerous dungeon
+    actions:
+      messages:
+        - "<gray>The Forest Dungeon claimed another victim...</gray>"

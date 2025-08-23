@@ -57,9 +57,11 @@ dependencies {
 shadowJar {
     archiveClassifier.set('')
 
-    relocate 'eu.okaeri.configs', 'uz.alex2276564.permguard.libs.okaeri.configs'
+    mergeServiceFiles()
 
-    relocate 'com.google.gson', 'uz.alex2276564.permguard.libs.gson'
+    relocate 'eu.okaeri.configs', 'uz.alex2276564.smartspawnpoint.libs.okaeri.configs'
+
+    relocate 'com.google.gson', 'uz.alex2276564.smartspawnpoint.libs.gson'
 }
 
 build {

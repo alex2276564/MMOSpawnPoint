@@ -1,7 +1,9 @@
 package uz.alex2276564.smartspawnpoint.commands.subcommands.help;
 
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
-import uz.alex2276564.smartspawnpoint.commands.framework.builder.*;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.CommandBuilder;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.SubCommandBuilder;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.SubCommandProvider;
 
 public class HelpSubCommand implements SubCommandProvider {
 
@@ -13,12 +15,15 @@ public class HelpSubCommand implements SubCommandProvider {
                 .executor((sender, context) -> {
                     SmartSpawnPoint plugin = SmartSpawnPoint.getInstance();
 
-                    plugin.getMessageManager().sendMessage(sender, "<gold>=== SmartSpawnPoint Help ===");
-                    plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp reload <gray>- Reload the plugin configuration");
+                    var messages = plugin.getConfigManager().getMessagesConfig().commands.help;
+                    plugin.getMessageManager().sendMessage(sender, messages.header);
+                    plugin.getMessageManager().sendMessage(sender, messages.reloadLine);
 
-                    if (plugin.getConfigManager().isPartyEnabled()) {
-                        plugin.getMessageManager().sendMessage(sender, "<yellow>/ssp party <gray>- Party commands");
+                    if (plugin.getConfigManager().getMainConfig().party.enabled) {
+                        plugin.getMessageManager().sendMessage(sender, messages.partyLine);
                     }
+
+                    plugin.getMessageManager().sendMessage(sender, messages.helpLine);
                 });
     }
 }

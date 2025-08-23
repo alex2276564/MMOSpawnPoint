@@ -19,7 +19,7 @@ public class PlayerQuitListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
 
-        if (plugin.getConfigManager().isDebugMode()) {
+        if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
             plugin.getLogger().info("Cleaning up data for disconnecting player: " + player.getName());
         }
 
@@ -27,12 +27,18 @@ public class PlayerQuitListener implements Listener {
         plugin.getSpawnManager().cleanupPlayerData(player.getUniqueId());
 
         // Clean up party data if party system is enabled
-        if (plugin.getConfigManager().isPartyEnabled() && plugin.getPartyManager() != null) {
+        if (plugin.getConfigManager().getMainConfig().party.enabled && plugin.getPartyManager() != null) {
             plugin.getPartyManager().cleanupPlayerData(player.getUniqueId());
         }
 
+        // Clean up resource pack listener data
+        PlayerResourcePackListener resourcePackListener = plugin.getResourcePackListener();
+        if (resourcePackListener != null) {
+            resourcePackListener.cleanupPlayer(player.getUniqueId());
+        }
+
         // Clean up safe location cache for this player
-        if (plugin.getConfigManager().isSafeCacheClearPlayerOnWorldChange()) {
+        if (plugin.getConfigManager().getMainConfig().settings.safeLocationCache.advanced.clearPlayerCacheOnWorldChange) {
             SafeLocationFinder.clearPlayerCache(player.getUniqueId());
         }
     }

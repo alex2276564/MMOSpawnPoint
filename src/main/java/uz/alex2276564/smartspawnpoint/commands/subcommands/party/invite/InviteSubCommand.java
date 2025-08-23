@@ -3,7 +3,10 @@ package uz.alex2276564.smartspawnpoint.commands.subcommands.party.invite;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import uz.alex2276564.smartspawnpoint.SmartSpawnPoint;
-import uz.alex2276564.smartspawnpoint.commands.framework.builder.*;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.ArgumentBuilder;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.ArgumentType;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.NestedSubCommandProvider;
+import uz.alex2276564.smartspawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.smartspawnpoint.party.PartyManager;
 
 public class InviteSubCommand implements NestedSubCommandProvider {
@@ -23,12 +26,14 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                     SmartSpawnPoint plugin = SmartSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Only players can use this command!");
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
-                    if (!plugin.getConfigManager().isPartyEnabled()) {
-                        plugin.getMessageManager().sendMessage(sender, "<red>Party system is disabled.");
+                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
+                        plugin.getMessageManager().sendMessage(sender,
+                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
@@ -44,15 +49,20 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                     boolean success = partyManager.invitePlayer(player, targetPlayer);
 
                     if (success) {
-                        plugin.getMessageManager().sendMessage(player,
-                                "<green>Invitation sent to <yellow>" + targetPlayer.getName());
+                        String message = plugin.getConfigManager().getMessagesConfig().party.inviteSent;
+                        plugin.getMessageManager().sendMessage(player, message, "player", targetPlayer.getName());
 
-                        plugin.getMessageManager().sendMessage(targetPlayer,
-                                "<green>You've been invited to join <yellow>" + player.getName() +
-                                        "<green>'s party. Type <yellow>/ssp party accept <green>to join.");
+                        String inviteMessage = plugin.getConfigManager().getMessagesConfig().party.inviteReceived;
+                        plugin.getMessageManager().sendMessage(targetPlayer, inviteMessage, "player", player.getName());
                     } else {
-                        plugin.getMessageManager().sendMessage(player,
-                                "<red>Couldn't invite player. They might already be in a party or your party is full.");
+                        // Check specific reason for failure
+                        if (partyManager.isInParty(targetPlayer.getUniqueId())) {
+                            plugin.getMessageManager().sendMessage(player,
+                                    plugin.getConfigManager().getMessagesConfig().party.inviteFailedAlreadyInParty);
+                        } else {
+                            plugin.getMessageManager().sendMessage(player,
+                                    plugin.getConfigManager().getMessagesConfig().party.inviteFailedPartyFull);
+                        }
                     }
                 });
     }
