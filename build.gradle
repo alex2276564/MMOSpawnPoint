@@ -59,9 +59,9 @@ shadowJar {
 
     mergeServiceFiles()
 
-    relocate 'eu.okaeri.configs', 'uz.alex2276564.smartspawnpoint.libs.okaeri.configs'
+    relocate 'eu.okaeri.configs', 'uz.alex2276564.mmospawnpoint.libs.okaeri.configs'
 
-    relocate 'com.google.gson', 'uz.alex2276564.smartspawnpoint.libs.gson'
+    relocate 'com.google.gson', 'uz.alex2276564.mmospawnpoint.libs.gson'
 }
 
 build {

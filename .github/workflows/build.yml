@@ -275,7 +275,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@main
         with:
-          name: SmartSpawnPoint
+          name: MMOSpawnPoint
           path: ${{ github.workspace }}/build/libs/
 
   build-push:
@@ -314,5 +314,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@main
         with:
-          name: SmartSpawnPoint
+          name: MMOSpawnPoint
           path: ${{ github.workspace }}/build/libs/

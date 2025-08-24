@@ -1,45 +1,45 @@
-name: SmartSpawnPoint
+name: MMOSpawnPoint
 version: '${version}'
-main: uz.alex2276564.smartspawnpoint.SmartSpawnPoint
+main: uz.alex2276564.mmospawnpoint.MMOSpawnPoint
 api-version: '1.16'
 authors: [ alex2276564 ]
-description: SmartSpawnPoint is a powerful and flexible Minecraft plugin that revolutionizes how player respawning works on your server. With region-based, world-based, and condition-based spawn points, you can create immersive experiences for your players that go far beyond the vanilla respawn mechanics.
+description: MMOSpawnPoint is a powerful and flexible Minecraft plugin that revolutionizes how player respawning works on your server. With region-based, world-based, and condition-based spawn points, you can create immersive experiences for your players that go far beyond the vanilla respawn mechanics.
 softdepend: [ WorldGuard, PlaceholderAPI ]
-website: https://github.com/alex2276564/SmartSpawnPoint
+website: https://github.com/alex2276564/MMOSpawnPoint
 commands:
-  smartspawnpoint:
-    description: Main command for SmartSpawnPoint plugin
-    usage: /smartspawnpoint <reload|party|help> [args]
-    aliases: [ ssp ]
-    permission: smartspawnpoint.command
+  mmospawnpoint:
+    description: Main command for MMOSpawnPoint plugin
+    usage: /mmospawnpoint <reload|party|help> [args]
+    aliases: [ msp ]
+    permission: mmospawnpoint.command
 permissions:
-  smartspawnpoint.command:
-    description: Allows access to basic SmartSpawnPoint commands
+  mmospawnpoint.command:
+    description: Allows access to basic MMOSpawnPoint commands
     default: true
-  smartspawnpoint.reload:
-    description: Allows reloading the SmartSpawnPoint configuration
+  mmospawnpoint.reload:
+    description: Allows reloading the MMOSpawnPoint configuration
     default: op
-  smartspawnpoint.party.invite:
+  mmospawnpoint.party.invite:
     description: Allows inviting players to a party
     default: true
-  smartspawnpoint.party.accept:
+  mmospawnpoint.party.accept:
     description: Allows accepting party invitations
     default: true
-  smartspawnpoint.party.deny:
+  mmospawnpoint.party.deny:
     description: Allows denying party invitations
     default: true
-  smartspawnpoint.party.leave:
+  mmospawnpoint.party.leave:
     description: Allows leaving a party
     default: true
-  smartspawnpoint.party.list:
+  mmospawnpoint.party.list:
     description: Allows listing party members
     default: true
-  smartspawnpoint.party.remove:
+  mmospawnpoint.party.remove:
     description: Allows removing players from a party
     default: true
-  smartspawnpoint.party.setleader:
+  mmospawnpoint.party.setleader:
     description: Allows transferring party leadership
     default: true
-  smartspawnpoint.party.options:
+  mmospawnpoint.party.options:
     description: Allows changing party options
     default: true
