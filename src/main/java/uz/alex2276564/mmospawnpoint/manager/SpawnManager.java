@@ -5,7 +5,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.CoordinateSpawnsConfig;
 import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.RegionSpawnsConfig;
@@ -25,18 +24,17 @@ public class SpawnManager {
     private final Random random = new Random();
     private final Map<UUID, Location> deathLocations = new HashMap<>();
 
-    // Selected destination (for waiting room async)
-    private final Map<UUID, RegionSpawnsConfig.LocationOption> selectedLocationOptions = new ConcurrentHashMap<>();
-
-    // Pending AFTER-phase for direct path teleport
     private record PendingAfter(RegionSpawnsConfig.LocationOption loc, RegionSpawnsConfig.ActionsConfig global) {
     }
 
     private final Map<UUID, PendingAfter> pendingAfterActions = new ConcurrentHashMap<>();
 
-    // Async handling
-    private final Map<UUID, BukkitTask> pendingTeleports = new ConcurrentHashMap<>();
-    private final Map<UUID, CompletableFuture<Location>> pendingLocations = new ConcurrentHashMap<>();
+    private record SearchProcess(RegionSpawnsConfig.LocationOption selected,
+                                 RegionSpawnsConfig.ActionsConfig globalActions,
+                                 CompletableFuture<Location> future) {
+    }
+
+    private final Map<UUID, SearchProcess> searchProcesses = new ConcurrentHashMap<>();
 
     @Setter
     private PartyManager partyManager;
@@ -58,24 +56,21 @@ public class SpawnManager {
     public void cleanupPlayerData(UUID playerId) {
         try {
             deathLocations.remove(playerId);
-            selectedLocationOptions.remove(playerId);
+            SearchProcess sp = searchProcesses.remove(playerId);
+            if (sp != null) {
+                try {
+                    sp.future.cancel(true);
+                } catch (Exception ignored) {
+                }
+            }
             pendingAfterActions.remove(playerId);
-
-            BukkitTask task = pendingTeleports.remove(playerId);
-            if (task != null) task.cancel();
-
-            CompletableFuture<Location> future = pendingLocations.remove(playerId);
-            if (future != null) future.cancel(true);
-
             if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                 plugin.getLogger().info("Cleaned up spawn manager data for player: " + playerId);
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error cleaning up player data for " + playerId + ": " + e.getMessage());
+            plugin.getLogger().warning("Error cleaning up spawn manager data for " + playerId + ": " + e.getMessage());
         }
     }
-
-    // ============================= JOIN/DEATH ENTRY POINTS =============================
 
     public boolean processJoinSpawn(Player player) {
         try {
@@ -116,7 +111,7 @@ public class SpawnManager {
             Location deathLocation = deathLocations.remove(player.getUniqueId());
             if (deathLocation == null) {
                 if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                    plugin.getLogger().info("No death location found for " + player.getName() + ", using default spawn");
+                    plugin.getLogger().info("No death location found for " + player.getName() + ", using server default");
                 }
                 return false;
             }
@@ -124,9 +119,6 @@ public class SpawnManager {
             if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                 plugin.getLogger().info("Processing death spawn for " + player.getName() + " who died at " + locationToString(deathLocation));
             }
-
-            BukkitTask pending = pendingTeleports.remove(player.getUniqueId());
-            if (pending != null) pending.cancel();
 
             String partyScope = plugin.getConfigManager().getMainConfig().party.scope;
             if (plugin.getConfigManager().getMainConfig().party.enabled &&
@@ -159,8 +151,6 @@ public class SpawnManager {
             return false;
         }
     }
-
-    // ============================= PRIORITY PROCESSING =============================
 
     private Location findSpawnLocationByPriority(String eventType, Location referenceLocation, Player player) {
         List<SpawnEntry> matchingEntries = plugin.getConfigManager().getMatchingSpawnEntries(eventType, referenceLocation);
@@ -221,13 +211,11 @@ public class SpawnManager {
         }
 
         if (destinations == null || destinations.isEmpty()) {
-            // Actions only: AFTER-phase
             runPhaseForActions(player, globalActions, RegionSpawnsConfig.Phase.AFTER);
             return null;
         }
 
         boolean isWeightedSelection = destinations.size() > 1;
-
         RegionSpawnsConfig.LocationOption selected = selectDestination(player, destinations);
         if (selected == null) return null;
 
@@ -237,13 +225,10 @@ public class SpawnManager {
             runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.BEFORE);
             runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.WAITING_ROOM);
 
-            selectedLocationOptions.put(player.getUniqueId(), selected);
+            startAsyncLocationSearchForSelected(player, selected, globalActions, isWeightedSelection);
+
             Location waiting = getBestWaitingRoom(selected.waitingRoom, entryWaitingRoom);
-            if (waiting != null) {
-                startAsyncLocationSearchForSelected(player, selected, globalActions, isWeightedSelection);
-                return waiting;
-            }
-            // Fallback: direct path
+            return waiting;
         }
 
         runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.BEFORE);
@@ -258,17 +243,16 @@ public class SpawnManager {
     private RegionSpawnsConfig.LocationOption selectDestination(Player player, List<RegionSpawnsConfig.LocationOption> options) {
         if (options.size() == 1) return options.get(0);
 
-        int totalWeight = 0;
+        int total = 0;
         for (RegionSpawnsConfig.LocationOption opt : options) {
-            totalWeight += getEffectiveWeight(player, opt);
+            total += getEffectiveWeight(player, opt);
         }
-        if (totalWeight <= 0) return null;
+        if (total <= 0) return null;
 
-        int rnd = random.nextInt(totalWeight);
+        int rnd = random.nextInt(total);
         int acc = 0;
         for (RegionSpawnsConfig.LocationOption opt : options) {
-            int w = getEffectiveWeight(player, opt);
-            acc += w;
+            acc += getEffectiveWeight(player, opt);
             if (rnd < acc) return opt;
         }
         return options.get(0);
@@ -295,21 +279,58 @@ public class SpawnManager {
         };
     }
 
-    private boolean isFixedPointOption(RegionSpawnsConfig.LocationOption option) {
-        return option.x != null && option.z != null
-                && option.x.isValue() && option.z.isValue()
-                && (option.y == null || option.y.isValue());
+    private void startAsyncLocationSearchForSelected(Player player,
+                                                     RegionSpawnsConfig.LocationOption selected,
+                                                     RegionSpawnsConfig.ActionsConfig globalActions,
+                                                     boolean isWeightedSelection) {
+        UUID playerId = player.getUniqueId();
+
+        SearchProcess prev = searchProcesses.remove(playerId);
+        if (prev != null) {
+            try {
+                prev.future.cancel(true);
+            } catch (Exception ignored) {
+            }
+        }
+
+        CompletableFuture<Location> future = CompletableFuture.supplyAsync(() ->
+                resolveLocationFromOption(player, selected, isWeightedSelection)
+        );
+
+        SearchProcess sp = new SearchProcess(selected, globalActions, future);
+        searchProcesses.put(playerId, sp);
+
+        future.orTimeout(plugin.getConfigManager().getMainConfig().settings.waitingRoom.asyncSearchTimeout, TimeUnit.SECONDS)
+                .whenComplete((location, ex) -> {
+                    SearchProcess current = searchProcesses.remove(playerId);
+                    if (current == null) return;
+
+                    if (ex != null) {
+                        if (!(ex instanceof CancellationException) && plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                            plugin.getLogger().warning("Async location search failed: " + ex.getMessage());
+                        }
+                        return;
+                    }
+
+                    if (location != null && player.isOnline() && !player.isDead()) {
+                        int delay = plugin.getConfigManager().getMainConfig().settings.teleport.delayTicks;
+                        plugin.getRunner().runDelayed(() -> {
+                            if (!player.isOnline()) return;
+                            player.teleport(location);
+                            runPhaseForEntry(player, current.selected, current.globalActions, RegionSpawnsConfig.Phase.AFTER);
+                        }, Math.max(delay, 1));
+                    }
+                });
     }
 
     private Location resolveLocationFromOption(Player player, RegionSpawnsConfig.LocationOption option, boolean isWeightedSelection) {
         World world = Bukkit.getWorld(option.world);
         if (world == null) return null;
 
-        // choose caching profiles from main config
         var cacheConfig = plugin.getConfigManager().getMainConfig().settings.safeLocationCache.spawnTypeCaching;
+        int maxAttempts = plugin.getConfigManager().getMainConfig().settings.maxSafeLocationAttempts;
 
         if (option.requireSafe) {
-            // FIXED-SAFE: find around a single point
             if (isFixedPointOption(option)) {
                 double x = option.x.value;
                 double z = option.z.value;
@@ -317,12 +338,12 @@ public class SpawnManager {
                 if (option.y != null && option.y.isValue()) {
                     y = option.y.value;
                 } else {
-                    // If Y not provided — start near ground
-                    y = world.getHighestBlockYAt((int) Math.floor(x), (int) Math.floor(z)) + 1.0;
+                    int hx = (int) Math.floor(x);
+                    int hz = (int) Math.floor(z);
+                    y = world.getHighestBlockYAt(hx, hz) + 1.0;
                 }
 
                 Location base = new Location(world, x, y, z);
-                int maxAttempts = plugin.getConfigManager().getMainConfig().settings.maxSafeLocationAttempts;
 
                 boolean useCache = cacheConfig.fixedSpawns.enabled;
                 boolean playerSpecific = cacheConfig.fixedSpawns.playerSpecific;
@@ -330,25 +351,50 @@ public class SpawnManager {
                 Location safe = SafeLocationFinder.findSafeLocation(base, maxAttempts, player.getUniqueId(), useCache, playerSpecific);
                 if (safe == null) return null;
 
-                // Apply yaw/pitch
                 applyYawPitch(option, safe);
                 return safe;
             }
 
-            // REGION-SAFE: search inside region
-            double minX = option.x != null ? (option.x.isValue() ? option.x.value : option.x.min) : world.getWorldBorder().getCenter().getX() - 32;
-            double maxX = option.x != null ? (option.x.isValue() ? option.x.value : option.x.max) : world.getWorldBorder().getCenter().getX() + 32;
-            double minZ = option.z != null ? (option.z.isValue() ? option.z.value : option.z.min) : world.getWorldBorder().getCenter().getZ() - 32;
-            double maxZ = option.z != null ? (option.z.isValue() ? option.z.value : option.z.max) : world.getWorldBorder().getCenter().getZ() + 32;
+            double centerX = world.getWorldBorder().getCenter().getX();
+            double centerZ = world.getWorldBorder().getCenter().getZ();
 
-            double minY = 0;
-            double maxY = world.getMaxHeight();
-            if (option.y != null) {
-                minY = option.y.isValue() ? option.y.value : option.y.min;
-                maxY = option.y.isValue() ? option.y.value : option.y.max;
+            double minX;
+            double maxX;
+            if (option.x == null) {
+                minX = centerX - 32.0;
+                maxX = centerX + 32.0;
+            } else if (option.x.isValue()) {
+                minX = option.x.value;
+                maxX = option.x.value;
+            } else {
+                minX = option.x.min;
+                maxX = option.x.max;
             }
 
-            int maxAttempts = plugin.getConfigManager().getMainConfig().settings.maxSafeLocationAttempts;
+            double minZ;
+            double maxZ;
+            if (option.z == null) {
+                minZ = centerZ - 32.0;
+                maxZ = centerZ + 32.0;
+            } else if (option.z.isValue()) {
+                minZ = option.z.value;
+                maxZ = option.z.value;
+            } else {
+                minZ = option.z.min;
+                maxZ = option.z.max;
+            }
+
+            double minY = 0.0;
+            double maxY = world.getMaxHeight();
+            if (option.y != null) {
+                if (option.y.isValue()) {
+                    minY = option.y.value;
+                    maxY = option.y.value;
+                } else {
+                    minY = option.y.min;
+                    maxY = option.y.max;
+                }
+            }
 
             boolean useCache;
             boolean playerSpecific;
@@ -361,8 +407,8 @@ public class SpawnManager {
             }
 
             Location safe = SafeLocationFinder.findSafeLocationInRegion(
-                    minX, maxX, minY, maxY, minZ, maxZ,
-                    world, maxAttempts, player.getUniqueId(), useCache, playerSpecific
+                    minX, maxX, minY, maxY, minZ, maxZ, world,
+                    maxAttempts, player.getUniqueId(), useCache, playerSpecific
             );
             if (safe == null) return null;
 
@@ -370,23 +416,72 @@ public class SpawnManager {
             return safe;
 
         } else {
-            // Direct (no safe search)
-            if (option.y == null) return null; // validator catches this earlier
+            if (option.y == null) return null;
 
             double x = option.x.isValue() ? option.x.value : option.x.min + random.nextDouble() * (option.x.max - option.x.min);
             double y = option.y.isValue() ? option.y.value : option.y.min + random.nextDouble() * (option.y.max - option.y.min);
             double z = option.z.isValue() ? option.z.value : option.z.min + random.nextDouble() * (option.z.max - option.z.min);
 
-            float yaw = (float) (option.yaw == null ? 0.0 : (option.yaw.isValue() ? option.yaw.value : option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min)));
-            float pitch = (float) clampPitch(option.pitch == null ? 0.0 : (option.pitch.isValue() ? option.pitch.value : option.pitch.min + random.nextDouble() * (option.pitch.max - option.pitch.min)));
+            float yaw = computeYaw(option);
+            float pitch = computePitch(option);
+            pitch = (float) clampPitch(pitch);
 
             return new Location(world, x, y, z, yaw, pitch);
         }
     }
 
+    private float computeYaw(RegionSpawnsConfig.LocationOption option) {
+        if (option.yaw == null) {
+            return 0.0f;
+        }
+        if (option.yaw.isValue()) {
+            // Fix: Double -> float via floatValue()
+            return option.yaw.value.floatValue();
+        }
+        double d = option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min);
+        return (float) d;
+    }
+
+    private float computePitch(RegionSpawnsConfig.LocationOption option) {
+        if (option.pitch == null) {
+            return 0.0f;
+        }
+        if (option.pitch.isValue()) {
+            return option.pitch.value.floatValue();
+        }
+        double d = option.pitch.min + random.nextDouble() * (option.pitch.max - option.pitch.min);
+        return (float) d;
+    }
+
+    private boolean isFixedPointOption(RegionSpawnsConfig.LocationOption option) {
+        return option.x != null && option.z != null
+                && option.x.isValue() && option.z.isValue()
+                && (option.y == null || option.y.isValue());
+    }
+
     private void applyYawPitch(RegionSpawnsConfig.LocationOption option, Location loc) {
-        float yaw = (float) (option.yaw == null ? loc.getYaw() : (option.yaw.isValue() ? option.yaw.value : option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min)));
-        float pitch = (float) clampPitch(option.pitch == null ? loc.getPitch() : (option.pitch.isValue() ? option.pitch.value : option.pitch.min + random.nextDouble() * (option.pitch.max - option.pitch.min)));
+        float yaw;
+        if (option.yaw == null) {
+            yaw = loc.getYaw();
+        } else if (option.yaw.isValue()) {
+            yaw = option.yaw.value.floatValue();
+        } else {
+            double d = option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min);
+            yaw = (float) d;
+        }
+
+        float pitch;
+        if (option.pitch == null) {
+            pitch = loc.getPitch();
+        } else if (option.pitch.isValue()) {
+            pitch = option.pitch.value.floatValue();
+        } else {
+            double d = option.pitch.min + random.nextDouble() * (option.pitch.max - option.pitch.min);
+            pitch = (float) d;
+        }
+
+        pitch = (float) clampPitch(pitch);
+
         loc.setYaw(yaw);
         loc.setPitch(pitch);
     }
@@ -407,88 +502,24 @@ public class SpawnManager {
         return new Location(world, target.x, target.y, target.z, target.yaw, target.pitch);
     }
 
-    private void startAsyncLocationSearchForSelected(Player player, RegionSpawnsConfig.LocationOption selected,
-                                                     RegionSpawnsConfig.ActionsConfig globalActions, boolean isWeightedSelection) {
-        UUID playerId = player.getUniqueId();
-
-        CompletableFuture<Location> locationFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                if (Thread.currentThread().isInterrupted()) return null;
-                return resolveLocationFromOption(player, selected, isWeightedSelection);
-            } catch (Exception e) {
-                if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                    plugin.getLogger().warning("Error in async location search: " + e.getMessage());
-                }
-                return null;
-            }
-        });
-
-        pendingLocations.put(playerId, locationFuture);
-
-        locationFuture.orTimeout(plugin.getConfigManager().getMainConfig().settings.waitingRoom.asyncSearchTimeout, TimeUnit.SECONDS)
-                .whenCompleteAsync((location, ex) -> {
-                    pendingLocations.remove(playerId);
-
-                    if (ex != null) {
-                        if (!(ex instanceof CancellationException) && plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                            plugin.getLogger().warning("Async location search failed: " + ex.getMessage());
-                        }
-                        return;
-                    }
-
-                    if (location != null && player.isOnline()) {
-                        scheduleTeleportWithActions(player, location, globalActions);
-                    }
-                });
-    }
-
-    private void scheduleTeleportWithActions(Player player, Location location, RegionSpawnsConfig.ActionsConfig globalActions) {
-        if (!player.isOnline()) return;
-
-        int delayTicks = plugin.getConfigManager().getMainConfig().settings.teleport.delayTicks;
-        UUID playerId = player.getUniqueId();
-
-        BukkitTask task = plugin.getRunner().runDelayed(() -> {
-            if (!player.isOnline()) return;
-
-            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                plugin.getLogger().info("Async teleporting " + player.getName() + " to: " + locationToString(location));
-            }
-
-            player.teleport(location);
-
-            RegionSpawnsConfig.LocationOption selected = selectedLocationOptions.get(playerId);
-            if (selected != null) {
-                runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.AFTER);
-            } else {
-                runPhaseForActions(player, globalActions, RegionSpawnsConfig.Phase.AFTER);
-            }
-
-            selectedLocationOptions.remove(playerId);
-            pendingTeleports.remove(playerId);
-        }, Math.max(delayTicks, 20L)); // минимум 1 сек (для стабильности)
-        pendingTeleports.put(playerId, task);
-    }
-
     private void runPhaseForEntry(Player player, RegionSpawnsConfig.LocationOption selected,
                                   RegionSpawnsConfig.ActionsConfig globalActions,
                                   RegionSpawnsConfig.Phase phase) {
-        switch (selected.actionExecutionMode == null ? "before" : selected.actionExecutionMode.toLowerCase(Locale.ROOT)) {
-            case "before":
+        String mode = selected.actionExecutionMode == null ? "before" : selected.actionExecutionMode.toLowerCase(Locale.ROOT);
+        switch (mode) {
+            case "before" -> {
                 runPhaseForActions(player, selected.actions, phase);
                 runPhaseForActions(player, globalActions, phase);
-                break;
-            case "after":
+            }
+            case "after" -> {
                 runPhaseForActions(player, globalActions, phase);
                 runPhaseForActions(player, selected.actions, phase);
-                break;
-            case "instead":
-                runPhaseForActions(player, selected.actions, phase);
-                break;
-            default:
+            }
+            case "instead" -> runPhaseForActions(player, selected.actions, phase);
+            default -> {
                 runPhaseForActions(player, selected.actions, phase);
                 runPhaseForActions(player, globalActions, phase);
-                break;
+            }
         }
     }
 
@@ -573,14 +604,11 @@ public class SpawnManager {
         if (conditions == null) return false;
 
         boolean bypass = player.isOp() || player.hasPermission("*");
-        if (bypass && plugin.getConfigManager().getMainConfig().settings.debugMode) {
-            plugin.getLogger().info("Player " + player.getName() + " bypassing permission checks (OP or * permission)");
-        }
 
         if (conditions.permissions != null && !conditions.permissions.isEmpty()) {
             for (String permissionExpr : conditions.permissions) {
                 if (!PlaceholderUtils.evaluatePermissionExpression(player, permissionExpr, bypass)) {
-                    return true; // not met
+                    return true;
                 }
             }
         }
@@ -588,7 +616,7 @@ public class SpawnManager {
         if (conditions.placeholders != null && !conditions.placeholders.isEmpty() && plugin.isPlaceholderAPIEnabled()) {
             for (String placeholderExpr : conditions.placeholders) {
                 if (!PlaceholderUtils.checkPlaceholderCondition(player, placeholderExpr)) {
-                    return true; // not met
+                    return true;
                 }
             }
         }
@@ -639,12 +667,14 @@ public class SpawnManager {
     }
 
     public void cleanup() {
-        for (BukkitTask task : pendingTeleports.values()) {
-            task.cancel();
+        for (SearchProcess sp : searchProcesses.values()) {
+            try {
+                sp.future.cancel(true);
+            } catch (Exception ignored) {
+            }
         }
-        pendingTeleports.clear();
-        pendingLocations.clear();
-        selectedLocationOptions.clear();
+        searchProcesses.clear();
+
         pendingAfterActions.clear();
         deathLocations.clear();
     }

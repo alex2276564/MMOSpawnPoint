@@ -10,7 +10,6 @@ import uz.alex2276564.mmospawnpoint.config.MMOSpawnPointConfigManager;
 import uz.alex2276564.mmospawnpoint.listener.*;
 import uz.alex2276564.mmospawnpoint.manager.SpawnManager;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
-import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
 import uz.alex2276564.mmospawnpoint.utils.UpdateChecker;
 import uz.alex2276564.mmospawnpoint.utils.adventure.AdventureMessageManager;
 import uz.alex2276564.mmospawnpoint.utils.adventure.LegacyMessageManager;
@@ -57,8 +56,8 @@ public final class MMOSpawnPoint extends JavaPlugin {
         try {
             setupRunner();
             setupMessageManager();
-            checkDependencies();
             setupConfig();
+            checkDependencies();
             setupBackupManager();
             setupManagers();
             registerListeners();
@@ -108,20 +107,31 @@ public final class MMOSpawnPoint extends JavaPlugin {
     }
 
     private void checkDependencies() {
-        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+        boolean wantPapi = configManager.getMainConfig().hooks.usePlaceholderAPI;
+        boolean wantWG = configManager.getMainConfig().hooks.useWorldGuard;
+
+        if (wantPapi && getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             placeholderAPIEnabled = true;
             getLogger().info("Hooked into PlaceholderAPI!");
         } else {
             placeholderAPIEnabled = false;
-            getLogger().warning("PlaceholderAPI not found! Placeholder conditions will not work.");
+            if (wantPapi) {
+                getLogger().warning("PlaceholderAPI not found! Placeholder conditions will not work.");
+            } else {
+                getLogger().info("PlaceholderAPI integration disabled by config.");
+            }
         }
 
-        if (getServer().getPluginManager().getPlugin("WorldGuard") != null) {
+        if (wantWG && getServer().getPluginManager().getPlugin("WorldGuard") != null) {
             worldGuardEnabled = true;
             getLogger().info("Hooked into WorldGuard!");
         } else {
             worldGuardEnabled = false;
-            getLogger().warning("WorldGuard not found! Region-based spawns will not work.");
+            if (wantWG) {
+                getLogger().warning("WorldGuard not found! Region-based spawns will not work.");
+            } else {
+                getLogger().info("WorldGuard integration disabled by config.");
+            }
         }
     }
 
@@ -195,7 +205,5 @@ public final class MMOSpawnPoint extends JavaPlugin {
         if (resourcePackListener != null) {
             resourcePackListener.cleanup();
         }
-
-        SafeLocationFinder.clearCache();
     }
 }

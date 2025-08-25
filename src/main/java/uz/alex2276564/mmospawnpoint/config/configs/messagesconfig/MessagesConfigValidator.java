@@ -36,6 +36,18 @@ public class MessagesConfigValidator {
         if (!commands.reload.error.contains("<error>")) {
             result.addError("commands.reload.error", "Reload error message must contain <error> placeholder");
         }
+
+        var s = commands.setspawnpoint;
+        Validators.notBlank(result, "commands.setspawnpoint.consoleUsage", s.consoleUsage, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.selfSuccess", s.selfSuccess, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.otherSuccess", s.otherSuccess, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.targetNotification", s.targetNotification, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.failed", s.failed, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.invalidWorld", s.invalidWorld, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.invalidCoords", s.invalidCoords, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.playerNotFound", s.playerNotFound, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.consoleNeedsCoords", s.consoleNeedsCoords, "Cannot be empty");
+        Validators.notBlank(result, "commands.setspawnpoint.consoleNeedsPlayer", s.consoleNeedsPlayer, "Cannot be empty");
     }
 
     // ============================= GENERAL =============================

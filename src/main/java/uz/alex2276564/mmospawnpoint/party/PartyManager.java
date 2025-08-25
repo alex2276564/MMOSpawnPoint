@@ -53,10 +53,11 @@ public class PartyManager {
     }
 
     private void startCleanupTask() {
-        plugin.getRunner().runPeriodical(() -> {
-            cleanupParties();
-            cleanupInvitations();
-        }, 1200L, 1200L); // every 60 seconds
+        int partyPeriod = plugin.getConfigManager().getMainConfig().settings.maintenance.partyCleanupPeriodTicks;
+        int invitePeriod = plugin.getConfigManager().getMainConfig().settings.maintenance.invitationCleanupPeriodTicks;
+
+        plugin.getRunner().runPeriodical(this::cleanupParties, partyPeriod, partyPeriod);
+        plugin.getRunner().runPeriodical(this::cleanupInvitations, invitePeriod, invitePeriod);
     }
 
     public void shutdown() {
@@ -391,8 +392,20 @@ public class PartyManager {
             sendWalkingMessage(player);
             return deathLocation;
         }
+
         boolean deathRestricted = cfg.checkDeathLocation && getDisableReason(deathLocation) != DisableReason.NONE;
-        boolean targetRestricted = cfg.checkTargetLocation && getDisableReason(deathLocation) != DisableReason.NONE;
+
+        boolean targetRestricted = false;
+        if (cfg.checkTargetLocation) {
+            Party party = getPlayerParty(player.getUniqueId());
+            if (party != null) {
+                // Use the same overlay selection as normal flow
+                Player target = findBestTargetOverlayed(party, player, deathLocation, false);
+                if (target != null) {
+                    targetRestricted = getDisableReason(target.getLocation()) != DisableReason.NONE;
+                }
+            }
+        }
 
         if (!deathRestricted && !targetRestricted) {
             sendWalkingMessage(player);
@@ -405,7 +418,7 @@ public class PartyManager {
                 sendWalkingMessage(player);
                 return deathLocation;
             case "fallback_to_party":
-                return null;
+                return null; // Let party logic handle
             case "fallback_to_normal_spawn":
                 return FALLBACK_TO_NORMAL_SPAWN_MARKER;
             default:

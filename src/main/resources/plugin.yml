@@ -9,7 +9,7 @@ website: https://github.com/alex2276564/MMOSpawnPoint
 commands:
   mmospawnpoint:
     description: Main command for MMOSpawnPoint plugin
-    usage: /mmospawnpoint <reload|party|help> [args]
+    usage: /mmospawnpoint <reload|setspawnpoint|party|help> [args]
     aliases: [ msp ]
     permission: mmospawnpoint.command
 permissions:
@@ -18,6 +18,9 @@ permissions:
     default: true
   mmospawnpoint.reload:
     description: Allows reloading the MMOSpawnPoint configuration
+    default: op
+  mmospawnpoint.setspawnpoint:
+    description: Allows setting vanilla respawn point for players
     default: op
   mmospawnpoint.party.invite:
     description: Allows inviting players to a party

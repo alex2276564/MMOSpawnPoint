@@ -105,8 +105,9 @@ public class MMOSpawnPointConfigManager {
     }
 
     private void loadAllSpawnConfigsRecursively(File directory, int depth) {
-        if (depth > 9) {
-            plugin.getLogger().warning("Maximum directory depth (9) exceeded for: " + directory.getPath());
+        int maxDepth = mainConfig.settings.maintenance.maxFolderDepth;
+        if (depth > maxDepth) {
+            plugin.getLogger().warning("Maximum directory depth (" + maxDepth + ") exceeded for: " + directory.getPath());
             return;
         }
 
@@ -331,7 +332,8 @@ public class MMOSpawnPointConfigManager {
     }
 
     private void applyCacheSettings() {
-        var cacheConfig = mainConfig.settings.safeLocationCache;
+        var cfg = mainConfig.settings;
+        var cacheConfig = cfg.safeLocationCache;
 
         SafeLocationFinder.configureCaching(
                 cacheConfig.enabled,
@@ -340,15 +342,23 @@ public class MMOSpawnPointConfigManager {
                 cacheConfig.advanced.debugCache
         );
 
-        // apply search radius
-        SafeLocationFinder.configureSearchRadius(mainConfig.settings.safeLocationRadius);
+        // Search radius
+        SafeLocationFinder.configureSearchRadius(cfg.safeLocationRadius);
 
-        SafeLocationFinder.configureUnsafeMaterials(mainConfig.settings.unsafeMaterials);
+        // Unsafe and passable materials
+        SafeLocationFinder.configureUnsafeMaterials(cfg.unsafeMaterials);
+        SafeLocationFinder.configureBannedPassable(cfg.bannedPassableMaterials);
+
+        // Overworld Y selection behavior
+        SafeLocationFinder.configureOverworldYStrategy(cfg.overworldYStrategy);
+        SafeLocationFinder.configureOverworldYRatio(cfg.highestBlockYAttemptRatio);
 
         if (mainConfig.settings.debugMode) {
-            plugin.getLogger().info("Applied cache settings: enabled=" + cacheConfig.enabled +
+            plugin.getLogger().info("Applied cache/safe-location settings: enabled=" + cacheConfig.enabled +
                     ", expiry=" + cacheConfig.expiryTime + "s, maxSize=" + cacheConfig.maxCacheSize +
-                    ", searchRadius=" + mainConfig.settings.safeLocationRadius);
+                    ", searchRadius=" + cfg.safeLocationRadius +
+                    ", overworldYStrategy=" + cfg.overworldYStrategy +
+                    ", highestRatio=" + cfg.highestBlockYAttemptRatio);
         }
     }
 

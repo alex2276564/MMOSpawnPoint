@@ -44,18 +44,22 @@ public class MessagesConfig extends OkaeriConfig {
         @Comment("Reload command messages")
         public ReloadSection reload = new ReloadSection();
 
+        @Comment("")
+        @Comment("Set spawnpoint command messages")
+        public SetSpawnPointSection setspawnpoint = new SetSpawnPointSection();
+
         public static class HelpSection extends OkaeriConfig {
             @Comment("Main help command header")
             public String header = "<gold>=== MMOSpawnPoint Help ===";
 
             @Comment("Reload command help line")
-            public String reloadLine = "<yellow>/ssp reload <type> <gray>- Reload the plugin configuration";
+            public String reloadLine = "<yellow>/msp reload <type> <gray>- Reload the plugin configuration";
 
             @Comment("Party command help line")
-            public String partyLine = "<yellow>/ssp party <gray>- Soul binding commands";
+            public String partyLine = "<yellow>/msp party <gray>- Soul binding commands";
 
             @Comment("Help command help line")
-            public String helpLine = "<yellow>/ssp help <gray>- Show this help message";
+            public String helpLine = "<yellow>/msp help <gray>- Show this help message";
         }
 
         public static class ReloadSection extends OkaeriConfig {
@@ -64,6 +68,38 @@ public class MessagesConfig extends OkaeriConfig {
 
             @Comment("Reload error message. <error> = error details")
             public String error = "<red>Failed to reload configuration: <error>";
+        }
+
+        public static class SetSpawnPointSection extends OkaeriConfig {
+            @Comment("Shown to console when no player is provided: /msp setspawnpoint <player>")
+            public String consoleUsage = "<red>Console must specify a player: <yellow>/msp setspawnpoint <player>";
+
+            @Comment("Shown to a player who sets their OWN spawn (no target provided). <location> = 'x, y, z in world'")
+            public String selfSuccess = "<green>Your spawn point has been set to: <yellow><location>";
+
+            @Comment("Shown to the command sender when setting another player's spawn. <player>, <location>")
+            public String otherSuccess = "<green>Set spawn point for <yellow><player> <green>to: <yellow><location>";
+
+            @Comment("Notification to the target player when someone else sets their spawn. <setter>, <location>")
+            public String targetNotification = "<green>Your spawn point has been set by <yellow><setter> <green>to: <yellow><location>";
+
+            @Comment("Generic failure message (unexpected error). <player>")
+            public String failed = "<red>Failed to set spawn point for <player>";
+
+            @Comment("Error when the specified world does not exist. <world>")
+            public String invalidWorld = "<red>Unknown world: <yellow><world>";
+
+            @Comment("Error when coordinates cannot be parsed or are incomplete.")
+            public String invalidCoords = "<red>Invalid coordinates. Usage: <yellow>/msp setspawnpoint [player] <world> <x> <y> <z> [yaw] [pitch]";
+
+            @Comment("Error when the specified player is not online. <player>")
+            public String playerNotFound = "<red>Player not found: <yellow><player>";
+
+            @Comment("Error for console if target player provided but no coordinates.")
+            public String consoleNeedsCoords = "<red>Console must specify coordinates for the target player.";
+
+            @Comment("Error for console if using world-first syntax without a player.")
+            public String consoleNeedsPlayer = "<red>Console must specify player and coordinates.";
         }
     }
 
@@ -86,7 +122,7 @@ public class MessagesConfig extends OkaeriConfig {
 
         // Invite flow
         public String inviteSent = "<gray>Soul bond invitation sent to <red><player>";
-        public String inviteReceived = "<gray><player> <gray>invites you to join their <red>death party<gray>. Type <white>/ssp party accept <gray>to bind your souls";
+        public String inviteReceived = "<gray><player> <gray>invites you to join their <red>death party<gray>. Type <white>/msp party accept <gray>to bind your souls";
         public String invitationDeclined = "<green>You have rejected the call of darkness";
         public String invitationDeclinedToLeader = "<red><player> <gray>has rejected your soul bond";
         public String invitationExpiredOrInvalid = "<red>The soul bond has faded into the void";
@@ -102,7 +138,7 @@ public class MessagesConfig extends OkaeriConfig {
         public String playerLeftParty = "<red><player><gray>'s soul has departed the death circle";
         public String playerRemoved = "<red>Your soul has been cast out from the death circle";
         public String playerRemovedFromParty = "<red><player> <gray>has been banished from the death circle";
-        public String cannotRemoveSelf = "<red>You cannot banish your own soul. Use <yellow>/ssp party leave <red>to depart";
+        public String cannotRemoveSelf = "<red>You cannot banish your own soul. Use <yellow>/msp party leave <red>to depart";
         public String partyDisbanded = "<gray>The death party has dissolved into the void";
 
         // Permissions/system
@@ -141,14 +177,14 @@ public class MessagesConfig extends OkaeriConfig {
 
         public static class PartyHelpSection extends OkaeriConfig {
             public String header = "<dark_gray>[<red>Soul Binding<dark_gray>] <gray>Available death party commands:";
-            public String invite = "<gray>» <white>/ssp party invite <dark_gray><<red>soul<dark_gray>> <dark_gray>- <gray>Bind a soul to your <red>death party";
-            public String accept = "<gray>» <white>/ssp party accept <dark_gray>- <gray>Accept a <red>soul bond <gray>invitation";
-            public String deny = "<gray>» <white>/ssp party deny <dark_gray>- <gray>Reject a <red>soul bond <gray>invitation";
-            public String leave = "<gray>» <white>/ssp party leave <dark_gray>- <gray>Sever your soul from the <red>death party";
-            public String list = "<gray>» <white>/ssp party list <dark_gray>- <gray>View all <red>bound souls";
-            public String remove = "<gray>» <white>/ssp party remove <dark_gray><<red>soul<dark_gray>> <dark_gray>- <gray>Cast out a soul from your <red>death party";
-            public String setleader = "<gray>» <white>/ssp party setleader <dark_gray><<red>soul<dark_gray>> <dark_gray>- <gray>Transfer <red>dark leadership";
-            public String options = "<gray>» <white>/ssp party options <dark_gray>- <gray>Configure <red>soul binding <gray>options";
+            public String invite = "<gray>» <white>/msp party invite <dark_gray><<red>soul<dark_gray>> <dark_gray>- <gray>Bind a soul to your <red>death party";
+            public String accept = "<gray>» <white>/msp party accept <dark_gray>- <gray>Accept a <red>soul bond <gray>invitation";
+            public String deny = "<gray>» <white>/msp party deny <dark_gray>- <gray>Reject a <red>soul bond <gray>invitation";
+            public String leave = "<gray>» <white>/msp party leave <dark_gray>- <gray>Sever your soul from the <red>death party";
+            public String list = "<gray>» <white>/msp party list <dark_gray>- <gray>View all <red>bound souls";
+            public String remove = "<gray>» <white>/msp party remove <dark_gray><<red>soul<dark_gray>> <dark_gray>- <gray>Cast out a soul from your <red>death party";
+            public String setleader = "<gray>» <white>/msp party setleader <dark_gray><<red>soul<dark_gray>> <dark_gray>- <gray>Transfer <red>dark leadership";
+            public String options = "<gray>» <white>/msp party options <dark_gray>- <gray>Configure <red>soul binding <gray>options";
         }
     }
 

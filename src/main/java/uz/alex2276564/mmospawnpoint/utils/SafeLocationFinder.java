@@ -10,28 +10,55 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+/**
+ * Threading note:
+ * - This class is called from async tasks. Bukkit API is not guaranteed to be
+ * thread-safe. On Paper 1.16.5+ many getters are practically safe in read-only
+ * scenarios, but you use it at your own risk.
+ * - You explicitly requested to keep the async approach as before.
+ */
 public class SafeLocationFinder {
     private static final Random RANDOM = new Random();
+
+    // Configurable sets
     private static Set<Material> unsafeMaterials = new HashSet<>();
+    private static Set<Material> bannedPassable = new HashSet<>();
 
     // Search settings (configurable)
-    private static int baseSearchRadius = 5; // will be overridden by config
-    private static int maxSearchRadius = 20; // will be derived from base radius
+    private static int baseSearchRadius = 5;
+    private static int maxSearchRadius = 20;
 
     // Configurable cache settings
     private static boolean cacheEnabled = true;
-    private static long cacheExpiry = 300000; // 5 minutes
+    private static long cacheExpiry = 300000; // 5 min
     private static int maxCacheSize = 1000;
     private static boolean debugCache = false;
 
+    // Overworld Y selection strategy and ratio (for MIXED)
+    private enum OverworldYStrategy {MIXED, HIGHEST_FIRST, HIGHEST_ONLY}
+
+    private static OverworldYStrategy overworldYStrategy = OverworldYStrategy.MIXED;
+    private static double highestBlockYAttemptRatio = 0.6; // 60% highest-block attempts for MIXED
+
     // Cache storage
-    private static final Map<String, Location> SAFE_LOCATION_CACHE = new ConcurrentHashMap<>();
-    private static final Map<String, Long> CACHE_TIMESTAMPS = new ConcurrentHashMap<>();
+    private static final Map<CacheKey, Location> SAFE_LOCATION_CACHE = new ConcurrentHashMap<>();
+    private static final Map<CacheKey, Long> CACHE_TIMESTAMPS = new ConcurrentHashMap<>();
 
     // Cache statistics
     private static long cacheHits = 0;
     private static long cacheMisses = 0;
     private static long totalSearches = 0;
+
+    // Type-safe cache key
+    private record CacheKey(
+            String type, String worldName,
+            int x, int y, int z,
+            int minX, int maxX, int minY, int maxY, int minZ, int maxZ,
+            UUID playerId, boolean playerSpecific
+    ) {
+    }
+
+    // --------------- Configuration ----------------
 
     public static void configureCaching(boolean enabled, long expiryMs, int maxSize, boolean debug) {
         cacheEnabled = enabled;
@@ -51,7 +78,6 @@ public class SafeLocationFinder {
 
     public static void configureUnsafeMaterials(List<String> materialNames) {
         Set<Material> materials = new HashSet<>();
-
         for (String materialName : materialNames) {
             try {
                 Material material = Material.valueOf(materialName.toUpperCase());
@@ -60,11 +86,44 @@ public class SafeLocationFinder {
                 MMOSpawnPoint.getInstance().getLogger().warning("Unknown material in unsafe-materials list: " + materialName);
             }
         }
-
         unsafeMaterials = materials;
 
         if (debugCache) {
             MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Configured " + materials.size() + " unsafe materials");
+        }
+    }
+
+    public static void configureBannedPassable(List<String> materialNames) {
+        Set<Material> materials = new HashSet<>();
+        for (String materialName : materialNames) {
+            Material m = Material.matchMaterial(materialName);
+            if (m != null) {
+                materials.add(m);
+            } else {
+                MMOSpawnPoint.getInstance().getLogger().warning("Unknown material in banned-passable list: " + materialName);
+            }
+        }
+        bannedPassable = materials;
+        if (debugCache) {
+            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Configured " + materials.size() + " banned passable materials");
+        }
+    }
+
+    public static void configureOverworldYStrategy(String strategy) {
+        try {
+            overworldYStrategy = OverworldYStrategy.valueOf(strategy.trim().toUpperCase(Locale.ROOT));
+        } catch (Exception e) {
+            overworldYStrategy = OverworldYStrategy.MIXED;
+        }
+        if (debugCache) {
+            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Overworld Y strategy: " + overworldYStrategy);
+        }
+    }
+
+    public static void configureOverworldYRatio(double ratio) {
+        highestBlockYAttemptRatio = Math.max(0.0, Math.min(1.0, ratio));
+        if (debugCache) {
+            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Overworld Y ratio (MIXED): " + highestBlockYAttemptRatio);
         }
     }
 
@@ -76,8 +135,10 @@ public class SafeLocationFinder {
         }
     }
 
+    // --------------- Public API (with caching) ----------------
+
     public static Location findSafeLocation(Location baseLocation, int maxAttempts, UUID playerId,
-                                            boolean useCache, boolean playerSpecificCache) {
+                                            boolean useCache, boolean playerSpecific) {
         totalSearches++;
 
         if (baseLocation == null || !cacheEnabled || !useCache) {
@@ -85,123 +146,93 @@ public class SafeLocationFinder {
         }
 
         World world = baseLocation.getWorld();
-        if (world == null) {
-            return null;
-        }
+        if (world == null) return null;
 
-        String cacheKey = generateCacheKey("fixed", world.getName(),
+        CacheKey key = new CacheKey(
+                "fixed", world.getName(),
                 (int) baseLocation.getX(), (int) baseLocation.getY(), (int) baseLocation.getZ(),
                 0, 0, 0, 0, 0, 0,
-                playerId, playerSpecificCache);
+                playerId, playerSpecific
+        );
 
-        return getCachedOrCompute(cacheKey, () -> findSafeLocationNoCache(baseLocation, maxAttempts));
+        return getCachedOrCompute(key, () -> findSafeLocationNoCache(baseLocation, maxAttempts));
     }
 
     public static Location findSafeLocationInRegion(double minX, double maxX, double minY, double maxY,
                                                     double minZ, double maxZ, World world, int maxAttempts,
-                                                    UUID playerId, boolean useCache, boolean playerSpecificCache) {
+                                                    UUID playerId, boolean useCache, boolean playerSpecific) {
         totalSearches++;
 
         if (world == null || !cacheEnabled || !useCache) {
             return findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts);
         }
 
-        String cacheKey = generateCacheKey("region", world.getName(), 0, 0, 0,
+        CacheKey key = new CacheKey(
+                "region", world.getName(),
+                0, 0, 0,
                 (int) minX, (int) maxX, (int) minY, (int) maxY, (int) minZ, (int) maxZ,
-                playerId, playerSpecificCache);
+                playerId, playerSpecific
+        );
 
-        return getCachedOrCompute(cacheKey, () -> findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts));
+        return getCachedOrCompute(key, () -> findSafeLocationInRegionNoCache(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts));
     }
 
-    private static Location getCachedOrCompute(String cacheKey, Supplier<Location> supplier) {
-        Location cachedLocation = getCachedLocation(cacheKey);
-        if (cachedLocation != null) {
+    // --------------- Cache internals ----------------
+
+    private static Location getCachedOrCompute(CacheKey key, Supplier<Location> supplier) {
+        Location cached = getCachedLocation(key);
+        if (cached != null) {
             cacheHits++;
             if (debugCache) {
-                MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache HIT for key: " + cacheKey);
+                MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache HIT for key: " + key);
                 logCacheStatistics();
             }
-            return cachedLocation.clone();
+            return cached.clone();
         }
 
         cacheMisses++;
-        Location safeLocation = supplier.get();
-
-        if (safeLocation != null) {
-            cacheLocation(cacheKey, safeLocation);
+        Location safe = supplier.get();
+        if (safe != null) {
+            cacheLocation(key, safe);
             if (debugCache) {
-                MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache STORE for key: " + cacheKey);
+                MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache STORE for key: " + key);
                 logCacheStatistics();
             }
         }
-
-        return safeLocation;
+        return safe;
     }
 
-    private static void logCacheStatistics() {
-        double hitRate = totalSearches > 0 ? (cacheHits * 100.0) / totalSearches : 0;
-        MMOSpawnPoint.getInstance().getLogger().info(String.format(
-                "[SafeLocationFinder] Stats: %d searches, %d hits, %d misses, %.1f%% hit rate, %d cached",
-                totalSearches, cacheHits, cacheMisses, hitRate, SAFE_LOCATION_CACHE.size()
-        ));
-    }
+    private static Location getCachedLocation(CacheKey key) {
+        Long ts = CACHE_TIMESTAMPS.get(key);
+        if (ts == null) return null;
 
-    private static String generateCacheKey(String type, String worldName, int x, int y, int z,
-                                           int minX, int maxX, int minY, int maxY, int minZ, int maxZ,
-                                           UUID playerId, boolean playerSpecific) {
-        StringBuilder key = new StringBuilder();
-        key.append(worldName).append(":").append(type);
-
-        if ("fixed".equals(type)) {
-            key.append(":").append(x).append(":").append(y).append(":").append(z);
-        } else if ("region".equals(type)) {
-            key.append(":").append(minX).append(":").append(maxX)
-                    .append(":").append(minY).append(":").append(maxY)
-                    .append(":").append(minZ).append(":").append(maxZ);
-        }
-
-        if (playerSpecific && playerId != null) {
-            key.append(":player:").append(playerId);
-        }
-
-        return key.toString();
-    }
-
-    private static Location getCachedLocation(String cacheKey) {
-        if (!SAFE_LOCATION_CACHE.containsKey(cacheKey)) {
-            return null;
-        }
-
-        long timestamp = CACHE_TIMESTAMPS.getOrDefault(cacheKey, 0L);
-        if (System.currentTimeMillis() - timestamp < cacheExpiry) {
-            return SAFE_LOCATION_CACHE.get(cacheKey);
+        if (System.currentTimeMillis() - ts < cacheExpiry) {
+            return SAFE_LOCATION_CACHE.get(key);
         } else {
-            SAFE_LOCATION_CACHE.remove(cacheKey);
-            CACHE_TIMESTAMPS.remove(cacheKey);
+            SAFE_LOCATION_CACHE.remove(key);
+            CACHE_TIMESTAMPS.remove(key);
             return null;
         }
     }
 
-    private static void cacheLocation(String cacheKey, Location location) {
+    private static void cacheLocation(CacheKey key, Location location) {
         if (SAFE_LOCATION_CACHE.size() >= maxCacheSize) {
             cleanOldestCacheEntries();
         }
-
-        SAFE_LOCATION_CACHE.put(cacheKey, location.clone());
-        CACHE_TIMESTAMPS.put(cacheKey, System.currentTimeMillis());
+        SAFE_LOCATION_CACHE.put(key, location.clone());
+        CACHE_TIMESTAMPS.put(key, System.currentTimeMillis());
     }
 
     private static void cleanOldestCacheEntries() {
         try {
             int entriesToRemove = Math.max(1, maxCacheSize / 5);
-
-            List<String> keysToRemove = CACHE_TIMESTAMPS.entrySet().stream()
+            List<CacheKey> keysToRemove = CACHE_TIMESTAMPS.entrySet().stream()
                     .sorted(Map.Entry.comparingByValue())
                     .limit(entriesToRemove)
                     .map(Map.Entry::getKey)
                     .toList();
 
-            for (String key : keysToRemove) {
+            for (CacheKey key : keysToRemove) {
                 SAFE_LOCATION_CACHE.remove(key);
                 CACHE_TIMESTAMPS.remove(key);
             }
@@ -214,31 +245,39 @@ public class SafeLocationFinder {
         }
     }
 
+    private static void logCacheStatistics() {
+        double hitRate = totalSearches > 0 ? (cacheHits * 100.0) / totalSearches : 0;
+        MMOSpawnPoint.getInstance().getLogger().info(String.format(
+                "[SafeLocationFinder] Stats: %d searches, %d hits, %d misses, %.1f%% hit rate, %d cached",
+                totalSearches, cacheHits, cacheMisses, hitRate, SAFE_LOCATION_CACHE.size()
+        ));
+    }
+
     public static void clearPlayerCache(UUID playerId) {
         if (playerId == null) return;
+        int removed = 0;
 
-        try {
-            String playerPrefix = ":player:" + playerId;
-            int removedCount = 0;
-
-            Iterator<Map.Entry<String, Location>> it = SAFE_LOCATION_CACHE.entrySet().iterator();
-            while (it.hasNext()) {
-                Map.Entry<String, Location> entry = it.next();
-                if (entry.getKey().contains(playerPrefix)) {
-                    it.remove();
-                    removedCount++;
-                }
+        for (CacheKey key : new ArrayList<>(SAFE_LOCATION_CACHE.keySet())) {
+            if (key.playerSpecific && playerId.equals(key.playerId)) {
+                SAFE_LOCATION_CACHE.remove(key);
+                CACHE_TIMESTAMPS.remove(key);
+                removed++;
             }
-
-            CACHE_TIMESTAMPS.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
-
-            if (debugCache && removedCount > 0) {
-                MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cleared " + removedCount + " cache entries for player: " + playerId);
-            }
-        } catch (Exception e) {
-            MMOSpawnPoint.getInstance().getLogger().warning("[SafeLocationFinder] Error clearing player cache: " + e.getMessage());
+        }
+        if (debugCache && removed > 0) {
+            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cleared " + removed + " cache entries for player: " + playerId);
         }
     }
+
+    public static void clearCache() {
+        SAFE_LOCATION_CACHE.clear();
+        CACHE_TIMESTAMPS.clear();
+        if (debugCache) {
+            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache cleared");
+        }
+    }
+
+    // --------------- Core search (no cache) ----------------
 
     private static Location findSafeLocationNoCache(Location baseLocation, int maxAttempts) {
         if (baseLocation == null) return null;
@@ -288,19 +327,55 @@ public class SafeLocationFinder {
                                                             double minZ, double maxZ, World world, int maxAttempts) {
         if (world == null) return null;
 
-        double centerX = (minX + maxX) / 2;
-        double centerY = (minY + maxY) / 2;
-        double centerZ = (minZ + maxZ) / 2;
+        double centerX = (minX + maxX) / 2.0;
+        double centerZ = (minZ + maxZ) / 2.0;
 
         boolean isNether = world.getEnvironment() == World.Environment.NETHER;
 
-        int centerHighestY;
-        if (isNether) {
-            centerHighestY = findSafeYInNether(world, (int) centerX, (int) centerZ, (int) maxY, (int) minY);
-        } else {
-            centerHighestY = world.getHighestBlockYAt((int) centerX, (int) centerZ);
+        // Overworld branch with strategy
+        if (!isNether) {
+            int attemptsHighest = 0;
+            int attemptsRandom = 0;
+
+            switch (overworldYStrategy) {
+                case HIGHEST_ONLY -> attemptsHighest = maxAttempts;
+                case HIGHEST_FIRST -> attemptsHighest = maxAttempts;
+                case MIXED -> {
+                    attemptsHighest = (int) Math.round(maxAttempts * highestBlockYAttemptRatio);
+                    attemptsHighest = Math.max(0, Math.min(maxAttempts, attemptsHighest));
+                    attemptsRandom = Math.max(0, maxAttempts - attemptsHighest);
+                }
+            }
+
+            // First quick check at region center (highest)
+            int centerHy = world.getHighestBlockYAt((int) centerX, (int) centerZ);
+            Location center = new Location(world, centerX, centerHy + 1.0, centerZ);
+            if (isSafeLocation(center)) return center.clone();
+
+            // Highest-block attempts
+            for (int i = 0; i < attemptsHighest; i++) {
+                double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                int hy = world.getHighestBlockYAt((int) x, (int) z);
+                Location loc = new Location(world, x, hy + 1.0, z);
+                if (isSafeLocation(loc)) return loc.clone();
+            }
+
+            // Random-Y attempts
+            for (int i = 0; i < attemptsRandom; i++) {
+                double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                double y = minY + RANDOM.nextDouble() * Math.max(1.0, (maxY - minY));
+                Location loc = new Location(world, x, y, z);
+                if (isSafeLocation(loc)) return loc.clone();
+            }
+
+            // Fallback
+            return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, false);
         }
 
+        // Nether (unchanged logic with vertical scan)
+        int centerHighestY = findSafeYInNether(world, (int) centerX, (int) centerZ, (int) maxY, (int) minY);
         Location centerLoc = new Location(world, centerX, centerHighestY + 1.0, centerZ);
         if (isSafeLocation(centerLoc)) {
             return centerLoc.clone();
@@ -313,49 +388,28 @@ public class SafeLocationFinder {
             double x = minX + RANDOM.nextDouble() * (maxX - minX);
             double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
 
-            double y;
-            if (isNether) {
-                y = findSafeYInNether(world, (int) x, (int) z, (int) maxY, (int) minY);
-            } else {
-                y = minY + RANDOM.nextDouble() * (maxY - minY);
-            }
+            double y = findSafeYInNether(world, (int) x, (int) z, (int) maxY, (int) minY) + 1.0;
 
             Location location = new Location(world, x, y, z);
             if (isSafeLocation(location)) {
                 return location.clone();
             }
-
-            if (attempts == maxAttempts / 2) {
-                x = minX + RANDOM.nextDouble() * (maxX - minX);
-                z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
-
-                int y2;
-                if (isNether) {
-                    y2 = findSafeYInNether(world, (int) x, (int) z, (int) maxY, (int) minY);
-                } else {
-                    y2 = world.getHighestBlockYAt((int) x, (int) z);
-                }
-
-                Location highestLocation = new Location(world, x, y2 + 1.0, z);
-                if (isSafeLocation(highestLocation)) {
-                    return highestLocation.clone();
-                }
-            }
         }
+        return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, true);
+    }
 
-        // Prefer world spawn if inside bounds
+    private static Location fallback(World world, double minX, double maxX, double minY, double maxY,
+                                     double minZ, double maxZ, double centerX, double centerZ, boolean isNether) {
         Location worldSpawn = world.getSpawnLocation();
         if (isWithinBounds(worldSpawn, minX, maxX, minY, maxY, minZ, maxZ)) {
             Location spawnCandidate = worldSpawn.clone();
-            // Ensure on top of ground
             int hy = world.getHighestBlockYAt(spawnCandidate.getBlockX(), spawnCandidate.getBlockZ());
             spawnCandidate.setY(hy + 1.0);
             return spawnCandidate;
         }
 
-        // Last resort: use highest block at center (not the geometric centerY)
         int hyCenter = isNether
-                ? findSafeYInNether(world, (int) centerX, (int) centerZ, (int) maxY, (int) minY)
+                ? findSafeYInNether(world, (int) centerX, (int) centerZ, world.getMaxHeight(), 0)
                 : world.getHighestBlockYAt((int) centerX, (int) centerZ);
         return new Location(world, centerX, hyCenter + 1.0, centerZ);
     }
@@ -364,23 +418,23 @@ public class SafeLocationFinder {
         int startY = (maxY + minY) / 2;
 
         for (int y = startY; y >= minY; y--) {
-            if (isSolidWithTwoAirAbove(world, x, y, z)) return y;
+            if (isSolidWithTwoPassableAbove(world, x, y, z)) return y;
         }
-        for (int y = startY + 1; y <= maxY - 2; y++) {
-            if (isSolidWithTwoAirAbove(world, x, y, z)) return y;
+        for (int y = startY + 1; y <= Math.max(minY + 2, maxY - 2); y++) {
+            if (isSolidWithTwoPassableAbove(world, x, y, z)) return y;
         }
         return 64;
     }
 
-    private static boolean isSolidWithTwoAirAbove(World world, int x, int y, int z) {
-        Block block = world.getBlockAt(x, y, z);
-        Block blockAbove = world.getBlockAt(x, y + 1, z);
-        Block blockAbove2 = world.getBlockAt(x, y + 2, z);
+    private static boolean isSolidWithTwoPassableAbove(World world, int x, int y, int z) {
+        Block ground = world.getBlockAt(x, y, z);
+        Block feet = world.getBlockAt(x, y + 1, z);
+        Block head = world.getBlockAt(x, y + 2, z);
 
-        return block.getType().isSolid() &&
-                !unsafeMaterials.contains(block.getType()) &&
-                blockAbove.getType().isAir() &&
-                blockAbove2.getType().isAir();
+        return ground.getType().isSolid()
+                && !unsafeMaterials.contains(ground.getType())
+                && isPassableSafe(feet)
+                && isPassableSafe(head);
     }
 
     private static boolean isWithinBounds(Location loc, double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {
@@ -394,21 +448,17 @@ public class SafeLocationFinder {
         if (world == null) return false;
 
         Block feet = location.getBlock();
-        Block ground = location.clone().subtract(0, 1, 0).getBlock();
         Block head = location.clone().add(0, 1, 0).getBlock();
+        Block ground = location.clone().subtract(0, 1, 0).getBlock();
 
-        if (!feet.getType().isAir() || !head.getType().isAir()) {
+        if (!isPassableSafe(feet) || !isPassableSafe(head)) {
             return false;
         }
         return ground.getType().isSolid() && !unsafeMaterials.contains(ground.getType());
     }
 
-    public static void clearCache() {
-        SAFE_LOCATION_CACHE.clear();
-        CACHE_TIMESTAMPS.clear();
-
-        if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache cleared");
-        }
+    private static boolean isPassableSafe(Block block) {
+        Material type = block.getType();
+        return block.isPassable() && !bannedPassable.contains(type);
     }
 }

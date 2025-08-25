@@ -6,6 +6,7 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandManager;
 import uz.alex2276564.mmospawnpoint.commands.subcommands.help.HelpSubCommand;
 import uz.alex2276564.mmospawnpoint.commands.subcommands.party.PartySubCommand;
 import uz.alex2276564.mmospawnpoint.commands.subcommands.reload.ReloadSubCommand;
+import uz.alex2276564.mmospawnpoint.commands.subcommands.setspawn.SetSpawnPointSubCommand;
 
 public class MMOSpawnPointCommands {
 
@@ -18,6 +19,7 @@ public class MMOSpawnPointCommands {
         new ReloadSubCommand().build(builder);
         new HelpSubCommand().build(builder);
         new PartySubCommand().build(builder);
+        new SetSpawnPointSubCommand().build(builder);
 
         return builder.build();
     }

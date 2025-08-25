@@ -29,8 +29,30 @@ public class MainConfigValidator {
         Validators.min(result, "settings.safeLocationRadius", settings.safeLocationRadius, 1, "Safe location radius must be at least 1");
         Validators.max(result, "settings.safeLocationRadius", settings.safeLocationRadius, 50, "Safe location radius cannot exceed 50");
 
+        Validators.min(result, "settings.maxSafeLocationAttempts", settings.maxSafeLocationAttempts, 1, "Max safe location attempts must be at least 1");
+        Validators.min(result, "settings.safeLocationRadius", settings.safeLocationRadius, 1, "Safe location radius must be at least 1");
+
         // Validate cache settings
         validateCacheSection(result, settings.safeLocationCache);
+
+        Set<String> strategies = Set.of("MIXED", "HIGHEST_FIRST", "HIGHEST_ONLY");
+        if (settings.overworldYStrategy == null || !strategies.contains(settings.overworldYStrategy.toUpperCase())) {
+            result.addError("settings.overworldYStrategy", "Invalid strategy. Valid: MIXED, HIGHEST_FIRST, HIGHEST_ONLY");
+        }
+        if (settings.highestBlockYAttemptRatio < 0.0 || settings.highestBlockYAttemptRatio > 1.0) {
+            result.addError("settings.highestBlockYAttemptRatio", "Ratio must be within [0.0 .. 1.0]");
+        }
+
+        // Warn unknown passable materials, but do not fail
+        if (settings.bannedPassableMaterials != null) {
+            for (String m : settings.bannedPassableMaterials) {
+                if (org.bukkit.Material.matchMaterial(m) == null) {
+                    MMOSpawnPoint.getInstance().getLogger().warning("Warning: Unknown material in bannedPassableMaterials: " + m);
+                }
+            }
+        }
+
+        validateMaintenanceSection(result, settings.maintenance);
 
         // Validate teleport settings
         validateTeleportSection(result, settings.teleport);
@@ -57,6 +79,13 @@ public class MainConfigValidator {
 
         Validators.min(result, "settings.safeLocationCache.maxCacheSize", cache.maxCacheSize, 10, "Max cache size must be at least 10");
         Validators.max(result, "settings.safeLocationCache.maxCacheSize", cache.maxCacheSize, 10000, "Max cache size cannot exceed 10000");
+        
+    }
+
+    private static void validateMaintenanceSection(ValidationResult result, MainConfig.MaintenanceSection m) {
+        Validators.min(result, "settings.maintenance.maxFolderDepth", m.maxFolderDepth, 1, "Max folder depth must be >= 1");
+        Validators.min(result, "settings.maintenance.partyCleanupPeriodTicks", m.partyCleanupPeriodTicks, 20, "Party cleanup period must be >= 20 ticks");
+        Validators.min(result, "settings.maintenance.invitationCleanupPeriodTicks", m.invitationCleanupPeriodTicks, 20, "Invitation cleanup period must be >= 20 ticks");
     }
 
     private static void validateTeleportSection(ValidationResult result, MainConfig.TeleportSection teleport) {

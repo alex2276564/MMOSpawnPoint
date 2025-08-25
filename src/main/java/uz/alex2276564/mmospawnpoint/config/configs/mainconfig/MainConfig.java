@@ -4,6 +4,8 @@ import eu.okaeri.configs.OkaeriConfig;
 import eu.okaeri.configs.annotation.Comment;
 import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.RegionSpawnsConfig;
 
+import java.util.List;
+
 public class MainConfig extends OkaeriConfig {
 
     @Comment("# ================================================================")
@@ -20,6 +22,18 @@ public class MainConfig extends OkaeriConfig {
     @Comment("")
     @Comment("Join handling settings")
     public JoinsSection joins = new JoinsSection();
+
+    @Comment("")
+    @Comment("External hooks (enable/disable integrations)")
+    public HooksSection hooks = new HooksSection();
+
+    public static class HooksSection extends OkaeriConfig {
+        @Comment("Use WorldGuard integration if installed")
+        public boolean useWorldGuard = true;
+
+        @Comment("Use PlaceholderAPI integration if installed")
+        public boolean usePlaceholderAPI = true;
+    }
 
     public static class SettingsSection extends OkaeriConfig {
         @Comment("Default priorities for spawn types (higher number = higher priority)")
@@ -52,10 +66,37 @@ public class MainConfig extends OkaeriConfig {
 
         @Comment("")
         @Comment("List of materials considered unsafe (will avoid spawning on these)")
-        public java.util.List<String> unsafeMaterials = java.util.List.of(
+        public List<String> unsafeMaterials = List.of(
                 "LAVA", "FIRE", "CACTUS", "WATER", "AIR", "MAGMA_BLOCK",
                 "CAMPFIRE", "SOUL_CAMPFIRE", "WITHER_ROSE", "SWEET_BERRY_BUSH"
         );
+
+        @Comment("")
+        @Comment("Passable materials to avoid standing inside (feet/head), e.g. water, lava, etc.")
+        public List<String> bannedPassableMaterials = List.of(
+                "WATER", "KELP", "KELP_PLANT", "SEAGRASS", "TALL_SEAGRASS", "BUBBLE_COLUMN", "LAVA", "POWDER_SNOW"
+        );
+
+        @Comment("")
+        @Comment("Overworld Y selection strategy for region safe search:")
+        @Comment(" - MIXED: use a split between 'highest block Y' and 'random Y' by ratio (see highestBlockYAttemptRatio).")
+        @Comment(" Implementation detail: first N attempts (ratio * attempts) try 'highest block Y', then the rest use 'random Y'.")
+        @Comment(" Recommended for most servers: keeps players on ground most of the time, but still allows dungeon-like vertical spawns.")
+        @Comment(" - HIGHEST_FIRST: all attempts use 'highest block Y' (identical to HIGHEST_ONLY in current implementation).")
+        @Comment(" Good for natural terrain worlds; may be unsuitable for vertical dungeons with multiple floors.")
+        @Comment(" - HIGHEST_ONLY: strictly use 'highest block Y' for all attempts (same behavior as HIGHEST_FIRST).")
+        @Comment(" Use when you want to ensure ground-level spawns only.")
+        public String overworldYStrategy = "MIXED";
+
+        @Comment("")
+        @Comment("For MIXED strategy: the ratio of attempts using highest-block Y [0.0 .. 1.0].")
+        @Comment("Example: 0.6 -> 60% of attempts use 'highest block Y' (first), 40% use 'random Y' (after).")
+        @Comment("Tip: 0.5-0.8 works well for most overworld regions; reduce if you have vertical dungeons.")
+        public double highestBlockYAttemptRatio = 0.6;
+
+        @Comment("")
+        @Comment("Maintenance and scheduler parameters")
+        public MaintenanceSection maintenance = new MaintenanceSection();
     }
 
     public static class DefaultPrioritiesSection extends OkaeriConfig {
@@ -113,7 +154,8 @@ public class MainConfig extends OkaeriConfig {
     }
 
     public static class AdvancedCacheSection extends OkaeriConfig {
-        @Comment("Clear entire cache when any world changes (recommended for dynamic worlds)")
+        @Comment("Clear entire cache when ANY player changes world.")
+        @Comment("Use only for highly specialized setups (event worlds, worlds with frequently changing terrain/regions).")
         public boolean clearOnWorldChange = false;
 
         @Comment("Clear specific player's cache when they change worlds")
@@ -124,7 +166,7 @@ public class MainConfig extends OkaeriConfig {
     }
 
     public static class TeleportSection extends OkaeriConfig {
-        @Comment("Delay before teleport in ticks (20 ticks = 1 second, 1 = instant)")
+        @Comment("Delay before teleport in ticks (20 ticks = 1 second, 1 = almost instant)")
         public int delayTicks = 1;
     }
 
@@ -257,5 +299,16 @@ public class MainConfig extends OkaeriConfig {
         @Comment("Use waiting room while waiting for resource pack")
         @Comment("If enabled, player will be moved to waiting room during RP download")
         public boolean useWaitingRoomForResourcePack = false;
+    }
+
+    public static class MaintenanceSection extends OkaeriConfig {
+        @Comment("Max folder depth when scanning spawnpoints directory")
+        public int maxFolderDepth = 9;
+
+        @Comment("Party cleanup period in ticks")
+        public int partyCleanupPeriodTicks = 1200;
+
+        @Comment("Invitation cleanup period in ticks")
+        public int invitationCleanupPeriodTicks = 1200;
     }
 }
