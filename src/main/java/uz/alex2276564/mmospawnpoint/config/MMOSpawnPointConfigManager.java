@@ -342,18 +342,15 @@ public class MMOSpawnPointConfigManager {
                 cacheConfig.advanced.debugCache
         );
 
-        // Search radius
         SafeLocationFinder.configureSearchRadius(cfg.safeLocationRadius);
 
-        // Unsafe and passable materials
-        SafeLocationFinder.configureUnsafeMaterials(cfg.unsafeMaterials);
-        SafeLocationFinder.configureBannedPassable(cfg.bannedPassableMaterials);
+        SafeLocationFinder.configureGlobalGroundBlacklist(cfg.globalGroundBlacklist);
+        SafeLocationFinder.configureGlobalPassableBlacklist(cfg.globalPassableBlacklist);
 
-        // Overworld Y selection behavior
         SafeLocationFinder.configureOverworldYStrategy(cfg.overworldYStrategy);
         SafeLocationFinder.configureOverworldYRatio(cfg.highestBlockYAttemptRatio);
 
-        if (mainConfig.settings.debugMode) {
+        if (cfg.debugMode) {
             plugin.getLogger().info("Applied cache/safe-location settings: enabled=" + cacheConfig.enabled +
                     ", expiry=" + cacheConfig.expiryTime + "s, maxSize=" + cacheConfig.maxCacheSize +
                     ", searchRadius=" + cfg.safeLocationRadius +

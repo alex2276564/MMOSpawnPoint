@@ -8,9 +8,13 @@ import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.WorldSpawns
 import uz.alex2276564.mmospawnpoint.utils.WorldGuardUtils;
 
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 public record SpawnEntry(Type type, int calculatedPriority, String configType, Object spawnData, String fileName) {
     public enum Type {REGION, WORLD, COORDINATE}
+
+    private static final ConcurrentHashMap<String, Pattern> REGEX_CACHE = new ConcurrentHashMap<>();
 
     public boolean isForEventType(String eventType) {
         return "both".equals(configType) || eventType.equals(configType);
@@ -32,14 +36,21 @@ public record SpawnEntry(Type type, int calculatedPriority, String configType, O
             return false;
         }
         try {
+            // World check
+            boolean worldOk = "*".equals(entry.regionWorld)
+                    || matchByMode(entry.regionWorld, entry.regionWorldMatchMode, location.getWorld().getName());
+            if (!worldOk) return false;
+
+            // Region check
             Set<String> regions = WorldGuardUtils.getRegionsAt(location);
             if (regions.isEmpty()) return false;
 
-            boolean regionMatch = regions.contains(entry.region);
-            boolean worldMatch = entry.regionWorld.equals("*")
-                    || location.getWorld().getName().equals(entry.regionWorld);
-
-            return regionMatch && worldMatch;
+            for (String id : regions) {
+                if (matchByMode(entry.region, entry.regionMatchMode, id)) {
+                    return true;
+                }
+            }
+            return false;
         } catch (Throwable ignored) {
             return false;
         }
@@ -49,7 +60,7 @@ public record SpawnEntry(Type type, int calculatedPriority, String configType, O
         if (!(spawnData instanceof WorldSpawnsConfig.WorldSpawnEntry entry)) {
             return false;
         }
-        return location.getWorld().getName().equals(entry.world);
+        return matchByMode(entry.world, entry.worldMatchMode, location.getWorld().getName());
     }
 
     private boolean matchesCoordinates(Location location) {
@@ -59,7 +70,7 @@ public record SpawnEntry(Type type, int calculatedPriority, String configType, O
 
         CoordinateSpawnsConfig.TriggerArea area = entry.triggerArea;
         if (area == null) return false;
-        if (!location.getWorld().getName().equals(area.world)) return false;
+        if (!matchByMode(area.world, area.worldMatchMode, location.getWorld().getName())) return false;
 
         int bx = location.getBlockX();
         int by = location.getBlockY();
@@ -77,5 +88,18 @@ public record SpawnEntry(Type type, int calculatedPriority, String configType, O
             return coord >= axis.min && coord <= axis.max;
         }
         return false;
+    }
+
+    private boolean matchByMode(String patternOrText, String mode, String candidate) {
+        if (patternOrText == null || candidate == null) return false;
+        if (mode == null || mode.equalsIgnoreCase("exact")) {
+            return candidate.equals(patternOrText);
+        }
+        if (mode.equalsIgnoreCase("regex")) {
+            Pattern p = REGEX_CACHE.computeIfAbsent(patternOrText, Pattern::compile);
+            return p.matcher(candidate).matches();
+        }
+        // Fallback: exact
+        return candidate.equals(patternOrText);
     }
 }

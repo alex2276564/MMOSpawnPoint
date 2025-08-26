@@ -18,8 +18,11 @@ public class CoordinateSpawnsConfig extends OkaeriConfig {
     public List<CoordinateSpawnEntry> coordinateSpawns = new ArrayList<>();
 
     public static class TriggerArea extends OkaeriConfig {
-        @Comment("World name")
+        @Comment("World name (or pattern controlled by worldMatchMode)")
         public String world = "world";
+
+        @Comment("Match mode for 'world': exact or regex")
+        public String worldMatchMode = "exact";
 
         @Comment("X axis trigger (value or range). If null -> no constraint on X")
         public RegionSpawnsConfig.AxisSpec x;

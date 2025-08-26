@@ -121,15 +121,21 @@ public class RegionSpawnsConfig extends OkaeriConfig {
     }
 
     public static class RegionSpawnEntry extends OkaeriConfig {
-        @Comment("WorldGuard region name")
+        @Comment("WorldGuard region name or pattern (controlled by regionMatchMode)")
         public String region;
+
+        @Comment("Match mode for 'region': exact or regex")
+        public String regionMatchMode = "exact";
 
         @Comment("Priority for this specific spawn point (0-9999)")
         @Comment("Overrides file priority if specified")
         public Integer priority;
 
-        @Comment("World where this region is located. Use '*' for all worlds.")
+        @Comment("World where this region is located. Use '*' for all worlds, or a pattern with regionWorldMatchMode")
         public String regionWorld = "*";
+
+        @Comment("Match mode for 'regionWorld': exact or regex")
+        public String regionWorldMatchMode = "exact";
 
         @Comment("Destinations list. Empty = actions only (no teleport).")
         public List<LocationOption> destinations = new ArrayList<>();
@@ -183,5 +189,8 @@ public class RegionSpawnsConfig extends OkaeriConfig {
 
         @Comment("Order of local vs global actions inside a phase: before, after, instead")
         public String actionExecutionMode = "before";
+
+        @Comment("Per-entry ground whitelist (if set, only these blocks are allowed under feet for this destination).")
+        public List<String> groundWhitelist = new ArrayList<>();
     }
 }

@@ -43,11 +43,11 @@ public class MainConfigValidator {
             result.addError("settings.highestBlockYAttemptRatio", "Ratio must be within [0.0 .. 1.0]");
         }
 
-        // Warn unknown passable materials, but do not fail
-        if (settings.bannedPassableMaterials != null) {
-            for (String m : settings.bannedPassableMaterials) {
+        // Warn unknown Global Passable Blacklist materials, but do not fail
+        if (settings.globalPassableBlacklist != null) {
+            for (String m : settings.globalPassableBlacklist) {
                 if (org.bukkit.Material.matchMaterial(m) == null) {
-                    MMOSpawnPoint.getInstance().getLogger().warning("Warning: Unknown material in bannedPassableMaterials: " + m);
+                    MMOSpawnPoint.getInstance().getLogger().warning("Warning: Unknown material in globalPassableBlacklist: " + m);
                 }
             }
         }
@@ -60,14 +60,14 @@ public class MainConfigValidator {
         // Validate waiting room settings
         validateWaitingRoomSection(result, settings.waitingRoom);
 
-        // Validate unsafe materials (just warn about unknown materials)
-        if (settings.unsafeMaterials != null) {
-            for (String material : settings.unsafeMaterials) {
+        // Validate Global Ground Blacklist (just warn about unknown materials)
+        if (settings.globalGroundBlacklist != null) {
+            for (String material : settings.globalGroundBlacklist) {
                 try {
                     org.bukkit.Material.valueOf(material.toUpperCase());
                 } catch (IllegalArgumentException e) {
                     // Just log warning, don't fail validation
-                    MMOSpawnPoint.getInstance().getLogger().warning("Warning: Unknown material in unsafe-materials list: " + material);
+                    MMOSpawnPoint.getInstance().getLogger().warning("Warning: Unknown material in globalGroundBlacklist list: " + material);
                 }
             }
         }
@@ -79,7 +79,7 @@ public class MainConfigValidator {
 
         Validators.min(result, "settings.safeLocationCache.maxCacheSize", cache.maxCacheSize, 10, "Max cache size must be at least 10");
         Validators.max(result, "settings.safeLocationCache.maxCacheSize", cache.maxCacheSize, 10000, "Max cache size cannot exceed 10000");
-        
+
     }
 
     private static void validateMaintenanceSection(ValidationResult result, MainConfig.MaintenanceSection m) {

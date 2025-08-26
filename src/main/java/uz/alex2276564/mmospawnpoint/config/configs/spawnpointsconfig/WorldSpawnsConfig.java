@@ -18,8 +18,11 @@ public class WorldSpawnsConfig extends OkaeriConfig {
     public List<WorldSpawnEntry> worldSpawns = new ArrayList<>();
 
     public static class WorldSpawnEntry extends OkaeriConfig {
-        @Comment("Trigger world name (the world where player dies/joins)")
+        @Comment("Trigger world name (or pattern controlled by worldMatchMode)")
         public String world;
+
+        @Comment("Match mode for 'world': exact or regex")
+        public String worldMatchMode = "exact";
 
         @Comment("Priority for this specific spawn point (0-9999)")
         public Integer priority;

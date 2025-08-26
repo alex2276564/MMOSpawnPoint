@@ -6,6 +6,9 @@ import uz.alex2276564.mmospawnpoint.config.utils.validation.Validators;
 import uz.alex2276564.mmospawnpoint.utils.PlaceholderUtils;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 @UtilityClass
 public class WorldSpawnsConfigValidator {
@@ -31,6 +34,21 @@ public class WorldSpawnsConfigValidator {
 
     private static void validateWorldSpawnEntry(ValidationResult result, WorldSpawnsConfig.WorldSpawnEntry entry, String prefix) {
         Validators.notBlank(result, prefix + ".world", entry.world, "World cannot be empty");
+
+        // worldMatchMode
+        if (entry.worldMatchMode != null) {
+            Set<String> modes = Set.of("exact", "regex");
+            if (!modes.contains(entry.worldMatchMode.toLowerCase(Locale.ROOT))) {
+                result.addError(prefix + ".worldMatchMode", "Invalid match mode. Valid: exact, regex");
+            }
+        }
+        if ("regex".equalsIgnoreCase(entry.worldMatchMode)) {
+            try {
+                Pattern.compile(entry.world);
+            } catch (Exception e) {
+                result.addError(prefix + ".world", "Invalid regex: " + e.getMessage());
+            }
+        }
 
         if (entry.destinations != null) {
             for (int j = 0; j < entry.destinations.size(); j++) {

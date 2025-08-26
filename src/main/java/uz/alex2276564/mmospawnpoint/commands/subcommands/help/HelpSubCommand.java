@@ -22,6 +22,8 @@ public class HelpSubCommand implements SubCommandProvider {
                     if (plugin.getConfigManager().getMainConfig().party.enabled) {
                         plugin.getMessageManager().sendMessage(sender, messages.partyLine);
                     }
+                    plugin.getMessageManager().sendMessage(sender, messages.simulateLine);
+                    plugin.getMessageManager().sendMessage(sender, messages.cacheLine);
 
                     plugin.getMessageManager().sendMessage(sender, messages.helpLine);
                 });

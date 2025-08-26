@@ -1,4 +1,4 @@
-package uz.alex2276564.mmospawnpoint.commands.subcommands.setspawn;
+package uz.alex2276564.mmospawnpoint.commands.subcommands.setspawnpoint;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;

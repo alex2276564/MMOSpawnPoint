@@ -8,6 +8,7 @@ import uz.alex2276564.mmospawnpoint.utils.PlaceholderUtils;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @UtilityClass
 public class RegionSpawnsConfigValidator {
@@ -34,6 +35,27 @@ public class RegionSpawnsConfigValidator {
     private static void validateRegionSpawnEntry(ValidationResult result, RegionSpawnsConfig.RegionSpawnEntry entry, String prefix) {
         Validators.notBlank(result, prefix + ".region", entry.region, "Region cannot be empty");
 
+        // Match modes
+        validateMatchMode(result, entry.regionMatchMode, prefix + ".regionMatchMode");
+        validateMatchMode(result, entry.regionWorldMatchMode, prefix + ".regionWorldMatchMode");
+
+        if ("regex".equalsIgnoreCase(entry.regionMatchMode)) {
+            try {
+                Pattern.compile(entry.region);
+            } catch (Exception e) {
+                result.addError(prefix + ".region", "Invalid regex: " + e.getMessage());
+            }
+        }
+
+        if (entry.regionWorld != null && !"*".equals(entry.regionWorld)
+                && "regex".equalsIgnoreCase(entry.regionWorldMatchMode)) {
+            try {
+                Pattern.compile(entry.regionWorld);
+            } catch (Exception e) {
+                result.addError(prefix + ".regionWorld", "Invalid regex: " + e.getMessage());
+            }
+        }
+
         if (entry.destinations != null) {
             for (int j = 0; j < entry.destinations.size(); j++) {
                 RegionSpawnsConfig.LocationOption loc = entry.destinations.get(j);
@@ -49,6 +71,14 @@ public class RegionSpawnsConfigValidator {
         }
         if (entry.waitingRoom != null) {
             Validators.notBlank(result, prefix + ".waitingRoom.world", entry.waitingRoom.world, "Waiting room world cannot be empty");
+        }
+    }
+
+    private static void validateMatchMode(ValidationResult result, String mode, String path) {
+        if (mode == null) return;
+        Set<String> modes = Set.of("exact", "regex");
+        if (!modes.contains(mode.toLowerCase(Locale.ROOT))) {
+            result.addError(path, "Invalid match mode. Valid: exact, regex");
         }
     }
 
@@ -114,6 +144,18 @@ public class RegionSpawnsConfigValidator {
 
         if (loc.waitingRoom != null) {
             Validators.notBlank(result, prefix + ".waitingRoom.world", loc.waitingRoom.world, "Waiting room world cannot be empty");
+        }
+
+        // groundWhitelist materials validity
+        if (loc.groundWhitelist != null) {
+            for (int i = 0; i < loc.groundWhitelist.size(); i++) {
+                String name = loc.groundWhitelist.get(i);
+                try {
+                    org.bukkit.Material.valueOf(name.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    result.addError(prefix + ".groundWhitelist[" + i + "]", "Unknown material: " + name);
+                }
+            }
         }
     }
 

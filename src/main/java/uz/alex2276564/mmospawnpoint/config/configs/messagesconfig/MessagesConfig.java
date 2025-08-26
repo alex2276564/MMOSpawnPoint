@@ -58,6 +58,12 @@ public class MessagesConfig extends OkaeriConfig {
             @Comment("Party command help line")
             public String partyLine = "<yellow>/msp party <gray>- Soul binding commands";
 
+            @Comment("Simulation command help line")
+            public String simulateLine = "<yellow>/msp simulate <gray>- Simulation tools (death/join/back)";
+
+            @Comment("Cache command help line")
+            public String cacheLine = "<yellow>/msp cache <gray>- Safe-location cache tools";
+
             @Comment("Help command help line")
             public String helpLine = "<yellow>/msp help <gray>- Show this help message";
         }
@@ -100,6 +106,52 @@ public class MessagesConfig extends OkaeriConfig {
 
             @Comment("Error for console if using world-first syntax without a player.")
             public String consoleNeedsPlayer = "<red>Console must specify player and coordinates.";
+        }
+
+        @Comment("Simulation command messages")
+        public SimulateSection simulate = new SimulateSection();
+
+        public static class SimulateSection extends OkaeriConfig {
+            @Comment("Help lines for /msp simulate")
+            public String helpHeader = "<gold>=== Simulate Commands ===";
+            public String helpDeathLine = "<yellow>/msp simulate death [player] <gray>- Simulate death respawn";
+            public String helpJoinLine = "<yellow>/msp simulate join [player] <gray>- Simulate join teleport";
+            public String helpBackLine = "<yellow>/msp simulate back [player] <gray>- Return to pre-simulation location";
+
+            @Comment("No permission")
+            public String noPermission = "<red>You don't have permission.";
+            @Comment("Only players can use this")
+            public String onlyPlayers = "<red>Only players can use this command.";
+
+            @Comment("Feedback for simulate death/join")
+            public String deathSelf = "<yellow>Simulating death respawn...";
+            public String deathOther = "<yellow>Simulating death respawn for <white><player></white>...";
+            public String joinSelf = "<yellow>Simulating join...";
+            public String joinOther = "<yellow>Simulating join for <white><player></white>...";
+
+            @Comment("Simulation failed (no spawn matched)")
+            public String simulationFailed = "<red>Simulation failed: no spawn matched.";
+
+            @Comment("Back messages")
+            public String backSelf = "<green>Returned to your previous location.";
+            public String backOther = "<green>Returned <white><player></white> to their previous location.";
+            public String backNone = "<red>No previous location stored.";
+        }
+
+        @Comment("Cache command messages")
+        public CacheSection cache = new CacheSection();
+
+        public static class CacheSection extends OkaeriConfig {
+            @Comment("Help lines for /msp cache")
+            public String helpHeader = "<gold>=== Cache Commands ===";
+            public String helpStatsLine = "<yellow>/msp cache stats <gray>- Show cache statistics";
+            public String helpClearLine = "<yellow>/msp cache clear [player] <gray>- Clear cache (all or player-specific)";
+            
+            @Comment("Stats line: <searches> <hits> <misses> <hitRate> <size> <enabled> <expiry> <max>")
+            public String statsLine = "<gray>Cache: searches=<yellow><searches></yellow>, hits=<yellow><hits></yellow>, misses=<yellow><misses></yellow>, hitRate=<yellow><hitRate>%</yellow>, size=<yellow><size></yellow>, enabled=<yellow><enabled></yellow>, expiry=<yellow><expiry></yellow>s, max=<yellow><max></yellow>";
+
+            public String clearedAll = "<green>Cleared entire safe-location cache.";
+            public String clearedPlayer = "<green>Cleared cache for <yellow><player></yellow>.";
         }
     }
 

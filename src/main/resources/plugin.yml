@@ -22,6 +22,33 @@ permissions:
   mmospawnpoint.setspawnpoint:
     description: Allows setting vanilla respawn point for players
     default: op
+  mmospawnpoint.simulate:
+    description: Root permission for simulate command
+    default: op
+  mmospawnpoint.simulate.death:
+    description: Simulate death respawn
+    default: op
+  mmospawnpoint.simulate.join:
+    description: Simulate join teleport
+    default: op
+  mmospawnpoint.simulate.back:
+    description: Return to pre-simulation location
+    default: op
+  mmospawnpoint.simulate.others:
+    description: Allow simulating for other players
+    default: op
+  mmospawnpoint.cache:
+    description: Root permission for cache command
+    default: op
+  mmospawnpoint.cache.stats:
+    description: View cache stats
+    default: op
+  mmospawnpoint.cache.clear:
+    description: Clear cache
+    default: op
+  mmospawnpoint.party:
+    description: Root permission for party command
+    default: true
   mmospawnpoint.party.invite:
     description: Allows inviting players to a party
     default: true

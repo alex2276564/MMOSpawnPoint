@@ -9,7 +9,7 @@ import java.util.List;
 public class MainConfig extends OkaeriConfig {
 
     @Comment("# ================================================================")
-    @Comment("# MMOSpawnPoint Configuration")
+    @Comment("# 📝 MMOSpawnPoint Configuration")
     @Comment("# ================================================================")
     @Comment("")
     @Comment("General settings")
@@ -65,15 +65,15 @@ public class MainConfig extends OkaeriConfig {
         public boolean debugMode = false;
 
         @Comment("")
-        @Comment("List of materials considered unsafe (will avoid spawning on these)")
-        public List<String> unsafeMaterials = List.of(
+        @Comment("Blocks that are disallowed as ground (block under feet) globally")
+        public List<String> globalGroundBlacklist = List.of(
                 "LAVA", "FIRE", "CACTUS", "WATER", "AIR", "MAGMA_BLOCK",
                 "CAMPFIRE", "SOUL_CAMPFIRE", "WITHER_ROSE", "SWEET_BERRY_BUSH"
         );
 
         @Comment("")
-        @Comment("Passable materials to avoid standing inside (feet/head), e.g. water, lava, etc.")
-        public List<String> bannedPassableMaterials = List.of(
+        @Comment("Passable blocks disallowed for feet/head (e.g., water, lava, cobweb, powder snow)")
+        public List<String> globalPassableBlacklist = List.of(
                 "WATER", "KELP", "KELP_PLANT", "SEAGRASS", "TALL_SEAGRASS", "BUBBLE_COLUMN", "LAVA", "POWDER_SNOW"
         );
 
@@ -95,11 +95,52 @@ public class MainConfig extends OkaeriConfig {
         public double highestBlockYAttemptRatio = 0.6;
 
         @Comment("")
+        @Comment("Permissions and bypass settings")
+        public PermissionsSection permissions = new PermissionsSection();
+
+        @Comment("")
         @Comment("Maintenance and scheduler parameters")
         public MaintenanceSection maintenance = new MaintenanceSection();
     }
 
+    public static class PermissionsSection extends OkaeriConfig {
+        public BypassSection bypass = new BypassSection();
+
+        public static class BypassSection extends OkaeriConfig {
+            public PartyBypassSection party = new PartyBypassSection();
+
+            public static class PartyBypassSection extends OkaeriConfig {
+                @Comment("Bypass party respawn cooldown")
+                public boolean cooldownEnabled = true;
+                public String cooldownNode = "mmospawnpoint.bypass.party.cooldown";
+
+                @Comment("Bypass party restrictions (areas with partyRespawnDisabled)")
+                public RestrictionsSection restrictions = new RestrictionsSection();
+
+                @Comment("Bypass walking spawn point restrictions")
+                public WalkingSection walking = new WalkingSection();
+
+                public static class RestrictionsSection extends OkaeriConfig {
+                    public boolean deathEnabled = true;
+                    public String deathNode = "mmospawnpoint.bypass.party.restrictions.death";
+
+                    public boolean targetEnabled = true;
+                    public String targetNode = "mmospawnpoint.bypass.party.restrictions.target";
+
+                    public boolean bothEnabled = true;
+                    public String bothNode = "mmospawnpoint.bypass.party.restrictions.both";
+                }
+
+                public static class WalkingSection extends OkaeriConfig {
+                    public boolean restrictionsEnabled = true;
+                    public String restrictionsNode = "mmospawnpoint.bypass.party.walking.restrictions";
+                }
+            }
+        }
+    }
+
     public static class DefaultPrioritiesSection extends OkaeriConfig {
+
         @Comment("Coordinate-based spawns")
         public int coordinate = 100;
 
@@ -128,14 +169,17 @@ public class MainConfig extends OkaeriConfig {
     }
 
     public static class SpawnTypeCachingSection extends OkaeriConfig {
-        @Comment("Fixed spawn points (exact coordinates)")
-        public CacheTypeSection fixedSpawns = new CacheTypeSection(true, false);
+        @Comment("Caching for requireSafe=true around a single fixed point (x/z have 'value').")
+        @Comment("Used when destination has fixed coordinates and we look for a safe spot near that point.")
+        public CacheTypeSection fixedSafe = new CacheTypeSection(true, false);
 
-        @Comment("Random spawn points (random coordinates in area)")
-        public CacheTypeSection randomSpawns = new CacheTypeSection(true, true);
+        @Comment("Caching for requireSafe=true when searching inside an area (x/z ranges) and the selection produced a single destination (no weights).")
+        @Comment("Used for region/area-based safe search when only one destination option is chosen.")
+        public CacheTypeSection regionSafeSingle = new CacheTypeSection(true, true);
 
-        @Comment("Weighted random spawn points (multiple locations with weights)")
-        public CacheTypeSection weightedRandomSpawns = new CacheTypeSection(true, false);
+        @Comment("Caching for requireSafe=true when searching inside an area (x/z ranges) and the selection produced multiple destinations with weights.")
+        @Comment("Used for region/area-based safe search when there are several destination options (weighted).")
+        public CacheTypeSection regionSafeWeighted = new CacheTypeSection(true, false);
     }
 
     public static class CacheTypeSection extends OkaeriConfig {
@@ -176,7 +220,10 @@ public class MainConfig extends OkaeriConfig {
 
         @Comment("Timeout for async safe location search (seconds)")
         @Comment("If a safe location isn't found within this time, player stays in waiting room")
-        public int asyncSearchTimeout = 5;
+        public int asyncSearchTimeout = 10;
+
+        @Comment("Minimal time a player must stay in waiting room before final teleport (ticks)")
+        public int minStayTicks = 20;
 
         @Comment("Global waiting room location (used if no custom waiting room is specified)")
         public RegionSpawnsConfig.WaitingRoomConfig location = new RegionSpawnsConfig.WaitingRoomConfig();

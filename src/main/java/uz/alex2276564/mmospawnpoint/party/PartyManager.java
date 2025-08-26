@@ -278,8 +278,15 @@ public class PartyManager {
         Party party = getPlayerParty(playerId);
         if (party.getRespawnMode() != Party.RespawnMode.PARTY_MEMBER) return null;
 
+        // Bypass config/permissions (cooldown, restrictions)
+        var bypass = plugin.getConfigManager().getMainConfig().settings.permissions.bypass.party;
+        boolean bypassCooldown = bypass.cooldownEnabled && player.hasPermission(bypass.cooldownNode);
+        boolean bypassDeathRestrictions = bypass.restrictions.deathEnabled && player.hasPermission(bypass.restrictions.deathNode);
+        boolean bypassTargetRestrictions = bypass.restrictions.targetEnabled && player.hasPermission(bypass.restrictions.targetNode);
+        boolean bypassBothRestrictions = bypass.restrictions.bothEnabled && player.hasPermission(bypass.restrictions.bothNode);
+
         // Cooldown
-        if (respawnCooldown > 0 && party.isOnRespawnCooldown(playerId)) {
+        if (respawnCooldown > 0 && !bypassCooldown && party.isOnRespawnCooldown(playerId)) {
             long remaining = party.getRemainingCooldown(playerId);
             String msg = plugin.getConfigManager().getMessagesConfig().party.respawnCooldown;
             if (msg != null && !msg.isEmpty()) {
@@ -288,12 +295,12 @@ public class PartyManager {
             return null;
         }
 
-        // Walking spawn point
+        // Walking spawn point (death location)
         if (plugin.getConfigManager().getMainConfig().party.respawnAtDeath.enabled &&
                 player.hasPermission(plugin.getConfigManager().getMainConfig().party.respawnAtDeath.permission)) {
             Location walk = handleWalkingSpawnPoint(player, deathLocation);
             if (walk != null) {
-                return walk;
+                return (walk == FALLBACK_TO_NORMAL_SPAWN_MARKER) ? null : walk;
             }
         }
 
@@ -309,11 +316,20 @@ public class PartyManager {
                 ? getDisableReason(targetLocation)
                 : DisableReason.NONE;
 
+        // Apply bypasses to restrictions
+        if (bypassBothRestrictions && deathReason != DisableReason.NONE && targetReason != DisableReason.NONE) {
+            deathReason = DisableReason.NONE;
+            targetReason = DisableReason.NONE;
+        } else {
+            if (bypassDeathRestrictions) deathReason = DisableReason.NONE;
+            if (bypassTargetRestrictions) targetReason = DisableReason.NONE;
+        }
+
         boolean deathRestricted = deathReason != DisableReason.NONE;
         boolean targetRestricted = targetReason != DisableReason.NONE;
 
         if (deathRestricted && targetRestricted) {
-            return handleBothRestricted(player, deathReason); // use death reason as representative
+            return handleBothRestricted(player, deathReason); // 'both restricted' logic
         } else if (deathRestricted) {
             return handleDeathRestricted(player, target, deathReason);
         } else if (targetRestricted) {
@@ -321,14 +337,15 @@ public class PartyManager {
         }
 
         // max distance
-        if (maxRespawnDistance > 0 && target.getWorld().equals(deathLocation.getWorld()) && target.getLocation().distance(deathLocation) > maxRespawnDistance) {
+        if (maxRespawnDistance > 0 && target.getWorld().equals(deathLocation.getWorld())
+                && target.getLocation().distance(deathLocation) > maxRespawnDistance) {
             String msg = plugin.getConfigManager().getMessagesConfig().party.respawnDisabledRegion;
             if (msg != null && !msg.isEmpty()) plugin.getMessageManager().sendMessage(player, msg);
             return null;
         }
 
-
-        if (respawnCooldown > 0) {
+        // Set cooldown only if not bypassed
+        if (respawnCooldown > 0 && !bypassCooldown) {
             party.setRespawnCooldown(playerId, respawnCooldown);
         }
 
@@ -388,18 +405,25 @@ public class PartyManager {
 
     private Location handleWalkingSpawnPoint(Player player, Location deathLocation) {
         var cfg = plugin.getConfigManager().getMainConfig().party.respawnAtDeath.restrictionBehavior;
+
+        // Bypass walking restrictions (ignore all restrictions for walking spawn)
+        var bypass = plugin.getConfigManager().getMainConfig().settings.permissions.bypass.party;
+        if (bypass.walking.restrictionsEnabled
+                && player.hasPermission(bypass.walking.restrictionsNode)) {
+            sendWalkingMessage(player);
+            return deathLocation;
+        }
+
         if (!cfg.respectRestrictions) {
             sendWalkingMessage(player);
             return deathLocation;
         }
 
         boolean deathRestricted = cfg.checkDeathLocation && getDisableReason(deathLocation) != DisableReason.NONE;
-
         boolean targetRestricted = false;
         if (cfg.checkTargetLocation) {
             Party party = getPlayerParty(player.getUniqueId());
             if (party != null) {
-                // Use the same overlay selection as normal flow
                 Player target = findBestTargetOverlayed(party, player, deathLocation, false);
                 if (target != null) {
                     targetRestricted = getDisableReason(target.getLocation()) != DisableReason.NONE;

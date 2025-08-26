@@ -6,6 +6,7 @@ import uz.alex2276564.mmospawnpoint.config.utils.validation.Validators;
 import uz.alex2276564.mmospawnpoint.utils.PlaceholderUtils;
 
 import java.util.List;
+import java.util.Set;
 
 @UtilityClass
 public class CoordinateSpawnsConfigValidator {
@@ -34,6 +35,21 @@ public class CoordinateSpawnsConfigValidator {
             result.addError(prefix + ".triggerArea", "Trigger area cannot be null");
         } else {
             Validators.notBlank(result, prefix + ".triggerArea.world", entry.triggerArea.world, "Trigger area world cannot be empty");
+
+            // worldMatchMode
+            if (entry.triggerArea.worldMatchMode != null) {
+                Set<String> modes = Set.of("exact", "regex");
+                if (!modes.contains(entry.triggerArea.worldMatchMode.toLowerCase())) {
+                    result.addError(prefix + ".triggerArea.worldMatchMode", "Invalid match mode. Valid: exact, regex");
+                }
+            }
+            if ("regex".equalsIgnoreCase(entry.triggerArea.worldMatchMode)) {
+                try {
+                    java.util.regex.Pattern.compile(entry.triggerArea.world);
+                } catch (Exception e) {
+                    result.addError(prefix + ".triggerArea.world", "Invalid regex: " + e.getMessage());
+                }
+            }
 
             boolean hasAnyAxis = entry.triggerArea.x != null || entry.triggerArea.y != null || entry.triggerArea.z != null;
             if (!hasAnyAxis) {

@@ -3,6 +3,7 @@ package uz.alex2276564.mmospawnpoint.manager;
 import lombok.Setter;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
@@ -31,7 +32,8 @@ public class SpawnManager {
 
     private record SearchProcess(RegionSpawnsConfig.LocationOption selected,
                                  RegionSpawnsConfig.ActionsConfig globalActions,
-                                 CompletableFuture<Location> future) {
+                                 CompletableFuture<Location> future,
+                                 long waitingEnteredAtMs) {
     }
 
     private final Map<UUID, SearchProcess> searchProcesses = new ConcurrentHashMap<>();
@@ -225,10 +227,10 @@ public class SpawnManager {
             runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.BEFORE);
             runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.WAITING_ROOM);
 
-            startAsyncLocationSearchForSelected(player, selected, globalActions, isWeightedSelection);
+            long enteredMs = System.currentTimeMillis();
+            startAsyncLocationSearchForSelected(player, selected, globalActions, isWeightedSelection, enteredMs);
 
-            Location waiting = getBestWaitingRoom(selected.waitingRoom, entryWaitingRoom);
-            return waiting;
+            return getBestWaitingRoom(selected.waitingRoom, entryWaitingRoom);
         }
 
         runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.BEFORE);
@@ -282,7 +284,8 @@ public class SpawnManager {
     private void startAsyncLocationSearchForSelected(Player player,
                                                      RegionSpawnsConfig.LocationOption selected,
                                                      RegionSpawnsConfig.ActionsConfig globalActions,
-                                                     boolean isWeightedSelection) {
+                                                     boolean isWeightedSelection,
+                                                     long enteredWaitingMs) {
         UUID playerId = player.getUniqueId();
 
         SearchProcess prev = searchProcesses.remove(playerId);
@@ -297,7 +300,7 @@ public class SpawnManager {
                 resolveLocationFromOption(player, selected, isWeightedSelection)
         );
 
-        SearchProcess sp = new SearchProcess(selected, globalActions, future);
+        SearchProcess sp = new SearchProcess(selected, globalActions, future, enteredWaitingMs);
         searchProcesses.put(playerId, sp);
 
         future.orTimeout(plugin.getConfigManager().getMainConfig().settings.waitingRoom.asyncSearchTimeout, TimeUnit.SECONDS)
@@ -313,12 +316,20 @@ public class SpawnManager {
                     }
 
                     if (location != null && player.isOnline() && !player.isDead()) {
-                        int delay = plugin.getConfigManager().getMainConfig().settings.teleport.delayTicks;
+                        int delayConfig = plugin.getConfigManager().getMainConfig().settings.teleport.delayTicks;
+                        int minStayTicks = plugin.getConfigManager().getMainConfig().settings.waitingRoom.minStayTicks;
+
+                        long elapsedMs = System.currentTimeMillis() - current.waitingEnteredAtMs;
+                        long requiredMs = Math.max(0L, minStayTicks * 50L - elapsedMs);
+                        int requiredTicks = (int) Math.ceil(requiredMs / 50.0);
+
+                        int finalDelay = Math.max(1, Math.max(delayConfig, requiredTicks));
+
                         plugin.getRunner().runDelayed(() -> {
                             if (!player.isOnline()) return;
                             player.teleport(location);
                             runPhaseForEntry(player, current.selected, current.globalActions, RegionSpawnsConfig.Phase.AFTER);
-                        }, Math.max(delay, 1));
+                        }, finalDelay);
                     }
                 });
     }
@@ -329,6 +340,8 @@ public class SpawnManager {
 
         var cacheConfig = plugin.getConfigManager().getMainConfig().settings.safeLocationCache.spawnTypeCaching;
         int maxAttempts = plugin.getConfigManager().getMainConfig().settings.maxSafeLocationAttempts;
+
+        Set<Material> groundWhitelist = toMaterialSet(option.groundWhitelist);
 
         if (option.requireSafe) {
             if (isFixedPointOption(option)) {
@@ -345,10 +358,15 @@ public class SpawnManager {
 
                 Location base = new Location(world, x, y, z);
 
-                boolean useCache = cacheConfig.fixedSpawns.enabled;
-                boolean playerSpecific = cacheConfig.fixedSpawns.playerSpecific;
+                boolean useCache = cacheConfig.fixedSafe.enabled;
+                boolean playerSpecific = cacheConfig.fixedSafe.playerSpecific;
 
-                Location safe = SafeLocationFinder.findSafeLocation(base, maxAttempts, player.getUniqueId(), useCache, playerSpecific);
+                boolean useWhitelist = !groundWhitelist.isEmpty();
+                Location safe = useWhitelist
+                        ? SafeLocationFinder.findSafeLocationWithWhitelist(base, maxAttempts, player.getUniqueId(), useCache, playerSpecific, groundWhitelist)
+                        : SafeLocationFinder.findSafeLocation(base, maxAttempts, player.getUniqueId(), useCache, playerSpecific);
+
+
                 if (safe == null) return null;
 
                 applyYawPitch(option, safe);
@@ -360,6 +378,8 @@ public class SpawnManager {
 
             double minX;
             double maxX;
+            double minZ;
+            double maxZ;
             if (option.x == null) {
                 minX = centerX - 32.0;
                 maxX = centerX + 32.0;
@@ -371,8 +391,6 @@ public class SpawnManager {
                 maxX = option.x.max;
             }
 
-            double minZ;
-            double maxZ;
             if (option.z == null) {
                 minZ = centerZ - 32.0;
                 maxZ = centerZ + 32.0;
@@ -399,17 +417,20 @@ public class SpawnManager {
             boolean useCache;
             boolean playerSpecific;
             if (isWeightedSelection) {
-                useCache = cacheConfig.weightedRandomSpawns.enabled;
-                playerSpecific = cacheConfig.weightedRandomSpawns.playerSpecific;
+                useCache = cacheConfig.regionSafeWeighted.enabled;
+                playerSpecific = cacheConfig.regionSafeWeighted.playerSpecific;
             } else {
-                useCache = cacheConfig.randomSpawns.enabled;
-                playerSpecific = cacheConfig.randomSpawns.playerSpecific;
+                useCache = cacheConfig.regionSafeSingle.enabled;
+                playerSpecific = cacheConfig.regionSafeSingle.playerSpecific;
             }
 
-            Location safe = SafeLocationFinder.findSafeLocationInRegion(
-                    minX, maxX, minY, maxY, minZ, maxZ, world,
-                    maxAttempts, player.getUniqueId(), useCache, playerSpecific
-            );
+            boolean useWhitelist = !groundWhitelist.isEmpty();
+            Location safe = useWhitelist
+                    ? SafeLocationFinder.findSafeLocationInRegionWithWhitelist(minX, maxX, minY, maxY, minZ, maxZ,
+                    world, maxAttempts, player.getUniqueId(), useCache, playerSpecific, groundWhitelist)
+                    : SafeLocationFinder.findSafeLocationInRegion(minX, maxX, minY, maxY, minZ, maxZ,
+                    world, maxAttempts, player.getUniqueId(), useCache, playerSpecific);
+
             if (safe == null) return null;
 
             applyYawPitch(option, safe);
@@ -430,25 +451,27 @@ public class SpawnManager {
         }
     }
 
+    private Set<Material> toMaterialSet(List<String> names) {
+        if (names == null || names.isEmpty()) return Collections.emptySet();
+        Set<Material> set = new HashSet<>();
+        for (String n : names) {
+            Material m = Material.matchMaterial(n);
+            if (m != null) set.add(m);
+            else plugin.getLogger().warning("Unknown material in groundWhitelist: " + n);
+        }
+        return set;
+    }
+
     private float computeYaw(RegionSpawnsConfig.LocationOption option) {
-        if (option.yaw == null) {
-            return 0.0f;
-        }
-        if (option.yaw.isValue()) {
-            // Fix: Double -> float via floatValue()
-            return option.yaw.value.floatValue();
-        }
+        if (option.yaw == null) return 0.0f;
+        if (option.yaw.isValue()) return option.yaw.value.floatValue();
         double d = option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min);
         return (float) d;
     }
 
     private float computePitch(RegionSpawnsConfig.LocationOption option) {
-        if (option.pitch == null) {
-            return 0.0f;
-        }
-        if (option.pitch.isValue()) {
-            return option.pitch.value.floatValue();
-        }
+        if (option.pitch == null) return 0.0f;
+        if (option.pitch.isValue()) return option.pitch.value.floatValue();
         double d = option.pitch.min + random.nextDouble() * (option.pitch.max - option.pitch.min);
         return (float) d;
     }
@@ -460,26 +483,12 @@ public class SpawnManager {
     }
 
     private void applyYawPitch(RegionSpawnsConfig.LocationOption option, Location loc) {
-        float yaw;
-        if (option.yaw == null) {
-            yaw = loc.getYaw();
-        } else if (option.yaw.isValue()) {
-            yaw = option.yaw.value.floatValue();
-        } else {
-            double d = option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min);
-            yaw = (float) d;
-        }
-
-        float pitch;
-        if (option.pitch == null) {
-            pitch = loc.getPitch();
-        } else if (option.pitch.isValue()) {
-            pitch = option.pitch.value.floatValue();
-        } else {
-            double d = option.pitch.min + random.nextDouble() * (option.pitch.max - option.pitch.min);
-            pitch = (float) d;
-        }
-
+        float yaw = (option.yaw == null) ? loc.getYaw()
+                : option.yaw.isValue() ? option.yaw.value.floatValue()
+                : (float) (option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min));
+        float pitch = (option.pitch == null) ? loc.getPitch()
+                : option.pitch.isValue() ? option.pitch.value.floatValue()
+                : (float) (option.pitch.min + random.nextDouble() * (option.pitch.max - option.pitch.min));
         pitch = (float) clampPitch(pitch);
 
         loc.setYaw(yaw);

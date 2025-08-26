@@ -25,6 +25,8 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "commands.help.header", commands.help.header, "Help header cannot be empty");
         Validators.notBlank(result, "commands.help.reloadLine", commands.help.reloadLine, "Help reload line cannot be empty");
         Validators.notBlank(result, "commands.help.partyLine", commands.help.partyLine, "Help party line cannot be empty");
+        Validators.notBlank(result, "commands.help.simulateLine", commands.help.simulateLine, "Help simulate line cannot be empty");
+        Validators.notBlank(result, "commands.help.cacheLine", commands.help.cacheLine, "Help cache line cannot be empty");
         Validators.notBlank(result, "commands.help.helpLine", commands.help.helpLine, "Help help line cannot be empty");
 
         // commands.reload
@@ -48,6 +50,30 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "commands.setspawnpoint.playerNotFound", s.playerNotFound, "Cannot be empty");
         Validators.notBlank(result, "commands.setspawnpoint.consoleNeedsCoords", s.consoleNeedsCoords, "Cannot be empty");
         Validators.notBlank(result, "commands.setspawnpoint.consoleNeedsPlayer", s.consoleNeedsPlayer, "Cannot be empty");
+
+        var sim = commands.simulate;
+        Validators.notBlank(result, "commands.simulate.helpHeader", sim.helpHeader, "Simulate help header cannot be empty");
+        Validators.notBlank(result, "commands.simulate.helpDeathLine", sim.helpDeathLine, "Simulate help death line cannot be empty");
+        Validators.notBlank(result, "commands.simulate.helpJoinLine", sim.helpJoinLine, "Simulate help join line cannot be empty");
+        Validators.notBlank(result, "commands.simulate.helpBackLine", sim.helpBackLine, "Simulate help back line cannot be empty");
+        Validators.notBlank(result, "commands.simulate.noPermission", sim.noPermission, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.onlyPlayers", sim.onlyPlayers, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.deathSelf", sim.deathSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.deathOther", sim.deathOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.joinSelf", sim.joinSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.joinOther", sim.joinOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.simulationFailed", sim.simulationFailed, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.backSelf", sim.backSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.backOther", sim.backOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.backNone", sim.backNone, "Cannot be empty");
+
+        var cache = commands.cache;
+        Validators.notBlank(result, "commands.cache.helpHeader", cache.helpHeader, "Cache help header cannot be empty");
+        Validators.notBlank(result, "commands.cache.helpStatsLine", cache.helpStatsLine, "Cache help stats line cannot be empty");
+        Validators.notBlank(result, "commands.cache.helpClearLine", cache.helpClearLine, "Cache help clear line cannot be empty");
+        Validators.notBlank(result, "commands.cache.statsLine", cache.statsLine, "Cannot be empty");
+        Validators.notBlank(result, "commands.cache.clearedAll", cache.clearedAll, "Cannot be empty");
+        Validators.notBlank(result, "commands.cache.clearedPlayer", cache.clearedPlayer, "Cannot be empty");
     }
 
     // ============================= GENERAL =============================
