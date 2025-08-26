@@ -35,14 +35,6 @@ public class MainConfigValidator {
         // Validate cache settings
         validateCacheSection(result, settings.safeLocationCache);
 
-        Set<String> strategies = Set.of("MIXED", "HIGHEST_FIRST", "HIGHEST_ONLY");
-        if (settings.overworldYStrategy == null || !strategies.contains(settings.overworldYStrategy.toUpperCase())) {
-            result.addError("settings.overworldYStrategy", "Invalid strategy. Valid: MIXED, HIGHEST_FIRST, HIGHEST_ONLY");
-        }
-        if (settings.highestBlockYAttemptRatio < 0.0 || settings.highestBlockYAttemptRatio > 1.0) {
-            result.addError("settings.highestBlockYAttemptRatio", "Ratio must be within [0.0 .. 1.0]");
-        }
-
         // Warn unknown Global Passable Blacklist materials, but do not fail
         if (settings.globalPassableBlacklist != null) {
             for (String m : settings.globalPassableBlacklist) {
@@ -89,8 +81,37 @@ public class MainConfigValidator {
     }
 
     private static void validateTeleportSection(ValidationResult result, MainConfig.TeleportSection teleport) {
+        // delayTicks
         Validators.min(result, "settings.teleport.delayTicks", teleport.delayTicks, 1, "Teleport delay must be at least 1 tick");
         Validators.max(result, "settings.teleport.delayTicks", teleport.delayTicks, 200, "Teleport delay cannot exceed 200 ticks (10 seconds)");
+
+        // ySelection
+        if (teleport.ySelection == null) {
+            result.addError("settings.teleport.ySelection", "ySelection section cannot be null");
+            return;
+        }
+
+        // mode: mixed | highest_only | random_only
+        String mode = teleport.ySelection.mode == null ? "" : teleport.ySelection.mode.toLowerCase();
+        java.util.Set<String> allowedModes = java.util.Set.of("mixed", "highest_only", "random_only");
+        if (!allowedModes.contains(mode)) {
+            result.addError("settings.teleport.ySelection.mode",
+                    "Invalid mode. Valid: mixed, highest_only, random_only");
+        }
+
+        // first: highest | random (only relevant for mixed, but we always validate)
+        String first = teleport.ySelection.first == null ? "" : teleport.ySelection.first.toLowerCase();
+        java.util.Set<String> allowedFirst = java.util.Set.of("highest", "random");
+        if (!allowedFirst.contains(first)) {
+            result.addError("settings.teleport.ySelection.first",
+                    "Invalid first group. Valid: highest, random");
+        }
+        // firstShare: [0..1]
+        double share = teleport.ySelection.firstShare;
+        if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
+            result.addError("settings.teleport.ySelection.firstShare",
+                    "firstShare must be within [0.0 .. 1.0]");
+        }
     }
 
     private static void validateWaitingRoomSection(ValidationResult result, MainConfig.WaitingRoomSection waitingRoom) {

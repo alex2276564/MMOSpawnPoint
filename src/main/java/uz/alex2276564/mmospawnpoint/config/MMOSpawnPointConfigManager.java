@@ -335,6 +335,7 @@ public class MMOSpawnPointConfigManager {
         var cfg = mainConfig.settings;
         var cacheConfig = cfg.safeLocationCache;
 
+        // Cache toggles
         SafeLocationFinder.configureCaching(
                 cacheConfig.enabled,
                 cacheConfig.expiryTime * 1000L,
@@ -342,20 +343,32 @@ public class MMOSpawnPointConfigManager {
                 cacheConfig.advanced.debugCache
         );
 
+        // Search radius
         SafeLocationFinder.configureSearchRadius(cfg.safeLocationRadius);
 
+        // Global block rules
         SafeLocationFinder.configureGlobalGroundBlacklist(cfg.globalGroundBlacklist);
         SafeLocationFinder.configureGlobalPassableBlacklist(cfg.globalPassableBlacklist);
 
-        SafeLocationFinder.configureOverworldYStrategy(cfg.overworldYStrategy);
-        SafeLocationFinder.configureOverworldYRatio(cfg.highestBlockYAttemptRatio);
+        // Overworld Y selection (moved under teleport)
+        var ysel = cfg.teleport.ySelection;
+        SafeLocationFinder.configureOverworldYSelection(
+                ysel.mode,
+                ysel.first,
+                ysel.firstShare
+        );
 
         if (cfg.debugMode) {
-            plugin.getLogger().info("Applied cache/safe-location settings: enabled=" + cacheConfig.enabled +
-                    ", expiry=" + cacheConfig.expiryTime + "s, maxSize=" + cacheConfig.maxCacheSize +
-                    ", searchRadius=" + cfg.safeLocationRadius +
-                    ", overworldYStrategy=" + cfg.overworldYStrategy +
-                    ", highestRatio=" + cfg.highestBlockYAttemptRatio);
+            plugin.getLogger().info(
+                    "Applied cache/safe-location settings: " +
+                            "enabled=" + cacheConfig.enabled +
+                            ", expiry=" + cacheConfig.expiryTime + "s" +
+                            ", maxSize=" + cacheConfig.maxCacheSize +
+                            ", searchRadius=" + cfg.safeLocationRadius +
+                            ", ySelection={mode=" + ysel.mode +
+                            ", first=" + ysel.first +
+                            ", firstShare=" + ysel.firstShare + "}"
+            );
         }
     }
 

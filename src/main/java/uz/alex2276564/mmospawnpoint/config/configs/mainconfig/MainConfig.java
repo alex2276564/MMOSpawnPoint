@@ -78,23 +78,6 @@ public class MainConfig extends OkaeriConfig {
         );
 
         @Comment("")
-        @Comment("Overworld Y selection strategy for region safe search:")
-        @Comment(" - MIXED: use a split between 'highest block Y' and 'random Y' by ratio (see highestBlockYAttemptRatio).")
-        @Comment(" Implementation detail: first N attempts (ratio * attempts) try 'highest block Y', then the rest use 'random Y'.")
-        @Comment(" Recommended for most servers: keeps players on ground most of the time, but still allows dungeon-like vertical spawns.")
-        @Comment(" - HIGHEST_FIRST: all attempts use 'highest block Y' (identical to HIGHEST_ONLY in current implementation).")
-        @Comment(" Good for natural terrain worlds; may be unsuitable for vertical dungeons with multiple floors.")
-        @Comment(" - HIGHEST_ONLY: strictly use 'highest block Y' for all attempts (same behavior as HIGHEST_FIRST).")
-        @Comment(" Use when you want to ensure ground-level spawns only.")
-        public String overworldYStrategy = "MIXED";
-
-        @Comment("")
-        @Comment("For MIXED strategy: the ratio of attempts using highest-block Y [0.0 .. 1.0].")
-        @Comment("Example: 0.6 -> 60% of attempts use 'highest block Y' (first), 40% use 'random Y' (after).")
-        @Comment("Tip: 0.5-0.8 works well for most overworld regions; reduce if you have vertical dungeons.")
-        public double highestBlockYAttemptRatio = 0.6;
-
-        @Comment("")
         @Comment("Permissions and bypass settings")
         public PermissionsSection permissions = new PermissionsSection();
 
@@ -212,6 +195,27 @@ public class MainConfig extends OkaeriConfig {
     public static class TeleportSection extends OkaeriConfig {
         @Comment("Delay before teleport in ticks (20 ticks = 1 second, 1 = almost instant)")
         public int delayTicks = 1;
+
+        @Comment("")
+        @Comment("Overworld Y selection for region-safe search")
+        public YSelectionSection ySelection = new YSelectionSection();
+    }
+
+    public static class YSelectionSection extends OkaeriConfig {
+        @Comment("Mode for choosing Y in overworld region-safe search:")
+        @Comment(" - mixed: split attempts between two groups ('highest' and 'random') with ratio controlled by 'firstShare'")
+        @Comment(" - highest_only: all attempts use 'highest block Y + 1' (spawns on ground)")
+        @Comment(" - random_only: all attempts use random Y within [minY..maxY]")
+        public String mode = "mixed";
+
+        @Comment("For 'mixed' mode: which group runs FIRST — 'highest' or 'random'")
+        @Comment("Use 'random' first for vertical dungeon-like layouts where a random Y should be tried earlier")
+        public String first = "highest";
+
+        @Comment("For 'mixed' mode: share [0.0..1.0] of total attempts assigned to the FIRST group")
+        @Comment("Example: firstShare=0.6, first=highest -> 60% attempts 'highest', then 40% 'random'")
+        @Comment("Tip: for vertical dungeons consider first='random' and firstShare around 0.5..0.7")
+        public double firstShare = 0.6;
     }
 
     public static class WaitingRoomSection extends OkaeriConfig {

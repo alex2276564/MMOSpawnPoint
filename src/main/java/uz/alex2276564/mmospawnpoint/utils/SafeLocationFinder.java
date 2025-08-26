@@ -30,18 +30,25 @@ public class SafeLocationFinder {
     private static int maxCacheSize = 1000;
     private static boolean debugCache = false;
 
-    private enum OverworldYStrategy {MIXED, HIGHEST_FIRST, HIGHEST_ONLY}
+    // Overworld Y selection
+    private enum OverworldYMode {MIXED, HIGHEST_ONLY, RANDOM_ONLY}
 
-    private static OverworldYStrategy overworldYStrategy = OverworldYStrategy.MIXED;
-    private static double highestBlockYAttemptRatio = 0.6;
+    private enum MixedFirstGroup {HIGHEST, RANDOM}
 
+    private static OverworldYMode yMode = OverworldYMode.MIXED;
+    private static MixedFirstGroup mixedFirstGroup = MixedFirstGroup.HIGHEST;
+    private static double mixedFirstShare = 0.6; // fraction [0..1] of attempts for FIRST group in MIXED
+
+    // Cache storage
     private static final Map<CacheKey, Location> SAFE_LOCATION_CACHE = new ConcurrentHashMap<>();
     private static final Map<CacheKey, Long> CACHE_TIMESTAMPS = new ConcurrentHashMap<>();
 
+    // Cache statistics
     private static long cacheHits = 0;
     private static long cacheMisses = 0;
     private static long totalSearches = 0;
 
+    // Type-safe cache key
     private record CacheKey(
             String type, String worldName,
             int x, int y, int z,
@@ -49,6 +56,8 @@ public class SafeLocationFinder {
             UUID playerId, boolean playerSpecific
     ) {
     }
+
+// --------------- Configuration ----------------
 
     public static void configureCaching(boolean enabled, long expiryMs, int maxSize, boolean debug) {
         cacheEnabled = enabled;
@@ -92,24 +101,6 @@ public class SafeLocationFinder {
         }
     }
 
-    public static void configureOverworldYStrategy(String strategy) {
-        try {
-            overworldYStrategy = OverworldYStrategy.valueOf(strategy.trim().toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            overworldYStrategy = OverworldYStrategy.MIXED;
-        }
-        if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Overworld Y strategy: " + overworldYStrategy);
-        }
-    }
-
-    public static void configureOverworldYRatio(double ratio) {
-        highestBlockYAttemptRatio = Math.max(0.0, Math.min(1.0, ratio));
-        if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Overworld Y ratio (MIXED): " + highestBlockYAttemptRatio);
-        }
-    }
-
     public static void configureSearchRadius(int radius) {
         baseSearchRadius = Math.max(1, radius);
         maxSearchRadius = Math.max(baseSearchRadius, baseSearchRadius * 4);
@@ -118,7 +109,39 @@ public class SafeLocationFinder {
         }
     }
 
-// Public API with cache
+    /**
+     * Configure overworld Y selection strategy for region safe search.
+     *
+     * @param mode       "mixed" | "highest_only" | "random_only"
+     * @param first      (for MIXED) "highest" | "random" — which group of attempts is executed first
+     * @param firstShare (for MIXED) fraction [0..1] of total attempts assigned to the FIRST group
+     */
+    public static void configureOverworldYSelection(String mode, String first, double firstShare) {
+        // Mode
+        if (mode == null) mode = "mixed";
+        switch (mode.toLowerCase(Locale.ROOT)) {
+            case "highest_only" -> yMode = OverworldYMode.HIGHEST_ONLY;
+            case "random_only" -> yMode = OverworldYMode.RANDOM_ONLY;
+            default -> yMode = OverworldYMode.MIXED;
+        }
+
+        // First group (for MIXED)
+        if (first == null) first = "highest";
+        mixedFirstGroup = "random".equalsIgnoreCase(first)
+                ? MixedFirstGroup.RANDOM
+                : MixedFirstGroup.HIGHEST;
+
+        // First group share (for MIXED)
+        mixedFirstShare = (Double.isNaN(firstShare) || Double.isInfinite(firstShare)) ? 0.6 : firstShare;
+        mixedFirstShare = Math.max(0.0, Math.min(1.0, mixedFirstShare));
+
+        if (debugCache) {
+            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Y-selection: mode=" + yMode
+                    + ", first=" + mixedFirstGroup + ", firstShare=" + mixedFirstShare);
+        }
+    }
+
+// --------------- Public API (with caching) ----------------
 
     public static Location findSafeLocation(Location baseLocation, int maxAttempts, UUID playerId,
                                             boolean useCache, boolean playerSpecific) {
@@ -150,7 +173,8 @@ public class SafeLocationFinder {
     public static Location findSafeLocationInRegion(double minX, double maxX, double minY, double maxY,
                                                     double minZ, double maxZ, World world, int maxAttempts,
                                                     UUID playerId, boolean useCache, boolean playerSpecific) {
-        return findSafeLocationInRegionWithWhitelist(minX, maxX, minY, maxY, minZ, maxZ, world, maxAttempts, playerId, useCache, playerSpecific, null);
+        return findSafeLocationInRegionWithWhitelist(minX, maxX, minY, maxY, minZ, maxZ, world,
+                maxAttempts, playerId, useCache, playerSpecific, null);
     }
 
     public static Location findSafeLocationInRegionWithWhitelist(double minX, double maxX, double minY, double maxY,
@@ -185,7 +209,7 @@ public class SafeLocationFinder {
         }
     }
 
-// Cache internals
+// --------------- Cache internals ----------------
 
     private static Location getCachedOrCompute(CacheKey key, Supplier<Location> supplier) {
         Location cached = getCachedLocation(key);
@@ -285,7 +309,7 @@ public class SafeLocationFinder {
         }
     }
 
-// Core search (no cache)
+// --------------- Core search (no cache) ----------------
 
     private static Location findSafeLocationNoCache(Location baseLocation, int maxAttempts) {
         if (baseLocation == null) return null;
@@ -340,57 +364,100 @@ public class SafeLocationFinder {
 
         boolean isNether = world.getEnvironment() == World.Environment.NETHER;
 
+        // Try center using highest Y first
+        int centerHy = isNether
+                ? findSafeYInNether(world, (int) centerX, (int) centerZ, (int) maxY, (int) minY)
+                : world.getHighestBlockYAt((int) centerX, (int) centerZ);
+        Location center = new Location(world, centerX, centerHy + 1.0, centerZ);
         if (!isNether) {
-            int attemptsHighest = 0;
-            int attemptsRandom = 0;
+            center.setY(clamp(center.getY(), minY, maxY));
+        }
+        if (isSafeLocation(center)) return center.clone();
 
-            switch (overworldYStrategy) {
-                case HIGHEST_ONLY -> attemptsHighest = maxAttempts;
-                case HIGHEST_FIRST -> attemptsHighest = maxAttempts;
-                case MIXED -> {
-                    attemptsHighest = (int) Math.round(maxAttempts * highestBlockYAttemptRatio);
-                    attemptsHighest = Math.max(0, Math.min(maxAttempts, attemptsHighest));
-                    attemptsRandom = Math.max(0, maxAttempts - attemptsHighest);
+        if (isNether) {
+            int attempts = 0;
+            while (attempts < maxAttempts) {
+                attempts++;
+                double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                double safeY = findSafeYInNether(world, (int) x, (int) z, (int) maxY, (int) minY) + 1.0;
+                Location loc = new Location(world, x, safeY, z);
+                if (isSafeLocation(loc)) return loc.clone();
+            }
+            return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, true);
+        }
+
+        // Overworld: Y-selection logic
+        int total = Math.max(1, maxAttempts);
+
+        switch (yMode) {
+            case HIGHEST_ONLY -> {
+                for (int i = 0; i < total; i++) {
+                    double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                    double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                    int hy = world.getHighestBlockYAt((int) x, (int) z);
+                    double y = clamp(hy + 1.0, minY, maxY);
+                    Location loc = new Location(world, x, y, z);
+                    if (isSafeLocation(loc)) return loc.clone();
                 }
+                return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, false);
             }
-
-            int centerHy = world.getHighestBlockYAt((int) centerX, (int) centerZ);
-            Location center = new Location(world, centerX, centerHy + 1.0, centerZ);
-            if (isSafeLocation(center)) return center.clone();
-
-            for (int i = 0; i < attemptsHighest; i++) {
-                double x = minX + RANDOM.nextDouble() * (maxX - minX);
-                double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
-                int hy = world.getHighestBlockYAt((int) x, (int) z);
-                Location loc = new Location(world, x, hy + 1.0, z);
-                if (isSafeLocation(loc)) return loc.clone();
+            case RANDOM_ONLY -> {
+                for (int i = 0; i < total; i++) {
+                    double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                    double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                    double y = minY + RANDOM.nextDouble() * Math.max(1.0, (maxY - minY));
+                    Location loc = new Location(world, x, y, z);
+                    if (isSafeLocation(loc)) return loc.clone();
+                }
+                return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, false);
             }
+            case MIXED -> {
+                int firstCount = (int) Math.round(total * mixedFirstShare);
+                firstCount = Math.max(0, Math.min(total, firstCount));
+                int secondCount = total - firstCount;
 
-            for (int i = 0; i < attemptsRandom; i++) {
-                double x = minX + RANDOM.nextDouble() * (maxX - minX);
-                double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
-                double y = minY + RANDOM.nextDouble() * Math.max(1.0, (maxY - minY));
-                Location loc = new Location(world, x, y, z);
-                if (isSafeLocation(loc)) return loc.clone();
+                if (mixedFirstGroup == MixedFirstGroup.HIGHEST) {
+                    // Highest first
+                    for (int i = 0; i < firstCount; i++) {
+                        double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                        double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                        int hy = world.getHighestBlockYAt((int) x, (int) z);
+                        double y = clamp(hy + 1.0, minY, maxY);
+                        Location loc = new Location(world, x, y, z);
+                        if (isSafeLocation(loc)) return loc.clone();
+                    }
+                    for (int i = 0; i < secondCount; i++) {
+                        double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                        double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                        double y = minY + RANDOM.nextDouble() * Math.max(1.0, (maxY - minY));
+                        Location loc = new Location(world, x, y, z);
+                        if (isSafeLocation(loc)) return loc.clone();
+                    }
+                } else {
+                    // Random first
+                    for (int i = 0; i < firstCount; i++) {
+                        double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                        double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                        double y = minY + RANDOM.nextDouble() * Math.max(1.0, (maxY - minY));
+                        Location loc = new Location(world, x, y, z);
+                        if (isSafeLocation(loc)) return loc.clone();
+                    }
+                    for (int i = 0; i < secondCount; i++) {
+                        double x = minX + RANDOM.nextDouble() * (maxX - minX);
+                        double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
+                        int hy = world.getHighestBlockYAt((int) x, (int) z);
+                        double y = clamp(hy + 1.0, minY, maxY);
+                        Location loc = new Location(world, x, y, z);
+                        if (isSafeLocation(loc)) return loc.clone();
+                    }
+                }
+                return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, false);
             }
-
-            return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, false);
         }
 
-        int centerHighestY = findSafeYInNether(world, (int) centerX, (int) centerZ, (int) maxY, (int) minY);
-        Location centerLoc = new Location(world, centerX, centerHighestY + 1.0, centerZ);
-        if (isSafeLocation(centerLoc)) return centerLoc.clone();
-
-        int attempts = 0;
-        while (attempts < maxAttempts) {
-            attempts++;
-            double x = minX + RANDOM.nextDouble() * (maxX - minX);
-            double z = minZ + RANDOM.nextDouble() * (maxZ - minZ);
-            double y = findSafeYInNether(world, (int) x, (int) z, (int) maxY, (int) minY) + 1.0;
-            Location location = new Location(world, x, y, z);
-            if (isSafeLocation(location)) return location.clone();
-        }
-        return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, true);
+        // Should never reach here
+        return fallback(world, minX, maxX, minY, maxY, minZ, maxZ, centerX, centerZ, false);
     }
 
     private static Location fallback(World world, double minX, double maxX, double minY, double maxY,
@@ -461,20 +528,20 @@ public class SafeLocationFinder {
         return !globalGroundBlacklist.contains(groundType);
     }
 
+    private static double clamp(double v, double min, double max) {
+        return (v < min) ? min : (v > max) ? max : v;
+    }
+
     public static final class SafeLocationFinderExports {
         public record Snapshot(long searches, long hits, long misses, int size, boolean enabled, long expirySeconds,
                                int maxSize) {
         }
 
         public static Snapshot snapshot() {
-            boolean enabled = cacheEnabled;
-            long expiry = cacheExpiry / 1000L;
-            int size = SAFE_LOCATION_CACHE.size();
-            int max = maxCacheSize;
-            long s = totalSearches;
-            long h = cacheHits;
-            long m = cacheMisses;
-            return new Snapshot(s, h, m, size, enabled, expiry, max);
+            return new Snapshot(
+                    totalSearches, cacheHits, cacheMisses,
+                    SAFE_LOCATION_CACHE.size(), cacheEnabled, cacheExpiry / 1000L, maxCacheSize
+            );
         }
     }
 }
