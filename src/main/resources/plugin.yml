@@ -3,7 +3,7 @@ version: '${version}'
 main: uz.alex2276564.mmospawnpoint.MMOSpawnPoint
 api-version: '1.16'
 authors: [ alex2276564 ]
-description: MMOSpawnPoint is a powerful and flexible Minecraft plugin that revolutionizes how player respawning works on your server. With region-based, world-based, and condition-based spawn points, you can create immersive experiences for your players that go far beyond the vanilla respawn mechanics.
+description: 'Advanced MMO spawn system with region-based spawns, party respawn mechanics, safe location finding, resource pack integration, and comprehensive condition-based teleportation. Features walking spawn points, waiting rooms, async location search, advanced caching, and extensive customization for MMO servers.'
 softdepend: [ WorldGuard, PlaceholderAPI ]
 website: https://github.com/alex2276564/MMOSpawnPoint
 commands:

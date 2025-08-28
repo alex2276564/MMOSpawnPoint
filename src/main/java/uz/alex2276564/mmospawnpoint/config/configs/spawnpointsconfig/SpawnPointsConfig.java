@@ -6,22 +6,16 @@ import eu.okaeri.configs.annotation.Comment;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RegionSpawnsConfig extends OkaeriConfig {
+/**
+ * Unified spawn-points configuration.
+ * One or many files in spawnpoints/ can define spawns list.
+ */
+public class SpawnPointsConfig extends OkaeriConfig {
 
-    @Comment("Configuration type: deaths, joins, both")
-    @Comment("deaths - only for player death respawns")
-    @Comment("joins - only for player join teleports")
-    @Comment("both - for both death and join events")
-    public String configType = "deaths";
+    @Comment("Unified spawn rules list")
+    public List<SpawnPointEntry> spawns = new ArrayList<>();
 
-    @Comment("Priority for this configuration file (0-9999, higher = more priority)")
-    @Comment("If not specified, uses default priority based on spawn type")
-    public Integer priority;
-
-    @Comment("Region-based spawn points (WorldGuard)")
-    public List<RegionSpawnEntry> regionSpawns = new ArrayList<>();
-
-    // ---- Enums ----
+    // ---------- DSL ENUMS ----------
 
     public enum Phase {
         BEFORE,
@@ -29,17 +23,16 @@ public class RegionSpawnsConfig extends OkaeriConfig {
         AFTER
     }
 
-    // ---- Data classes ----
+    // ---------- DSL SHARED TYPES ----------
 
-    //    Axis specification: exactly one of 'value' or 'min'+'max'"
     public static class AxisSpec extends OkaeriConfig {
         @Comment("Fixed value for this axis")
         public Double value;
 
-        @Comment("Minimum bound (must be strictly less than 'max')")
+        @Comment("Minimum bound (strictly less than max)")
         public Double min;
 
-        @Comment("Maximum bound (must be strictly greater than 'min')")
+        @Comment("Maximum bound (strictly greater than min)")
         public Double max;
 
         public boolean isValue() {
@@ -120,39 +113,6 @@ public class RegionSpawnsConfig extends OkaeriConfig {
         public float pitch = 0;
     }
 
-    public static class RegionSpawnEntry extends OkaeriConfig {
-        @Comment("WorldGuard region name or pattern (controlled by regionMatchMode)")
-        public String region;
-
-        @Comment("Match mode for 'region': exact or regex")
-        public String regionMatchMode = "exact";
-
-        @Comment("Priority for this specific spawn point (0-9999)")
-        @Comment("Overrides file priority if specified")
-        public Integer priority;
-
-        @Comment("World where this region is located. Use '*' for all worlds, or a pattern with regionWorldMatchMode")
-        public String regionWorld = "*";
-
-        @Comment("Match mode for 'regionWorld': exact or regex")
-        public String regionWorldMatchMode = "exact";
-
-        @Comment("Destinations list. Empty = actions only (no teleport).")
-        public List<LocationOption> destinations = new ArrayList<>();
-
-        @Comment("Conditions that must be met for this spawn to be used")
-        public ConditionsConfig conditions = new ConditionsConfig();
-
-        @Comment("Actions to execute when this spawn is used")
-        public ActionsConfig actions = new ActionsConfig();
-
-        @Comment("Custom waiting room for this spawn point (overrides global)")
-        public WaitingRoomConfig waitingRoom;
-
-        @Comment("Whether party respawn is disabled for this spawn point")
-        public boolean partyRespawnDisabled = false;
-    }
-
     public static class LocationOption extends OkaeriConfig {
         @Comment("Destination world")
         public String world = "world";
@@ -190,7 +150,77 @@ public class RegionSpawnsConfig extends OkaeriConfig {
         @Comment("Order of local vs global actions inside a phase: before, after, instead")
         public String actionExecutionMode = "before";
 
-        @Comment("Per-entry ground whitelist (if set, only these blocks are allowed under feet for this destination).")
+        @Comment("Per-entry ground whitelist (allowed blocks under feet)")
         public List<String> groundWhitelist = new ArrayList<>();
+    }
+
+    // ---------- MATCHING TYPES ----------
+
+    public static class TriggerArea extends OkaeriConfig {
+        @Comment("World name (or pattern controlled by worldMatchMode)")
+        public String world = "world";
+
+        @Comment("Match mode for 'world': exact or regex")
+        public String worldMatchMode = "exact";
+
+        @Comment("X axis trigger (value or range). If null -> no constraint on X")
+        public AxisSpec x;
+
+        @Comment("Y axis trigger (value or range). If null -> no constraint on Y")
+        public AxisSpec y;
+
+        @Comment("Z axis trigger (value or range). If null -> no constraint on Z")
+        public AxisSpec z;
+    }
+
+    public static class SpawnPointEntry extends OkaeriConfig {
+        @Comment("Match type: region | world | coordinate")
+        public String kind = "region";
+
+        @Comment("Event type: deaths | joins | both")
+        public String event = "deaths";
+
+        @Comment("Priority for this specific spawn point (0-9999). If null -> uses defaults by kind from main config")
+        public Integer priority;
+
+        // REGION matching
+        @Comment("WorldGuard region id or pattern (used if kind=region)")
+        public String region;
+
+        @Comment("Match mode for 'region': exact | regex")
+        public String regionMatchMode = "exact";
+
+        @Comment("World name or pattern for the region (used if kind=region). If null -> any world")
+        public String regionWorld;
+
+        @Comment("Match mode for 'regionWorld': exact | regex")
+        public String regionWorldMatchMode = "exact";
+
+        // WORLD matching
+        @Comment("World name or pattern (used if kind=world)")
+        public String world;
+
+        @Comment("Match mode for 'world': exact | regex")
+        public String worldMatchMode = "exact";
+
+        // COORDINATE matching
+        @Comment("Trigger area (used if kind=coordinate)")
+        public TriggerArea triggerArea;
+
+        // COMMON data
+        @Comment("Destinations list. Empty = actions only (no teleport)")
+        public List<LocationOption> destinations = new ArrayList<>();
+
+        @Comment("Conditions that must be met for this spawn to be used")
+        public ConditionsConfig conditions = new ConditionsConfig();
+
+        @Comment("Actions to execute when this spawn is used")
+        public ActionsConfig actions = new ActionsConfig();
+
+        @Comment("Custom waiting room for this spawn point (overrides global)")
+        public WaitingRoomConfig waitingRoom;
+
+        @Comment("Whether party respawn is disabled for this spawn point")
+        public boolean partyRespawnDisabled = false;
     }
 }

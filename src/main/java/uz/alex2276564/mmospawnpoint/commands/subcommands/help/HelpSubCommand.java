@@ -13,19 +13,16 @@ public class HelpSubCommand implements SubCommandProvider {
                 .permission("mmospawnpoint.command")
                 .description("Show help information")
                 .executor((sender, context) -> {
-                    MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+                    var plugin = MMOSpawnPoint.getInstance();
+                    var help = plugin.getConfigManager().getMessagesConfig().commands.help;
 
-                    var messages = plugin.getConfigManager().getMessagesConfig().commands.help;
-                    plugin.getMessageManager().sendMessage(sender, messages.header);
-                    plugin.getMessageManager().sendMessage(sender, messages.reloadLine);
-
-                    if (plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender, messages.partyLine);
-                    }
-                    plugin.getMessageManager().sendMessage(sender, messages.simulateLine);
-                    plugin.getMessageManager().sendMessage(sender, messages.cacheLine);
-
-                    plugin.getMessageManager().sendMessage(sender, messages.helpLine);
+                    plugin.getMessageManager().sendMessage(sender, help.header);
+                    plugin.getMessageManager().sendMessage(sender, help.reloadLine);
+                    plugin.getMessageManager().sendMessage(sender, help.partyLine);
+                    plugin.getMessageManager().sendMessage(sender, help.simulateLine);
+                    plugin.getMessageManager().sendMessage(sender, help.cacheLine);
+                    plugin.getMessageManager().sendMessage(sender, help.setspawnpointLine);
+                    plugin.getMessageManager().sendMessage(sender, help.helpLine);
                 });
     }
 }

@@ -27,6 +27,7 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "commands.help.partyLine", commands.help.partyLine, "Help party line cannot be empty");
         Validators.notBlank(result, "commands.help.simulateLine", commands.help.simulateLine, "Help simulate line cannot be empty");
         Validators.notBlank(result, "commands.help.cacheLine", commands.help.cacheLine, "Help cache line cannot be empty");
+        Validators.notBlank(result, "commands.help.setspawnpointLine", commands.help.setspawnpointLine, "Help setspawnpoint line cannot be empty");
         Validators.notBlank(result, "commands.help.helpLine", commands.help.helpLine, "Help help line cannot be empty");
 
         // commands.reload

@@ -1,0 +1,224 @@
+# ================================================================
+# ⚔️ PvP Zones - Both Region and Coordinate Examples
+# ================================================================
+# This shows TWO approaches to PvP area management:
+# 1. WorldGuard regions (classic /rg flag <region> pvp allow)
+# 2. Coordinate areas (custom arena boundaries)
+#
+# 🎯 Choose the approach that fits your server setup!
+# ================================================================
+
+spawns:
+  # === WORLDGUARD REGION APPROACH ===
+  # Classic PvP zone with WorldGuard region
+  - kind: region
+    event: deaths
+    priority: 1300
+    region: "pvp"
+    regionWorld: world
+    destinations:
+      # Main PvP spawn outside the zone
+      - world: world
+        requireSafe: false
+        x: 100
+        y: 64
+        z: 100
+        yaw: 45
+        pitch: 0
+        weight: 80
+        actions:
+          messages:
+            - text: "<red>⚔️ Defeated in PvP combat!"
+              phases: [ AFTER ]
+          commands:
+            - command: "clear %player%"
+              chance: 100
+              phases: [ AFTER ]
+
+      # VIP lounge spawn (higher spawn point)
+      - world: world
+        requireSafe: false
+        x: 120
+        y: 80
+        z: 120
+        weight: 20
+        weightConditions:
+          - type: permission
+            value: "pvp.vip"
+            weight: 100
+        actions:
+          messages:
+            - text: "<gold>👑 VIP respawn activated"
+              phases: [ AFTER ]
+          commands:
+            - command: "give %player% minecraft:golden_apple 1"
+              chance: 50
+              phases: [ AFTER ]
+
+    actions:
+      messages:
+        - text: "<yellow>💀 You were slain in the PvP zone!"
+          phases: [ BEFORE ]
+      commands:
+        - command: "title %player% subtitle \"<red>Get revenge!\""
+          chance: 100
+          phases: [ AFTER ]
+
+    # Disable party respawn for fair PvP
+    partyRespawnDisabled: true
+
+  # Multiple PvP arenas with regex (pvp_arena1, pvp_arena2, etc.)
+  - kind: region
+    event: deaths
+    priority: 1250
+    region: "pvp_arena\\d+"
+    regionMatchMode: regex
+    regionWorld: world
+    destinations:
+      - world: world
+        requireSafe: true
+        x: { min: 90, max: 110 }
+        z: { min: 90, max: 110 }
+        groundWhitelist:
+          - STONE
+          - COBBLESTONE
+          - STONE_BRICKS
+    actions:
+      messages:
+        - text: "<blue>🏟️ Arena match completed!"
+          phases: [ AFTER ]
+      commands:
+        - command: "heal %player%"
+          chance: 100
+          phases: [ AFTER ]
+    partyRespawnDisabled: true
+
+  # === COORDINATE AREA APPROACH ===
+  # Custom coordinate-based PvP area
+  - kind: coordinate
+    event: deaths
+    priority: 1200
+    triggerArea:
+      world: world
+      x: { min: 500, max: 600 }
+      z: { min: 500, max: 600 }
+      # No Y limit = works at any height (good for multi-level arenas)
+    destinations:
+      # Primary spawn outside arena
+      - world: world
+        requireSafe: true
+        x: { min: 480, max: 490 }
+        z: { min: 540, max: 560 }
+        weight: 70
+        groundWhitelist:
+          - STONE
+          - COBBLESTONE
+          - QUARTZ_BLOCK
+        actions:
+          messages:
+            - text: "<red>⚔️ Eliminated from the arena!"
+              phases: [ AFTER ]
+          commands:
+            - command: "clear %player%"
+              chance: 100
+              phases: [ AFTER ]
+
+      # Spectator area spawn
+      - world: world
+        requireSafe: false
+        x: 550
+        y: 80
+        z: 480
+        weight: 30
+        weightConditions:
+          - type: permission
+            value: "pvp.spectator"
+            weight: 100
+        actions:
+          messages:
+            - text: "<blue>👁 Moved to spectator area"
+              phases: [ AFTER ]
+          commands:
+            - command: "gamemode spectator %player%"
+              chance: 100
+              phases: [ AFTER ]
+
+    actions:
+      messages:
+        - text: "<yellow>🔍 Finding safe respawn location..."
+          phases: [ WAITING_ROOM ]
+
+    waitingRoom:
+      world: world
+      x: 550
+      y: 120
+      z: 550
+      yaw: 0
+      pitch: 90
+
+    partyRespawnDisabled: true
+
+  # Dueling area (smaller coordinate zone)
+  - kind: coordinate
+    event: deaths
+    priority: 1100
+    triggerArea:
+      world: world
+      x: { min: 700, max: 750 }
+      z: { min: 700, max: 750 }
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 725
+        y: 64
+        z: 675
+        yaw: 0
+        pitch: 0
+    actions:
+      messages:
+        - text: "<gold>🥊 Duel completed! Good fight!"
+          phases: [ AFTER ]
+      commands:
+        - command: "heal %player%"
+          chance: 100
+          phases: [ AFTER ]
+    partyRespawnDisabled: true
+
+# ================================================================
+# 🏗️ Setup Guide:
+#
+# === FOR WORLDGUARD REGIONS: ===
+# 1. Create regions:
+#    /rg define pvp (main PvP zone)
+#    /rg define pvp_arena1 (arena 1)
+#    /rg define pvp_arena2 (arena 2)
+#
+# 2. Set PvP flags:
+#    /rg flag pvp pvp allow
+#    /rg flag pvp_arena1 pvp allow
+#    /rg flag pvp_arena2 pvp allow
+#
+# 3. Additional flags (optional):
+#    /rg flag pvp entry-deny-message "Entering PvP zone!"
+#    /rg flag pvp exit-deny-message "Leaving PvP zone!"
+#
+# === FOR COORDINATE AREAS: ===
+# 1. Build your arena at the specified coordinates
+# 2. No WorldGuard setup needed
+# 3. Manually manage PvP rules through other plugins
+#
+# === PERMISSIONS: ===
+# pvp.vip - access to VIP spawns
+# pvp.spectator - access to spectator mode
+#
+# 💡 Which approach to choose?
+# - WorldGuard regions: Best for servers already using WG extensively
+# - Coordinate areas: More flexible, works without WorldGuard
+# - You can mix both approaches on the same server!
+#
+# 🎮 PvP Best Practices:
+# - Always set partyRespawnDisabled: true for fair competition
+# - Use clear/heal commands to reset player state
+# - Provide spectator areas for eliminated players
+# - Consider different spawns for different skill levels (VIP areas)
+# ================================================================

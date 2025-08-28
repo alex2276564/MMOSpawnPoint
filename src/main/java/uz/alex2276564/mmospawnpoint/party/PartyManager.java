@@ -4,9 +4,6 @@ import lombok.Getter;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
-import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.CoordinateSpawnsConfig;
-import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.RegionSpawnsConfig;
-import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.WorldSpawnsConfig;
 import uz.alex2276564.mmospawnpoint.manager.SpawnEntry;
 import uz.alex2276564.mmospawnpoint.utils.WorldGuardUtils;
 
@@ -698,19 +695,16 @@ public class PartyManager {
     // ============================= RESTRICTIONS & REASONS =============================
 
     private DisableReason getDisableReason(Location location) {
+        // Only consider 'deaths' entries for party respawn restrictions
         List<SpawnEntry> entries = plugin.getConfigManager().getSpawnEntriesForEvent("deaths");
         for (SpawnEntry e : entries) {
             if (!e.matchesLocation(location)) continue;
 
-            Object data = e.spawnData();
-            if (data instanceof WorldSpawnsConfig.WorldSpawnEntry w && w.partyRespawnDisabled) {
-                return DisableReason.WORLD;
-            }
-            if (data instanceof RegionSpawnsConfig.RegionSpawnEntry r && r.partyRespawnDisabled) {
-                return DisableReason.REGION_OR_COORDINATE;
-            }
-            if (data instanceof CoordinateSpawnsConfig.CoordinateSpawnEntry c && c.partyRespawnDisabled) {
-                return DisableReason.REGION_OR_COORDINATE;
+            var data = e.spawnData();
+            if (data != null && data.partyRespawnDisabled) {
+                return (e.type() == SpawnEntry.Type.WORLD)
+                        ? DisableReason.WORLD
+                        : DisableReason.REGION_OR_COORDINATE;
             }
         }
         return DisableReason.NONE;

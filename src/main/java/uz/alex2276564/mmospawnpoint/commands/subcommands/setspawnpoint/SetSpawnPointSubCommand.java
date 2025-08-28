@@ -6,10 +6,10 @@ import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
-import uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandBuilder;
-import uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandContext;
-import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
-import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandProvider;
+import uz.alex2276564.mmospawnpoint.commands.framework.builder.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class SetSpawnPointSubCommand implements SubCommandProvider {
 
@@ -17,7 +17,41 @@ public class SetSpawnPointSubCommand implements SubCommandProvider {
     public SubCommandBuilder build(CommandBuilder parent) {
         return parent.subcommand("setspawnpoint")
                 .permission("mmospawnpoint.setspawnpoint")
-                .description("Set vanilla respawn point (bed spawn) for a player")
+                .description("Set vanilla respawn point (bed) for a player")
+                // Arg1: player name or world name
+                .argument(new ArgumentBuilder<>("target_or_world", ArgumentType.STRING)
+                        .optional(null)
+                        .dynamicSuggestions(partial -> {
+                            String p = (partial == null) ? "" : partial.toLowerCase();
+                            List<String> out = new ArrayList<>();
+                            // players
+                            for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
+                                String name = online.getName();
+                                if (name.toLowerCase().startsWith(p)) out.add(name);
+                            }
+                            // worlds
+                            for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                String name = w.getName();
+                                if (name.toLowerCase().startsWith(p)) out.add(name);
+                            }
+                            return out;
+                        }))
+                // X/Y/Z/Yaw/Pitch as optional hints (for both world-first and player-first syntaxes)
+                .argument(new ArgumentBuilder<>("x", ArgumentType.STRING)
+                        .optional(null)
+                        .suggestions("-100", "-50", "0", "50", "100"))
+                .argument(new ArgumentBuilder<>("y", ArgumentType.STRING)
+                        .optional(null)
+                        .suggestions("64", "80", "100"))
+                .argument(new ArgumentBuilder<>("z", ArgumentType.STRING)
+                        .optional(null)
+                        .suggestions("-100", "-50", "0", "50", "100"))
+                .argument(new ArgumentBuilder<>("yaw", ArgumentType.STRING)
+                        .optional(null)
+                        .suggestions("0", "90", "180", "270"))
+                .argument(new ArgumentBuilder<>("pitch", ArgumentType.STRING)
+                        .optional(null)
+                        .suggestions("-30", "0", "30"))
                 .executor(this::execute);
     }
 
@@ -126,7 +160,7 @@ public class SetSpawnPointSubCommand implements SubCommandProvider {
                         msgs.targetNotification.replace("<setter>", feedback.getName()).replace("<location>", locationStr));
             }
         } catch (Throwable t) {
-            // Extremely редкий кейс, но на всякий
+            // An extremely rare case, but just in case
             plugin.getMessageManager().sendMessage(feedback, msgs.failed, "player", target.getName());
         }
     }

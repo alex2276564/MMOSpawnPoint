@@ -7,12 +7,11 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
-import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.CoordinateSpawnsConfig;
-import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.RegionSpawnsConfig;
-import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.WorldSpawnsConfig;
+import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.SpawnPointsConfig;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
 import uz.alex2276564.mmospawnpoint.utils.PlaceholderUtils;
 import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
+import uz.alex2276564.mmospawnpoint.utils.SecurityUtils;
 
 import java.util.*;
 import java.util.concurrent.CancellationException;
@@ -25,13 +24,13 @@ public class SpawnManager {
     private final Random random = new Random();
     private final Map<UUID, Location> deathLocations = new HashMap<>();
 
-    private record PendingAfter(RegionSpawnsConfig.LocationOption loc, RegionSpawnsConfig.ActionsConfig global) {
+    private record PendingAfter(SpawnPointsConfig.LocationOption loc, SpawnPointsConfig.ActionsConfig global) {
     }
 
     private final Map<UUID, PendingAfter> pendingAfterActions = new ConcurrentHashMap<>();
 
-    private record SearchProcess(RegionSpawnsConfig.LocationOption selected,
-                                 RegionSpawnsConfig.ActionsConfig globalActions,
+    private record SearchProcess(SpawnPointsConfig.LocationOption selected,
+                                 SpawnPointsConfig.ActionsConfig globalActions,
                                  CompletableFuture<Location> future,
                                  long waitingEnteredAtMs) {
     }
@@ -181,51 +180,35 @@ public class SpawnManager {
     }
 
     private Location processSpawnEntry(SpawnEntry entry, Player player) {
-        Object data = entry.spawnData();
-        return switch (entry.type()) {
-            case REGION -> processRegionSpawnEntry((RegionSpawnsConfig.RegionSpawnEntry) data, player);
-            case WORLD -> processWorldSpawnEntry((WorldSpawnsConfig.WorldSpawnEntry) data, player);
-            case COORDINATE -> processCoordinateSpawnEntry((CoordinateSpawnsConfig.CoordinateSpawnEntry) data, player);
-        };
-    }
-
-    private Location processRegionSpawnEntry(RegionSpawnsConfig.RegionSpawnEntry entry, Player player) {
-        return processGenericEntry(player, entry.conditions, entry.destinations, entry.actions, entry.waitingRoom);
-    }
-
-    private Location processWorldSpawnEntry(WorldSpawnsConfig.WorldSpawnEntry entry, Player player) {
-        return processGenericEntry(player, entry.conditions, entry.destinations, entry.actions, entry.waitingRoom);
-    }
-
-    private Location processCoordinateSpawnEntry(CoordinateSpawnsConfig.CoordinateSpawnEntry entry, Player player) {
-        return processGenericEntry(player, entry.conditions, entry.destinations, entry.actions, entry.waitingRoom);
+        SpawnPointsConfig.SpawnPointEntry data = entry.spawnData();
+        return processGenericEntry(player, data.conditions, data.destinations, data.actions, data.waitingRoom);
     }
 
     private Location processGenericEntry(
             Player player,
-            RegionSpawnsConfig.ConditionsConfig conditions,
-            List<RegionSpawnsConfig.LocationOption> destinations,
-            RegionSpawnsConfig.ActionsConfig globalActions,
-            RegionSpawnsConfig.WaitingRoomConfig entryWaitingRoom
+            SpawnPointsConfig.ConditionsConfig conditions,
+            List<SpawnPointsConfig.LocationOption> destinations,
+            SpawnPointsConfig.ActionsConfig globalActions,
+            SpawnPointsConfig.WaitingRoomConfig entryWaitingRoom
     ) {
         if (conditionsNotMet(player, conditions)) {
             return null;
         }
 
         if (destinations == null || destinations.isEmpty()) {
-            runPhaseForActions(player, globalActions, RegionSpawnsConfig.Phase.AFTER);
+            runPhaseForActions(player, globalActions, SpawnPointsConfig.Phase.AFTER);
             return null;
         }
 
         boolean isWeightedSelection = destinations.size() > 1;
-        RegionSpawnsConfig.LocationOption selected = selectDestination(player, destinations);
+        SpawnPointsConfig.LocationOption selected = selectDestination(player, destinations);
         if (selected == null) return null;
 
         boolean useWaitingRoom = plugin.getConfigManager().getMainConfig().settings.waitingRoom.enabled && selected.requireSafe;
 
         if (useWaitingRoom) {
-            runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.BEFORE);
-            runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.WAITING_ROOM);
+            runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
+            runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.WAITING_ROOM);
 
             long enteredMs = System.currentTimeMillis();
             startAsyncLocationSearchForSelected(player, selected, globalActions, isWeightedSelection, enteredMs);
@@ -233,7 +216,7 @@ public class SpawnManager {
             return getBestWaitingRoom(selected.waitingRoom, entryWaitingRoom);
         }
 
-        runPhaseForEntry(player, selected, globalActions, RegionSpawnsConfig.Phase.BEFORE);
+        runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
 
         Location finalLoc = resolveLocationFromOption(player, selected, isWeightedSelection);
         if (finalLoc == null) return null;
@@ -242,29 +225,29 @@ public class SpawnManager {
         return finalLoc;
     }
 
-    private RegionSpawnsConfig.LocationOption selectDestination(Player player, List<RegionSpawnsConfig.LocationOption> options) {
+    private SpawnPointsConfig.LocationOption selectDestination(Player player, List<SpawnPointsConfig.LocationOption> options) {
         if (options.size() == 1) return options.get(0);
 
         int total = 0;
-        for (RegionSpawnsConfig.LocationOption opt : options) {
+        for (SpawnPointsConfig.LocationOption opt : options) {
             total += getEffectiveWeight(player, opt);
         }
         if (total <= 0) return null;
 
         int rnd = random.nextInt(total);
         int acc = 0;
-        for (RegionSpawnsConfig.LocationOption opt : options) {
+        for (SpawnPointsConfig.LocationOption opt : options) {
             acc += getEffectiveWeight(player, opt);
             if (rnd < acc) return opt;
         }
         return options.get(0);
     }
 
-    private int getEffectiveWeight(Player player, RegionSpawnsConfig.LocationOption option) {
+    private int getEffectiveWeight(Player player, SpawnPointsConfig.LocationOption option) {
         if (option.weightConditions == null || option.weightConditions.isEmpty()) {
             return option.weight;
         }
-        for (RegionSpawnsConfig.WeightConditionEntry cond : option.weightConditions) {
+        for (SpawnPointsConfig.WeightConditionEntry cond : option.weightConditions) {
             if (checkWeightCondition(player, cond)) {
                 return cond.weight;
             }
@@ -272,7 +255,7 @@ public class SpawnManager {
         return option.weight;
     }
 
-    private boolean checkWeightCondition(Player player, RegionSpawnsConfig.WeightConditionEntry cond) {
+    private boolean checkWeightCondition(Player player, SpawnPointsConfig.WeightConditionEntry cond) {
         return switch (cond.type) {
             case "permission" -> player.hasPermission(cond.value);
             case "placeholder" -> plugin.isPlaceholderAPIEnabled() &&
@@ -282,8 +265,8 @@ public class SpawnManager {
     }
 
     private void startAsyncLocationSearchForSelected(Player player,
-                                                     RegionSpawnsConfig.LocationOption selected,
-                                                     RegionSpawnsConfig.ActionsConfig globalActions,
+                                                     SpawnPointsConfig.LocationOption selected,
+                                                     SpawnPointsConfig.ActionsConfig globalActions,
                                                      boolean isWeightedSelection,
                                                      long enteredWaitingMs) {
         UUID playerId = player.getUniqueId();
@@ -328,13 +311,13 @@ public class SpawnManager {
                         plugin.getRunner().runDelayed(() -> {
                             if (!player.isOnline()) return;
                             player.teleport(location);
-                            runPhaseForEntry(player, current.selected, current.globalActions, RegionSpawnsConfig.Phase.AFTER);
+                            runPhaseForEntry(player, current.selected, current.globalActions, SpawnPointsConfig.Phase.AFTER);
                         }, finalDelay);
                     }
                 });
     }
 
-    private Location resolveLocationFromOption(Player player, RegionSpawnsConfig.LocationOption option, boolean isWeightedSelection) {
+    private Location resolveLocationFromOption(Player player, SpawnPointsConfig.LocationOption option, boolean isWeightedSelection) {
         World world = Bukkit.getWorld(option.world);
         if (world == null) return null;
 
@@ -365,7 +348,6 @@ public class SpawnManager {
                 Location safe = useWhitelist
                         ? SafeLocationFinder.findSafeLocationWithWhitelist(base, maxAttempts, player.getUniqueId(), useCache, playerSpecific, groundWhitelist)
                         : SafeLocationFinder.findSafeLocation(base, maxAttempts, player.getUniqueId(), useCache, playerSpecific);
-
 
                 if (safe == null) return null;
 
@@ -462,27 +444,27 @@ public class SpawnManager {
         return set;
     }
 
-    private float computeYaw(RegionSpawnsConfig.LocationOption option) {
+    private float computeYaw(SpawnPointsConfig.LocationOption option) {
         if (option.yaw == null) return 0.0f;
         if (option.yaw.isValue()) return option.yaw.value.floatValue();
         double d = option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min);
         return (float) d;
     }
 
-    private float computePitch(RegionSpawnsConfig.LocationOption option) {
+    private float computePitch(SpawnPointsConfig.LocationOption option) {
         if (option.pitch == null) return 0.0f;
         if (option.pitch.isValue()) return option.pitch.value.floatValue();
         double d = option.pitch.min + random.nextDouble() * (option.pitch.max - option.pitch.min);
         return (float) d;
     }
 
-    private boolean isFixedPointOption(RegionSpawnsConfig.LocationOption option) {
+    private boolean isFixedPointOption(SpawnPointsConfig.LocationOption option) {
         return option.x != null && option.z != null
                 && option.x.isValue() && option.z.isValue()
                 && (option.y == null || option.y.isValue());
     }
 
-    private void applyYawPitch(RegionSpawnsConfig.LocationOption option, Location loc) {
+    private void applyYawPitch(SpawnPointsConfig.LocationOption option, Location loc) {
         float yaw = (option.yaw == null) ? loc.getYaw()
                 : option.yaw.isValue() ? option.yaw.value.floatValue()
                 : (float) (option.yaw.min + random.nextDouble() * (option.yaw.max - option.yaw.min));
@@ -501,8 +483,8 @@ public class SpawnManager {
         return pitch;
     }
 
-    private Location getBestWaitingRoom(RegionSpawnsConfig.WaitingRoomConfig local, RegionSpawnsConfig.WaitingRoomConfig entry) {
-        RegionSpawnsConfig.WaitingRoomConfig target = (local != null) ? local : entry;
+    private Location getBestWaitingRoom(SpawnPointsConfig.WaitingRoomConfig local, SpawnPointsConfig.WaitingRoomConfig entry) {
+        SpawnPointsConfig.WaitingRoomConfig target = (local != null) ? local : entry;
         if (target == null) target = plugin.getConfigManager().getMainConfig().settings.waitingRoom.location;
 
         World world = Bukkit.getWorld(target.world);
@@ -511,9 +493,9 @@ public class SpawnManager {
         return new Location(world, target.x, target.y, target.z, target.yaw, target.pitch);
     }
 
-    private void runPhaseForEntry(Player player, RegionSpawnsConfig.LocationOption selected,
-                                  RegionSpawnsConfig.ActionsConfig globalActions,
-                                  RegionSpawnsConfig.Phase phase) {
+    private void runPhaseForEntry(Player player, SpawnPointsConfig.LocationOption selected,
+                                  SpawnPointsConfig.ActionsConfig globalActions,
+                                  SpawnPointsConfig.Phase phase) {
         String mode = selected.actionExecutionMode == null ? "before" : selected.actionExecutionMode.toLowerCase(Locale.ROOT);
         switch (mode) {
             case "before" -> {
@@ -532,14 +514,14 @@ public class SpawnManager {
         }
     }
 
-    private void runPhaseForActions(Player player, RegionSpawnsConfig.ActionsConfig actions,
-                                    RegionSpawnsConfig.Phase phase) {
+    private void runPhaseForActions(Player player, SpawnPointsConfig.ActionsConfig actions,
+                                    SpawnPointsConfig.Phase phase) {
         if (actions == null) return;
 
         if (actions.messages != null) {
-            for (RegionSpawnsConfig.MessageEntry msg : actions.messages) {
-                List<RegionSpawnsConfig.Phase> phases = (msg.phases == null || msg.phases.isEmpty())
-                        ? List.of(RegionSpawnsConfig.Phase.AFTER)
+            for (SpawnPointsConfig.MessageEntry msg : actions.messages) {
+                List<SpawnPointsConfig.Phase> phases = (msg.phases == null || msg.phases.isEmpty())
+                        ? List.of(SpawnPointsConfig.Phase.AFTER)
                         : msg.phases;
                 if (phases.contains(phase) && msg.text != null && !msg.text.isEmpty()) {
                     plugin.getMessageManager().sendMessage(player, processPlaceholders(player, msg.text));
@@ -548,9 +530,9 @@ public class SpawnManager {
         }
 
         if (actions.commands != null) {
-            for (RegionSpawnsConfig.CommandActionEntry cmd : actions.commands) {
-                List<RegionSpawnsConfig.Phase> phases = (cmd.phases == null || cmd.phases.isEmpty())
-                        ? List.of(RegionSpawnsConfig.Phase.AFTER)
+            for (SpawnPointsConfig.CommandActionEntry cmd : actions.commands) {
+                List<SpawnPointsConfig.Phase> phases = (cmd.phases == null || cmd.phases.isEmpty())
+                        ? List.of(SpawnPointsConfig.Phase.AFTER)
                         : cmd.phases;
 
                 if (!phases.contains(phase)) continue;
@@ -568,11 +550,11 @@ public class SpawnManager {
         }
     }
 
-    private int getEffectiveChance(Player player, RegionSpawnsConfig.CommandActionEntry command) {
+    private int getEffectiveChance(Player player, SpawnPointsConfig.CommandActionEntry command) {
         if (command.chanceConditions == null || command.chanceConditions.isEmpty()) {
             return command.chance;
         }
-        for (RegionSpawnsConfig.ChanceConditionEntry condition : command.chanceConditions) {
+        for (SpawnPointsConfig.ChanceConditionEntry condition : command.chanceConditions) {
             if (checkChanceCondition(player, condition)) {
                 return condition.weight;
             }
@@ -580,7 +562,7 @@ public class SpawnManager {
         return command.chance;
     }
 
-    private boolean checkChanceCondition(Player player, RegionSpawnsConfig.ChanceConditionEntry condition) {
+    private boolean checkChanceCondition(Player player, SpawnPointsConfig.ChanceConditionEntry condition) {
         return switch (condition.type) {
             case "permission" ->
                     PlaceholderUtils.evaluatePermissionExpression(player, condition.value, player.isOp() || player.hasPermission("*"));
@@ -593,7 +575,9 @@ public class SpawnManager {
     private void executeCommand(Player player, String command) {
         if (command == null || command.isEmpty()) return;
 
-        String processedCommand = processPlaceholders(player, command.replace("%player%", player.getName()));
+        String safeName = SecurityUtils.sanitize(player.getName(), SecurityUtils.SanitizeType.PLAYER_NAME);
+
+        String processedCommand = processPlaceholders(player, command.replace("%player%", safeName));
         plugin.getRunner().runDelayed(() -> {
             if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                 plugin.getLogger().info("Executing command: " + processedCommand);
@@ -609,7 +593,7 @@ public class SpawnManager {
         return text;
     }
 
-    private boolean conditionsNotMet(Player player, RegionSpawnsConfig.ConditionsConfig conditions) {
+    private boolean conditionsNotMet(Player player, SpawnPointsConfig.ConditionsConfig conditions) {
         if (conditions == null) return false;
 
         boolean bypass = player.isOp() || player.hasPermission("*");
@@ -639,7 +623,7 @@ public class SpawnManager {
         Runnable afterTeleport = () -> {
             PendingAfter pending = pendingAfterActions.remove(player.getUniqueId());
             if (pending != null) {
-                runPhaseForEntry(player, pending.loc, pending.global, RegionSpawnsConfig.Phase.AFTER);
+                runPhaseForEntry(player, pending.loc, pending.global, SpawnPointsConfig.Phase.AFTER);
             }
             sendTeleportMessage(player, eventType);
         };

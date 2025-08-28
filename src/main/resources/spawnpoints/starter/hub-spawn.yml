@@ -1,0 +1,77 @@
+# ================================================================
+# 🏠 Hub Spawn - Replace Your Spawn Plugin!
+# ================================================================
+# This replaces traditional spawn plugins (like CMI, EssentialsX spawn)
+#
+# What this does:
+# - Players joining ANY world → teleport to hub
+# - Players dying in ANY world → respawn at hub
+# - Works as a complete spawn system replacement
+#
+# 💡 Perfect for lobby-based servers or hub-centric networks!
+# ================================================================
+
+spawns:
+  # Global join spawn (replaces /spawn on join)
+  - kind: world
+    event: joins
+    priority: 1000
+    world: "*"
+    worldMatchMode: regex
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 0
+        y: 64
+        z: 0
+        yaw: 180
+        pitch: 0
+    actions:
+      messages:
+        - text: "<green><bold>🌟 Welcome to the Server!</bold>"
+          phases: [ AFTER ]
+        - text: "<gray>You're now in the main hub"
+          phases: [ AFTER ]
+      commands:
+        - command: "effect give %player% minecraft:saturation 10 1"
+          chance: 100
+          phases: [ AFTER ]
+
+  # Global death spawn (replaces default respawn)
+  - kind: world
+    event: deaths
+    priority: 900
+    world: "*"
+    worldMatchMode: regex
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 10
+        y: 64
+        z: 10
+        yaw: 135
+        pitch: 0
+    actions:
+      messages:
+        - text: "<red>💀 You died and returned to safety"
+          phases: [ BEFORE ]
+        - text: "<yellow>🏥 Use /heal if you need health"
+          phases: [ AFTER ]
+      commands:
+        - command: "heal %player%"
+          chance: 100
+          phases: [ AFTER ]
+        - command: "feed %player%"
+          chance: 100
+          phases: [ AFTER ]
+
+# ================================================================
+# 🔧 Setup Instructions:
+# 1. Change "world" to your actual hub world name
+# 2. Adjust coordinates (x: 0, y: 64, z: 0) to your spawn location
+# 3. Disable other spawn plugins to avoid conflicts
+# 4. Test with: /msp simulate death and /msp simulate join
+#
+# 💡 Pro tip: This gives you much more control than basic spawn plugins!
+# You can add conditions, custom messages, effects, and more.
+# ================================================================

@@ -2,7 +2,7 @@ package uz.alex2276564.mmospawnpoint.config.configs.mainconfig;
 
 import eu.okaeri.configs.OkaeriConfig;
 import eu.okaeri.configs.annotation.Comment;
-import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.RegionSpawnsConfig;
+import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.SpawnPointsConfig;
 
 import java.util.List;
 
@@ -104,18 +104,18 @@ public class MainConfig extends OkaeriConfig {
                 public WalkingSection walking = new WalkingSection();
 
                 public static class RestrictionsSection extends OkaeriConfig {
-                    public boolean deathEnabled = true;
+                    public boolean deathEnabled = false;
                     public String deathNode = "mmospawnpoint.bypass.party.restrictions.death";
 
-                    public boolean targetEnabled = true;
+                    public boolean targetEnabled = false;
                     public String targetNode = "mmospawnpoint.bypass.party.restrictions.target";
 
-                    public boolean bothEnabled = true;
+                    public boolean bothEnabled = false;
                     public String bothNode = "mmospawnpoint.bypass.party.restrictions.both";
                 }
 
                 public static class WalkingSection extends OkaeriConfig {
-                    public boolean restrictionsEnabled = true;
+                    public boolean restrictionsEnabled = false;
                     public String restrictionsNode = "mmospawnpoint.bypass.party.walking.restrictions";
                 }
             }
@@ -230,7 +230,7 @@ public class MainConfig extends OkaeriConfig {
         public int minStayTicks = 20;
 
         @Comment("Global waiting room location (used if no custom waiting room is specified)")
-        public RegionSpawnsConfig.WaitingRoomConfig location = new RegionSpawnsConfig.WaitingRoomConfig();
+        public SpawnPointsConfig.WaitingRoomConfig location = new SpawnPointsConfig.WaitingRoomConfig();
     }
 
     public static class PartySection extends OkaeriConfig {

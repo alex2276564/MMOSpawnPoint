@@ -64,6 +64,9 @@ public class MessagesConfig extends OkaeriConfig {
             @Comment("Cache command help line")
             public String cacheLine = "<yellow>/msp cache <gray>- Safe-location cache tools";
 
+            @Comment("Set spawnpoint command help line")
+            public String setspawnpointLine = "<yellow>/msp setspawnpoint <gray>- Set vanilla (bed) respawn point";
+
             @Comment("Help command help line")
             public String helpLine = "<yellow>/msp help <gray>- Show this help message";
         }
@@ -146,7 +149,7 @@ public class MessagesConfig extends OkaeriConfig {
             public String helpHeader = "<gold>=== Cache Commands ===";
             public String helpStatsLine = "<yellow>/msp cache stats <gray>- Show cache statistics";
             public String helpClearLine = "<yellow>/msp cache clear [player] <gray>- Clear cache (all or player-specific)";
-            
+
             @Comment("Stats line: <searches> <hits> <misses> <hitRate> <size> <enabled> <expiry> <max>")
             public String statsLine = "<gray>Cache: searches=<yellow><searches></yellow>, hits=<yellow><hits></yellow>, misses=<yellow><misses></yellow>, hitRate=<yellow><hitRate>%</yellow>, size=<yellow><size></yellow>, enabled=<yellow><enabled></yellow>, expiry=<yellow><expiry></yellow>s, max=<yellow><max></yellow>";
 
