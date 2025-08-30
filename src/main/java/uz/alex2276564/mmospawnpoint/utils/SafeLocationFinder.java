@@ -13,12 +13,14 @@ import java.util.function.Supplier;
 public class SafeLocationFinder {
     private static final Random RANDOM = new Random();
 
+    private static final int DEFAULT_NETHER_Y = 64; // Fallback Y for Nether
+
     // Global config-driven sets
     private static Set<Material> globalGroundBlacklist = new HashSet<>();
     private static Set<Material> globalPassableBlacklist = new HashSet<>();
 
     // Per-call override (ground whitelist). If set and non-empty, globalGroundBlacklist is ignored.
-    private static final ThreadLocal<Set<Material>> TL_GROUND_WHITELIST = new ThreadLocal<>();
+    private static final ThreadLocal<Set<Material>> GROUND_WHITELIST_TL = new ThreadLocal<>();
 
     // Search settings
     private static int baseSearchRadius = 5;
@@ -75,9 +77,10 @@ public class SafeLocationFinder {
     public static void configureGlobalGroundBlacklist(List<String> materialNames) {
         Set<Material> materials = new HashSet<>();
         for (String name : materialNames) {
-            try {
-                materials.add(Material.valueOf(name.toUpperCase()));
-            } catch (IllegalArgumentException e) {
+            Material m = Material.matchMaterial(name);
+            if (m != null) {
+                materials.add(m);
+            } else {
                 MMOSpawnPoint.getInstance().getLogger().warning("Unknown material in globalGroundBlacklist: " + name);
             }
         }
@@ -201,11 +204,11 @@ public class SafeLocationFinder {
         if (wl == null || wl.isEmpty()) {
             return supplier.get();
         }
-        TL_GROUND_WHITELIST.set(wl);
+        GROUND_WHITELIST_TL.set(wl);
         try {
             return supplier.get();
         } finally {
-            TL_GROUND_WHITELIST.remove();
+            GROUND_WHITELIST_TL.remove();
         }
     }
 
@@ -336,7 +339,13 @@ public class SafeLocationFinder {
 
             int highestY;
             if (isNether) {
-                highestY = findSafeYInNether(world, testLocation.getBlockX(), testLocation.getBlockZ(), 120, 30);
+                highestY = findSafeYInNether(
+                        world,
+                        testLocation.getBlockX(),
+                        testLocation.getBlockZ(),
+                        world.getMaxHeight(),
+                        resolveMinY(world)
+                );
             } else {
                 highestY = world.getHighestBlockYAt(testLocation.getBlockX(), testLocation.getBlockZ());
             }
@@ -471,17 +480,51 @@ public class SafeLocationFinder {
         }
 
         int hyCenter = isNether
-                ? findSafeYInNether(world, (int) centerX, (int) centerZ, world.getMaxHeight(), 0)
+                ? findSafeYInNether(world, (int) centerX, (int) centerZ, world.getMaxHeight(), resolveMinY(world))
                 : world.getHighestBlockYAt((int) centerX, (int) centerZ);
         return new Location(world, centerX, hyCenter + 1.0, centerZ);
     }
 
     private static int findSafeYInNether(World world, int x, int z, int maxY, int minY) {
-        int startY = (maxY + minY) / 2;
-        for (int y = startY; y >= minY; y--) if (isSolidWithTwoPassableAbove(world, x, y, z)) return y;
-        for (int y = startY + 1; y <= Math.max(minY + 2, maxY - 2); y++)
+        // Clamp provided bounds to world limits
+        int worldMinY = resolveMinY(world);
+        int worldMaxY = Math.max(worldMinY, world.getMaxHeight() - 1);
+
+        int min = Math.max(worldMinY, Math.min(minY, worldMaxY));
+        int max = Math.max(worldMinY, Math.min(maxY, worldMaxY));
+        if (min > max) {
+            int tmp = min; min = max; max = tmp;
+        }
+
+        int startY = (max + min) / 2;
+
+        // Downward scan
+        for (int y = startY; y >= min; y--) {
             if (isSolidWithTwoPassableAbove(world, x, y, z)) return y;
-        return 64;
+        }
+
+        // Upward scan with headroom
+        int upper = Math.max(min + 2, max - 2);
+        if (startY + 1 <= upper) {
+            for (int y = startY + 1; y <= upper; y++) {
+                if (isSolidWithTwoPassableAbove(world, x, y, z)) return y;
+            }
+        }
+
+        // Fallback
+        return DEFAULT_NETHER_Y;
+    }
+
+    private static int resolveMinY(World world) {
+        try {
+            // Paper 1.18+ has World#getMinHeight()
+            return (int) World.class.getMethod("getMinHeight").invoke(world);
+        } catch (NoSuchMethodException ignored) {
+            // 1.16.5 and older: no negative Y
+            return 0;
+        } catch (Throwable t) {
+            return 0;
+        }
     }
 
     private static boolean isSolidWithTwoPassableAbove(World world, int x, int y, int z) {
@@ -519,9 +562,9 @@ public class SafeLocationFinder {
     }
 
     private static boolean groundAllowed(Material groundType) {
-        Set<Material> wl = TL_GROUND_WHITELIST.get();
+        Set<Material> wl = GROUND_WHITELIST_TL.get();
         if (wl != null && !wl.isEmpty()) {
-            // If whitelist is set, only those are allowed (global blacklist ignored)
+            // When whitelist is set, it overrides the global blacklist
             return wl.contains(groundType);
         }
         // Otherwise, use global blacklist

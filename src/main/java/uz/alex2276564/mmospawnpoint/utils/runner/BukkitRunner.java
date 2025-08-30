@@ -27,8 +27,7 @@ public class BukkitRunner implements Runner {
 
     @Override
     public BukkitTask runDelayed(@NotNull Runnable task, long delayTicks) {
-        scheduler.runTaskLater(plugin, task, delayTicks);
-        return null;
+        return scheduler.runTaskLater(plugin, task, delayTicks);
     }
 
     @Override

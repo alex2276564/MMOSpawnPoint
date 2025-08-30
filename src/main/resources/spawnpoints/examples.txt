@@ -237,7 +237,21 @@ spawns:
     y: 120
     z: 0
 
-# Note: groundWhitelist overrides globalGroundBlacklist from main config for this destination
+# Notes on groundWhitelist (how safe search works):
+# - groundWhitelist only has effect when requireSafe: true.
+# - It REPLACES globalGroundBlacklist, but ONLY for the ground block under the player’s feet (y-1).
+# - globalPassableBlacklist still applies to feet/head (water, lava, cobweb, powder snow, etc.).
+# - Fixed-point search: if x/z are fixed values and requireSafe is true, the plugin searches around that point within settings.safeLocationRadius (expands radius mid-way if needed).
+# - Area search: if x/z are ranges and requireSafe is true, the plugin searches INSIDE the specified rectangle.
+# - Y selection:
+#  - Overworld uses the strategy from settings.teleport.ySelection (mixed/highest/random).
+#  - Nether uses a solid-ground-with-2-air check within configured bounds.
+# - Fallback behavior:
+#   - If no whitelisted ground is found within settings.maxSafeLocationAttempts, the current implementation falls back (e.g., world spawn or area center). If you need “strict” behavior (no fallback), return null from the finder and handle it via waiting room timeout.
+# - Tips:
+#   - Keep search areas reasonable in size.
+#   - Increase safeLocationRadius and/or maxSafeLocationAttempts if your whitelist is rare.
+#   - Prefer requireSafe: false for known-safe, prebuilt spawn pads.
 
 
 # ================================================================
@@ -469,6 +483,81 @@ spawns:
     x: 0
     y: 64
     z: 0
+
+# ================================================================
+# ✅ Example 10: VIP Tiers with Economy-Based Upgrades
+# ================================================================
+# Demonstrates advanced command conditions and economy integration
+# VIP players get closer spawn, rich players get premium menu access
+# File: spawnpoints/world/vip-economy-spawn.yml
+
+spawns:
+- kind: world
+  event: deaths
+  priority: 1500
+  world: world
+  conditions:
+    permissions:
+    - "mmospawnpoint.vip"
+  destinations:
+  # VIP Destination 1: Close premium spawn for VIP players
+  - world: world
+    requireSafe: true
+    x: { min: 0, max: 20 }
+    z: { min: 0, max: 20 }
+    weight: 80
+    actions:
+      messages:
+      - text: "<gold>🌟 VIP spawn activated - premium location!"
+        phases: [AFTER]
+      commands:
+      # Economy-conditional premium menu access
+      - command: "dm open premium_spawn_menu %player%"
+        chance: 0  # 0% base chance
+        phases: [AFTER]
+        chanceConditions:
+        - type: permission
+          value: mmospawnpoint.vip
+          weight: 100  # 100% chance if has mmospawnpoint.vip permission
+      # VIP-only healing boost
+      - command: "effect give %player% minecraft:regeneration 30 2"
+        chance: 100
+        phases: [AFTER]
+
+  # VIP Destination 2: Fallback spawn for VIP (further away)
+  - world: world
+    requireSafe: true
+    x: { min: 50, max: 100 }
+    z: { min: 50, max: 100 }
+    weight: 20
+    actions:
+      messages:
+      - text: "<yellow>🥉 VIP fallback spawn - standard location"
+        phases: [AFTER]
+      commands:
+      # Rich players still get menu even at fallback spawn
+      - command: "dm open standard_spawn_menu %player%"
+        chance: 0
+        phases: [AFTER]
+        chanceConditions:
+        - type: placeholder
+          value: "%vault_eco_balance_fixed% < 500"
+          weight: 100
+      # Different upgrade offer for rich players at fallback spawn
+      - command: "tellraw %player% {\"text\":\"💰 You have enough money! Click to upgrade to premium spawn\",\"color\":\"gold\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/upgrade premium_spawn\"}}"
+        chance: 0
+        phases: [AFTER]
+        chanceConditions:
+        - type: placeholder
+          value: "%vault_eco_balance_fixed% >= 500"
+          weight: 100
+
+  actions:
+    messages:
+    - text: "<blue>🔍 Searching for VIP spawn location..."
+      phases: [WAITING_ROOM]
+    - text: "<green>✨ VIP processing complete!"
+      phases: [BEFORE]
 
 
 # ================================================================

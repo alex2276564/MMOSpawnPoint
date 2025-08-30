@@ -9,21 +9,20 @@ import uz.alex2276564.mmospawnpoint.utils.WorldGuardUtils;
 
 import java.util.*;
 
-/**
- * PartyManager
- * - Compatible with your party commands (doesn't duplicate their messages)
- * - Sends only additional system messages:
- * - inviteExpired (to leader)
- * - partyDisbanded (to last leaving/kicked player)
- * - all respawn-related messages (cooldown, walking spawn point, respawn disabled reason, respawnedAtMember)
- * - Supports considerWorldPopulation / considerRegionPopulation overlays
- * - Uses Party.cleanExpiredInvitations() to clear expired invites
- */
 public class PartyManager {
 
     public static final Location FALLBACK_TO_NORMAL_SPAWN_MARKER = new Location(null, 0, 0, 0);
 
-    private enum DisableReason {NONE, WORLD, REGION_OR_COORDINATE}
+    private enum RestrictionReason {NONE, WORLD, REGION_OR_COORDINATE}
+
+    public enum InviteResult {
+        SUCCESS,
+        LEADER_NOT_IN_PARTY,
+        NOT_LEADER,
+        TARGET_ALREADY_IN_PARTY,
+        PARTY_FULL,
+        ALREADY_INVITED
+    }
 
     private final MMOSpawnPoint plugin;
     private final Map<UUID, Party> parties = new HashMap<>();
@@ -131,19 +130,44 @@ public class PartyManager {
         playerPartyMap.put(leaderId, party.getId());
     }
 
-    public boolean invitePlayer(Player leader, Player invited) {
+    public InviteResult invitePlayer(Player leader, Player invited) {
         UUID leaderId = leader.getUniqueId();
         UUID invitedId = invited.getUniqueId();
 
-        if (!isInParty(leaderId)) return false;
-        Party party = getPlayerParty(leaderId);
-        if (!party.isLeader(leaderId)) return false;
-        if (isInParty(invitedId)) return false;
-        if (maxPartySize > 0 && party.size() >= maxPartySize) return false;
+        // Leader must be in a party
+        if (!isInParty(leaderId)) {
+            return InviteResult.LEADER_NOT_IN_PARTY;
+        }
 
+        Party party = getPlayerParty(leaderId);
+
+        // Only leader can invite
+        if (!party.isLeader(leaderId)) {
+            return InviteResult.NOT_LEADER;
+        }
+
+        // Target already in any party
+        if (isInParty(invitedId)) {
+            return InviteResult.TARGET_ALREADY_IN_PARTY;
+        }
+
+        // Party full
+        if (maxPartySize > 0 && party.size() >= maxPartySize) {
+            return InviteResult.PARTY_FULL;
+        }
+
+        // Already invited to THIS party
+        UUID pending = pendingInvitations.get(invitedId);
+        if (pending != null && pending.equals(party.getId()) && !party.hasNoInvitation(invitedId)) {
+            // refresh/extend expiration
+            party.invite(invitedId, invitationExpiryTime);
+            return InviteResult.ALREADY_INVITED;
+        }
+
+        // Issue a new invitation
         party.invite(invitedId, invitationExpiryTime);
         pendingInvitations.put(invitedId, party.getId());
-        return true;
+        return InviteResult.SUCCESS;
     }
 
     public boolean acceptInvitation(Player player) {
@@ -301,42 +325,43 @@ public class PartyManager {
             }
         }
 
-        DisableReason deathReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkDeathLocation
-                ? getDisableReason(deathLocation)
-                : DisableReason.NONE;
+        RestrictionReason deathReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkDeathLocation
+                ? getRestrictionReason(deathLocation)
+                : RestrictionReason.NONE;
 
         Player target = findBestTargetOverlayed(party, player, deathLocation, false);
         if (target == null) return null;
 
         Location targetLocation = target.getLocation();
-        DisableReason targetReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkTargetLocation
-                ? getDisableReason(targetLocation)
-                : DisableReason.NONE;
+        RestrictionReason targetReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkTargetLocation
+                ? getRestrictionReason(targetLocation)
+                : RestrictionReason.NONE;
 
         // Apply bypasses to restrictions
-        if (bypassBothRestrictions && deathReason != DisableReason.NONE && targetReason != DisableReason.NONE) {
-            deathReason = DisableReason.NONE;
-            targetReason = DisableReason.NONE;
+        if (bypassBothRestrictions && deathReason != RestrictionReason.NONE && targetReason != RestrictionReason.NONE) {
+            deathReason = RestrictionReason.NONE;
+            targetReason = RestrictionReason.NONE;
         } else {
-            if (bypassDeathRestrictions) deathReason = DisableReason.NONE;
-            if (bypassTargetRestrictions) targetReason = DisableReason.NONE;
+            if (bypassDeathRestrictions) deathReason = RestrictionReason.NONE;
+            if (bypassTargetRestrictions) targetReason = RestrictionReason.NONE;
         }
 
-        boolean deathRestricted = deathReason != DisableReason.NONE;
-        boolean targetRestricted = targetReason != DisableReason.NONE;
+        boolean deathRestricted = deathReason != RestrictionReason.NONE;
+        boolean targetRestricted = targetReason != RestrictionReason.NONE;
 
         if (deathRestricted && targetRestricted) {
-            return handleBothRestricted(player, deathReason); // 'both restricted' logic
+            return handleBothRestricted(player, deathReason);
         } else if (deathRestricted) {
             return handleDeathRestricted(player, target, deathReason);
         } else if (targetRestricted) {
             return handleTargetRestricted(player, party, targetReason);
         }
 
-        // max distance
-        if (maxRespawnDistance > 0 && target.getWorld().equals(deathLocation.getWorld())
+       // Max distance restriction
+        if (maxRespawnDistance > 0
+                && target.getWorld().equals(deathLocation.getWorld())
                 && target.getLocation().distance(deathLocation) > maxRespawnDistance) {
-            String msg = plugin.getConfigManager().getMessagesConfig().party.respawnDisabledRegion;
+            String msg = plugin.getConfigManager().getMessagesConfig().party.respawnTooFar;
             if (msg != null && !msg.isEmpty()) plugin.getMessageManager().sendMessage(player, msg);
             return null;
         }
@@ -379,11 +404,11 @@ public class PartyManager {
         if (target == null) return null;
 
         Location targetLoc = target.getLocation();
-        DisableReason targetReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkTargetLocation
-                ? getDisableReason(targetLoc)
-                : DisableReason.NONE;
+        RestrictionReason targetReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkTargetLocation
+                ? getRestrictionReason(targetLoc)
+                : RestrictionReason.NONE;
 
-        if (targetReason != DisableReason.NONE) {
+        if (targetReason != RestrictionReason.NONE) {
             return handleJoinTargetRestricted(player, party, targetReason);
         }
 
@@ -416,14 +441,14 @@ public class PartyManager {
             return deathLocation;
         }
 
-        boolean deathRestricted = cfg.checkDeathLocation && getDisableReason(deathLocation) != DisableReason.NONE;
+        boolean deathRestricted = cfg.checkDeathLocation && getRestrictionReason(deathLocation) != RestrictionReason.NONE;
         boolean targetRestricted = false;
         if (cfg.checkTargetLocation) {
             Party party = getPlayerParty(player.getUniqueId());
             if (party != null) {
                 Player target = findBestTargetOverlayed(party, player, deathLocation, false);
                 if (target != null) {
-                    targetRestricted = getDisableReason(target.getLocation()) != DisableReason.NONE;
+                    targetRestricted = getRestrictionReason(target.getLocation()) != RestrictionReason.NONE;
                 }
             }
         }
@@ -455,7 +480,7 @@ public class PartyManager {
         var cfg = plugin.getConfigManager().getMainConfig().party.respawnAtDeath.restrictionBehavior;
 
         if (cfg.respectRestrictions) {
-            boolean locationRestricted = cfg.checkTargetLocation && getDisableReason(current) != DisableReason.NONE;
+            boolean locationRestricted = cfg.checkTargetLocation && getRestrictionReason(current) != RestrictionReason.NONE;
             if (locationRestricted) {
                 String behavior = cfg.restrictedAreaBehavior.toLowerCase(Locale.ROOT);
                 switch (behavior) {
@@ -511,37 +536,55 @@ public class PartyManager {
     }
 
     private Player selectTargetByStrategy(Party party, Player excludePlayer, Location deathLocation, String strategy) {
-        List<Player> candidates = new ArrayList<>(party.getOnlineMembers());
-        candidates.remove(excludePlayer);
+        List<Player> candidates = party.getOnlineMembers().stream()
+                .filter(p -> !p.equals(excludePlayer))
+                .toList();
         if (candidates.isEmpty()) return null;
 
-        return switch (strategy.toLowerCase(Locale.ROOT)) {
-            case "closest_same_world" -> findClosestInSameWorld(candidates, deathLocation);
-            case "closest_any_world" -> findClosestAnyWorld(candidates, deathLocation);
-            case "most_members_world" -> findTargetInMostPopulatedWorld(candidates);
-            case "most_members_region" -> findTargetInMostPopulatedRegion(candidates);
-            case "random" -> candidates.get(this.random.nextInt(candidates.size()));
-            case "leader_priority" -> findWithLeaderPriority(candidates);
-            case "specific_target_only" -> null;
-            default -> findClosestInSameWorld(candidates, deathLocation);
-        };
+        switch (strategy.toLowerCase(Locale.ROOT)) {
+            case "closest_same_world":
+                return findClosestInSameWorld(candidates, deathLocation);
+            case "any_world":
+                return findClosestAnyWorld(candidates, deathLocation);
+            case "most_members_world":
+                return findTargetInMostPopulatedWorld(candidates);
+            case "most_members_region":
+                return findTargetInMostPopulatedRegion(candidates);
+            case "random":
+                return candidates.get(this.random.nextInt(candidates.size()));
+            case "leader_priority":
+                return findWithLeaderPriority(candidates);
+            case "specific_target_only":
+                return null;
+            default:
+                return findClosestInSameWorld(candidates, deathLocation);
+        }
     }
 
     private Player selectTargetByStrategyForJoin(Party party, Player excludePlayer, Location ref, String strategy) {
-        List<Player> candidates = new ArrayList<>(party.getOnlineMembers());
-        candidates.remove(excludePlayer);
+        List<Player> candidates = party.getOnlineMembers().stream()
+                .filter(p -> !p.equals(excludePlayer))
+                .toList();
         if (candidates.isEmpty()) return null;
 
-        return switch (strategy.toLowerCase(Locale.ROOT)) {
-            case "closest_same_world" -> findClosestInSameWorldForJoin(candidates, ref);
-            case "closest_any_world" -> findClosestAnyWorldForJoin(candidates, ref);
-            case "most_members_world" -> findTargetInMostPopulatedWorld(candidates);
-            case "most_members_region" -> findTargetInMostPopulatedRegion(candidates);
-            case "random" -> candidates.get(this.random.nextInt(candidates.size()));
-            case "leader_priority" -> findWithLeaderPriority(candidates);
-            case "specific_target_only" -> null;
-            default -> findClosestInSameWorldForJoin(candidates, ref);
-        };
+        switch (strategy.toLowerCase(Locale.ROOT)) {
+            case "closest_same_world":
+                return findClosestInSameWorldForJoin(candidates, ref);
+            case "any_world":
+                return findClosestAnyWorldForJoin(candidates, ref);
+            case "most_members_world":
+                return findTargetInMostPopulatedWorld(candidates);
+            case "most_members_region":
+                return findTargetInMostPopulatedRegion(candidates);
+            case "random":
+                return candidates.get(this.random.nextInt(candidates.size()));
+            case "leader_priority":
+                return findWithLeaderPriority(candidates);
+            case "specific_target_only":
+                return null;
+            default:
+                return findClosestInSameWorldForJoin(candidates, ref);
+        }
     }
 
     private Player findClosestInSameWorld(List<Player> candidates, Location deathLocation) {
@@ -659,7 +702,14 @@ public class PartyManager {
         Map<String, List<Player>> regionGroups = new HashMap<>();
         for (Player c : candidates) {
             Set<String> regions = WorldGuardUtils.getRegionsAt(c.getLocation());
-            String key = regions.isEmpty() ? "wilderness" : String.join(",", regions);
+            String key;
+            if (regions.isEmpty()) {
+                key = "wilderness";
+            } else {
+                List<String> sorted = new ArrayList<>(regions);
+                Collections.sort(sorted);
+                key = String.join(",", sorted);
+            }
             regionGroups.computeIfAbsent(key, k -> new ArrayList<>()).add(c);
         }
         int minPop = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetSelection.minPopulationThreshold;
@@ -694,7 +744,7 @@ public class PartyManager {
 
     // ============================= RESTRICTIONS & REASONS =============================
 
-    private DisableReason getDisableReason(Location location) {
+    private RestrictionReason getRestrictionReason(Location location) {
         // Only consider 'deaths' entries for party respawn restrictions
         List<SpawnEntry> entries = plugin.getConfigManager().getSpawnEntriesForEvent("deaths");
         for (SpawnEntry e : entries) {
@@ -703,21 +753,21 @@ public class PartyManager {
             var data = e.spawnData();
             if (data != null && data.partyRespawnDisabled) {
                 return (e.type() == SpawnEntry.Type.WORLD)
-                        ? DisableReason.WORLD
-                        : DisableReason.REGION_OR_COORDINATE;
+                        ? RestrictionReason.WORLD
+                        : RestrictionReason.REGION_OR_COORDINATE;
             }
         }
-        return DisableReason.NONE;
+        return RestrictionReason.NONE;
     }
 
-    private void sendRestrictedMessage(Player player, DisableReason reason) {
-        String msg = (reason == DisableReason.WORLD)
+    private void sendRestrictedMessage(Player player, RestrictionReason reason) {
+        String msg = (reason == RestrictionReason.WORLD)
                 ? plugin.getConfigManager().getMessagesConfig().party.respawnDisabledWorld
                 : plugin.getConfigManager().getMessagesConfig().party.respawnDisabledRegion;
         if (msg != null && !msg.isEmpty()) plugin.getMessageManager().sendMessage(player, msg);
     }
 
-    private Location handleBothRestricted(Player player, DisableReason reason) {
+    private Location handleBothRestricted(Player player, RestrictionReason reason) {
         String behavior = plugin.getConfigManager().getMainConfig().party.respawnBehavior.bothRestrictedBehavior.toLowerCase(Locale.ROOT);
         switch (behavior) {
             case "allow":
@@ -732,7 +782,7 @@ public class PartyManager {
         }
     }
 
-    private Location handleDeathRestricted(Player player, Player target, DisableReason deathReason) {
+    private Location handleDeathRestricted(Player player, Player target, RestrictionReason deathReason) {
         String behavior = plugin.getConfigManager().getMainConfig().party.respawnBehavior.deathRestrictedBehavior.toLowerCase(Locale.ROOT);
         return switch (behavior) {
             case "deny" -> {
@@ -744,7 +794,7 @@ public class PartyManager {
         };
     }
 
-    private Location handleTargetRestricted(Player player, Party party, DisableReason targetReason) {
+    private Location handleTargetRestricted(Player player, Party party, RestrictionReason targetReason) {
         String behavior = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetRestrictedBehavior.toLowerCase(Locale.ROOT);
         return switch (behavior) {
             case "allow" -> {
@@ -764,7 +814,7 @@ public class PartyManager {
         };
     }
 
-    private Location handleJoinTargetRestricted(Player player, Party party, DisableReason targetReason) {
+    private Location handleJoinTargetRestricted(Player player, Party party, RestrictionReason targetReason) {
         String behavior = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetRestrictedBehavior.toLowerCase(Locale.ROOT);
         return switch (behavior) {
             case "allow" -> {
@@ -790,7 +840,7 @@ public class PartyManager {
         int attempts = plugin.getConfigManager().getMainConfig().party.respawnBehavior.alternativeTargetAttempts;
         for (int i = 0; i < Math.min(attempts, list.size()); i++) {
             Player m = list.get(i);
-            if (getDisableReason(m.getLocation()) == DisableReason.NONE) {
+            if (getRestrictionReason(m.getLocation()) == RestrictionReason.NONE) {
                 if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                     plugin.getLogger().info("Found alternative party target: " + m.getName());
                 }
@@ -808,7 +858,7 @@ public class PartyManager {
         int attempts = plugin.getConfigManager().getMainConfig().party.respawnBehavior.alternativeTargetAttempts;
         for (int i = 0; i < Math.min(attempts, list.size()); i++) {
             Player m = list.get(i);
-            if (getDisableReason(m.getLocation()) == DisableReason.NONE) {
+            if (getRestrictionReason(m.getLocation()) == RestrictionReason.NONE) {
                 if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                     plugin.getLogger().info("Found alternative party target for join: " + m.getName());
                 }

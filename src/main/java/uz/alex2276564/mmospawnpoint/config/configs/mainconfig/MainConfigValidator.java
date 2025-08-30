@@ -29,9 +29,6 @@ public class MainConfigValidator {
         Validators.min(result, "settings.safeLocationRadius", settings.safeLocationRadius, 1, "Safe location radius must be at least 1");
         Validators.max(result, "settings.safeLocationRadius", settings.safeLocationRadius, 50, "Safe location radius cannot exceed 50");
 
-        Validators.min(result, "settings.maxSafeLocationAttempts", settings.maxSafeLocationAttempts, 1, "Max safe location attempts must be at least 1");
-        Validators.min(result, "settings.safeLocationRadius", settings.safeLocationRadius, 1, "Safe location radius must be at least 1");
-
         // Validate cache settings
         validateCacheSection(result, settings.safeLocationCache);
 
@@ -187,7 +184,7 @@ public class MainConfigValidator {
     }
 
     private static void validateTargetSelection(ValidationResult result, MainConfig.TargetSelectionSection targetSelection) {
-        Set<String> validStrategies = Set.of("closest_same_world", "closest_any_world", "most_members_world",
+        Set<String> validStrategies = Set.of("closest_same_world", "any_world", "most_members_world",
                 "most_members_region", "random", "leader_priority", "specific_target_only");
 
         if (!validStrategies.contains(targetSelection.primaryStrategy)) {

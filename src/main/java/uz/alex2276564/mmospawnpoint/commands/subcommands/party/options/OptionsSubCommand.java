@@ -50,8 +50,8 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
                     plugin.getMessageManager().sendMessage(player, "<gray>Soul Binding Mode: <red><mode>", "mode", party.getRespawnMode().name());
                     plugin.getMessageManager().sendMessage(player, "<gray>Soul Target: <red><target>", "target", getRespawnTargetDisplayName(party));
                     plugin.getMessageManager().sendMessage(player, "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                    plugin.getMessageManager().sendMessage(player, "<gray>Use <white>/ssp party options mode <red><normal|party_member><gray> to change binding");
-                    plugin.getMessageManager().sendMessage(player, "<gray>Use <white>/ssp party options target <red><soul><gray> to set target soul");
+                    plugin.getMessageManager().sendMessage(player, "<gray>Use <white>/msp party options mode <red><normal|party_member><gray> to change binding");
+                    plugin.getMessageManager().sendMessage(player, "<gray>Use <white>/msp party options target <red><soul><gray> to set target soul");
                 });
 
         // Register nested options subcommands

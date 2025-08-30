@@ -181,10 +181,10 @@ public class SpawnManager {
 
     private Location processSpawnEntry(SpawnEntry entry, Player player) {
         SpawnPointsConfig.SpawnPointEntry data = entry.spawnData();
-        return processGenericEntry(player, data.conditions, data.destinations, data.actions, data.waitingRoom);
+        return processEntry(player, data.conditions, data.destinations, data.actions, data.waitingRoom);
     }
 
-    private Location processGenericEntry(
+    private Location processEntry(
             Player player,
             SpawnPointsConfig.ConditionsConfig conditions,
             List<SpawnPointsConfig.LocationOption> destinations,
@@ -279,9 +279,16 @@ public class SpawnManager {
             }
         }
 
-        CompletableFuture<Location> future = CompletableFuture.supplyAsync(() ->
-                resolveLocationFromOption(player, selected, isWeightedSelection)
-        );
+        // Run the heavy/async work on Bukkit async scheduler instead of commonPool
+        CompletableFuture<Location> future = new CompletableFuture<>();
+        plugin.getRunner().runAsync(() -> {
+            try {
+                Location loc = resolveLocationFromOption(player, selected, isWeightedSelection);
+                future.complete(loc);
+            } catch (Exception ex) {
+                future.completeExceptionally(ex);
+            }
+        });
 
         SearchProcess sp = new SearchProcess(selected, globalActions, future, enteredWaitingMs);
         searchProcesses.put(playerId, sp);
@@ -628,7 +635,7 @@ public class SpawnManager {
             sendTeleportMessage(player, eventType);
         };
 
-        if (delayTicks <= 0) {
+        if (delayTicks <= 1) {
             player.teleport(location);
             afterTeleport.run();
         } else {

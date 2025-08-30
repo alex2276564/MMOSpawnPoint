@@ -167,6 +167,7 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.respawnCooldown", party.respawnCooldown, "Respawn cooldown message cannot be empty");
         Validators.notBlank(result, "party.walkingSpawnPointMessage", party.walkingSpawnPointMessage, "Walking spawn point message cannot be empty");
         Validators.notBlank(result, "party.walkingSpawnPointRestricted", party.walkingSpawnPointRestricted, "Walking spawn point restricted cannot be empty");
+        Validators.notBlank(result, "party.respawnTooFar", party.respawnTooFar, "Respawn too far message cannot be empty");
 
         if (!party.respawnedAtMember.contains("<player>")) {
             result.addError("party.respawnedAtMember", "Respawned at member must contain <player> placeholder");

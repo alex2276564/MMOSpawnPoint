@@ -16,7 +16,7 @@ spawns:
   - kind: world
     event: joins
     priority: 1000
-    world: "*"
+    world: ".*"
     worldMatchMode: regex
     destinations:
       - world: world
@@ -41,7 +41,7 @@ spawns:
   - kind: world
     event: deaths
     priority: 900
-    world: "*"
+    world: ".*"
     worldMatchMode: regex
     destinations:
       - world: world

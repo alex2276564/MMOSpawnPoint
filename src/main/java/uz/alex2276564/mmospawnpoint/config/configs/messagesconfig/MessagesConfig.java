@@ -214,6 +214,7 @@ public class MessagesConfig extends OkaeriConfig {
         public String walkingSpawnPointRestricted = "<dark_gray>[<red>Death<dark_gray>] <red>Dark forces prevent you from rising here...";
         public String alreadyLeader = "<red>You already command the death party, dark lord";
         public String newLeaderAssigned = "<red><player> <gray>now commands the death party";
+        public String respawnTooFar = "<red>You are too far from your party member to respawn there.";
 
         // List command
         public String listHeader = "<dark_gray>[<red>Bound Souls<dark_gray>]";

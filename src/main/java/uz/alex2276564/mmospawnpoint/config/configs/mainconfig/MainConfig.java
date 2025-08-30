@@ -227,7 +227,7 @@ public class MainConfig extends OkaeriConfig {
         public int asyncSearchTimeout = 10;
 
         @Comment("Minimal time a player must stay in waiting room before final teleport (ticks)")
-        public int minStayTicks = 20;
+        public int minStayTicks = 40;
 
         @Comment("Global waiting room location (used if no custom waiting room is specified)")
         public SpawnPointsConfig.WaitingRoomConfig location = new SpawnPointsConfig.WaitingRoomConfig();
@@ -253,7 +253,7 @@ public class MainConfig extends OkaeriConfig {
         public int respawnCooldown = 0;
 
         @Comment("Invitation expiry time in seconds")
-        public int invitationExpiry = 60;
+        public int invitationExpiry = 120;
 
         @Comment("Walking Spawn Point feature")
         public RespawnAtDeathSection respawnAtDeath = new RespawnAtDeathSection();
@@ -312,12 +312,12 @@ public class MainConfig extends OkaeriConfig {
     }
 
     public static class TargetSelectionSection extends OkaeriConfig {
-        @Comment("Primary strategy: closest_same_world, closest_any_world, most_members_world,")
+        @Comment("Primary strategy: closest_same_world, any_world, most_members_world,")
         @Comment("most_members_region, random, leader_priority, specific_target_only")
         public String primaryStrategy = "closest_same_world";
 
         @Comment("Fallback strategy if primary fails")
-        public String fallbackStrategy = "closest_any_world";
+        public String fallbackStrategy = "any_world";
 
         @Comment("Whether to prefer players in same world")
         public boolean preferSameWorld = true;
@@ -345,7 +345,7 @@ public class MainConfig extends OkaeriConfig {
 
         @Comment("Resource pack timeout in seconds")
         @Comment("Player will be teleported after this time regardless of RP status")
-        public int resourcePackTimeout = 60;
+        public int resourcePackTimeout = 120;
 
         @Comment("Use waiting room while waiting for resource pack")
         @Comment("If enabled, player will be moved to waiting room during RP download")

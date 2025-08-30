@@ -38,31 +38,45 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                     }
 
                     Player targetPlayer = context.getArgument("player");
+                    if (targetPlayer == null) {
+                        // Should not happen with ArgumentType.PLAYER, but just in case
+                        plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
+                        return;
+                    }
+
                     PartyManager partyManager = plugin.getPartyManager();
 
-                    // Create party if player is not in one
+                    // Auto-create party if player is not in one (keep your previous UX)
                     if (!partyManager.isInParty(player.getUniqueId())) {
                         partyManager.createParty(player);
                     }
 
-                    // Send invitation
-                    boolean success = partyManager.invitePlayer(player, targetPlayer);
+                    PartyManager.InviteResult result = partyManager.invitePlayer(player, targetPlayer);
 
-                    if (success) {
-                        String message = plugin.getConfigManager().getMessagesConfig().party.inviteSent;
-                        plugin.getMessageManager().sendMessage(player, message, "player", targetPlayer.getName());
+                    switch (result) {
+                        case SUCCESS -> {
+                            String sent = plugin.getConfigManager().getMessagesConfig().party.inviteSent;
+                            plugin.getMessageManager().sendMessage(player, sent, "player", targetPlayer.getName());
 
-                        String inviteMessage = plugin.getConfigManager().getMessagesConfig().party.inviteReceived;
-                        plugin.getMessageManager().sendMessage(targetPlayer, inviteMessage, "player", player.getName());
-                    } else {
-                        // Check specific reason for failure
-                        if (partyManager.isInParty(targetPlayer.getUniqueId())) {
-                            plugin.getMessageManager().sendMessage(player,
-                                    plugin.getConfigManager().getMessagesConfig().party.inviteFailedAlreadyInParty);
-                        } else {
-                            plugin.getMessageManager().sendMessage(player,
-                                    plugin.getConfigManager().getMessagesConfig().party.inviteFailedPartyFull);
+                            String recv = plugin.getConfigManager().getMessagesConfig().party.inviteReceived;
+                            plugin.getMessageManager().sendMessage(targetPlayer, recv, "player", player.getName());
                         }
+                        case ALREADY_INVITED -> {
+                            // No dedicated message in config — reuse "inviteSent" as an idempotent feedback
+                            String sent = plugin.getConfigManager().getMessagesConfig().party.inviteSent;
+                            plugin.getMessageManager().sendMessage(player, sent, "player", targetPlayer.getName());
+                        }
+                        case TARGET_ALREADY_IN_PARTY -> plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.inviteFailedAlreadyInParty);
+                        case PARTY_FULL -> plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.inviteFailedPartyFull);
+                        case NOT_LEADER -> plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.notLeader);
+                        case LEADER_NOT_IN_PARTY -> plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.notInParty);
+                        default -> plugin.getMessageManager().sendMessage(player,
+                                plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
                     }
                 });
     }
