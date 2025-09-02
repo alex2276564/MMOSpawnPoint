@@ -48,7 +48,7 @@ dependencies {
 
     compileOnly "net.kyori:adventure-text-minimessage:4.23.0"
 
-    implementation("eu.okaeri:okaeri-configs-yaml-snakeyaml:5.0.9")
+    implementation("eu.okaeri:okaeri-configs-yaml-snakeyaml:5.0.13")
 }
 
 // ⚠️ NOTE: Shading is required for legacy compatibility!
