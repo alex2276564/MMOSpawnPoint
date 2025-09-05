@@ -34,8 +34,8 @@ public class SpawnPointsConfigValidator {
 
                 // event
                 String event = str(e.event);
-                if (!Set.of("deaths", "joins", "both").contains(event)) {
-                    result.addError(p + ".event", "Invalid event. Valid: deaths, joins, both");
+                if (!Set.of("death", "join", "both").contains(event)) {
+                    result.addError(p + ".event", "Invalid event. Valid: death, join, both");
                 }
 
                 // kind
@@ -124,16 +124,58 @@ public class SpawnPointsConfigValidator {
                                     result.addError(p + ".triggerArea.world", "Invalid regex: " + ex.getMessage());
                                 }
                             }
-                            boolean hasAnyAxis = e.triggerArea.x != null || e.triggerArea.y != null || e.triggerArea.z != null;
-                            if (!hasAnyAxis) {
-                                result.addError(p + ".triggerArea", "Trigger area must define at least one axis (x, y, or z)");
+                            if (e.triggerArea != null) {
+                                boolean hasRects = e.triggerArea.rects != null && !e.triggerArea.rects.isEmpty();
+                                boolean hasAnyAxis = e.triggerArea.x != null || e.triggerArea.y != null || e.triggerArea.z != null;
+
+                                if (hasRects && hasAnyAxis) {
+                                    result.addError(p + ".triggerArea", "Use either rects or axis specs (x/y/z), not both");
+                                }
+                                if (!hasRects && !hasAnyAxis) {
+                                    result.addError(p + ".triggerArea", "Define at least one axis or rects");
+                                }
+                                // validate rects if present (x/z required, y optional)
+                                if (hasRects) {
+                                    while (i < e.triggerArea.rects.size()) {
+                                        var r = e.triggerArea.rects.get(i);
+                                        String rp = p + ".triggerArea.rects[" + i + "]";
+                                        if (r == null) {
+                                            result.addError(rp, "Rect cannot be null");
+                                            continue;
+                                        }
+                                        if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
+                                        else validateAxisSpec(result, r.x, rp + ".x");
+                                        if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
+                                        else validateAxisSpec(result, r.z, rp + ".z");
+                                        if (r.y != null) validateAxisSpec(result, r.y, rp + ".y");
+                                    }
+                                    // excludeRects
+                                    if (e.triggerArea.excludeRects != null) {
+                                        while (i < e.triggerArea.excludeRects.size()) {
+                                            var r = e.triggerArea.excludeRects.get(i);
+                                            String rp = p + ".triggerArea.excludeRects[" + i + "]";
+                                            if (r == null) {
+                                                result.addError(rp, "Exclude rect cannot be null");
+                                                continue;
+                                            }
+                                            if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
+                                            else validateAxisSpec(result, r.x, rp + ".x");
+                                            if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
+                                            else validateAxisSpec(result, r.z, rp + ".z");
+                                            if (r.y != null) validateAxisSpec(result, r.y, rp + ".y");
+                                        }
+                                    }
+                                } else {
+                                    // legacy axis checks
+                                    if (e.triggerArea.x != null)
+                                        validateAxisSpec(result, e.triggerArea.x, p + ".triggerArea.x");
+                                    if (e.triggerArea.y != null)
+                                        validateAxisSpec(result, e.triggerArea.y, p + ".triggerArea.y");
+                                    if (e.triggerArea.z != null)
+                                        validateAxisSpec(result, e.triggerArea.z, p + ".triggerArea.z");
+                                }
+
                             }
-                            if (e.triggerArea.x != null)
-                                validateAxisSpec(result, e.triggerArea.x, p + ".triggerArea.x");
-                            if (e.triggerArea.y != null)
-                                validateAxisSpec(result, e.triggerArea.y, p + ".triggerArea.y");
-                            if (e.triggerArea.z != null)
-                                validateAxisSpec(result, e.triggerArea.z, p + ".triggerArea.z");
                         }
                     }
                 }
@@ -243,6 +285,10 @@ public class SpawnPointsConfigValidator {
                 String mp = prefix + ".messages[" + i + "]";
                 Validators.notBlank(result, mp + ".text", me.text, "Message text cannot be empty");
 
+                // chance
+                Validators.min(result, mp + ".chance", me.chance, 0, "Message chance cannot be negative");
+                Validators.max(result, mp + ".chance", me.chance, 100, "Message chance cannot exceed 100");
+
                 if (me.phases != null) {
                     for (int j = 0; j < me.phases.size(); j++) {
                         if (me.phases.get(j) == null) {
@@ -250,7 +296,50 @@ public class SpawnPointsConfigValidator {
                         }
                     }
                 }
+
+                if (me.chanceConditions != null) {
+                    for (int j = 0; j < me.chanceConditions.size(); j++) {
+                        SpawnPointsConfig.ChanceConditionEntry cc = me.chanceConditions.get(j);
+                        String ccp = mp + ".chanceConditions[" + j + "]";
+
+                        Set<String> validTypes = Set.of("permission", "placeholder");
+                        if (!validTypes.contains(cc.type)) {
+                            result.addError(ccp + ".type", "Invalid condition type. Valid: permission, placeholder");
+                        }
+
+                        Validators.notBlank(result, ccp + ".value", cc.value, "Condition value cannot be empty");
+
+                        if (("placeholder".equalsIgnoreCase(cc.type) || "permission".equalsIgnoreCase(cc.type))
+                                && PlaceholderUtils.isInvalidLogicalExpression(cc.value)) {
+                            result.addError(ccp + ".value", "Invalid logical expression: " + cc.value);
+                        }
+
+                        // mode
+                        String mode = (cc.mode == null) ? "set" : cc.mode.toLowerCase(Locale.ROOT);
+                        if (!Set.of("set", "add", "mul").contains(mode)) {
+                            result.addError(ccp + ".mode", "Invalid mode. Valid: set, add, mul");
+                        }
+
+                        // bounds per mode
+                        switch (mode) {
+                            case "set" -> {
+                                Validators.min(result, ccp + ".weight", cc.weight, 0, "For mode=set, weight must be within 0..100");
+                                Validators.max(result, ccp + ".weight", cc.weight, 100, "For mode=set, weight must be within 0..100");
+                            }
+                            case "add" -> {
+                                // allow +/-; loosely restrict to [-100..100]
+                                Validators.min(result, ccp + ".weight", cc.weight, -100, "For mode=add, weight too small (min -100)");
+                                Validators.max(result, ccp + ".weight", cc.weight, 100, "For mode=add, weight too large (max 100)");
+                            }
+                            case "mul" -> {
+                                Validators.min(result, ccp + ".weight", cc.weight, 0, "For mode=mul, weight (multiplier) must be >= 0");
+                                Validators.max(result, ccp + ".weight", cc.weight, 10, "For mode=mul, weight (multiplier) too large (max 10)");
+                            }
+                        }
+                    }
+                }
             }
+
         }
 
         if (actions.commands != null) {
@@ -268,18 +357,44 @@ public class SpawnPointsConfigValidator {
                         }
                     }
                 }
-
                 if (cmd.chanceConditions != null) {
                     for (int j = 0; j < cmd.chanceConditions.size(); j++) {
                         SpawnPointsConfig.ChanceConditionEntry cc = cmd.chanceConditions.get(j);
                         String ccp = cp + ".chanceConditions[" + j + "]";
+
                         Set<String> validTypes = Set.of("permission", "placeholder");
                         if (!validTypes.contains(cc.type)) {
                             result.addError(ccp + ".type", "Invalid condition type. Valid: permission, placeholder");
                         }
+
                         Validators.notBlank(result, ccp + ".value", cc.value, "Condition value cannot be empty");
-                        if ("placeholder".equalsIgnoreCase(cc.type) && PlaceholderUtils.isInvalidLogicalExpression(cc.value)) {
-                            result.addError(ccp + ".value", "Invalid placeholder expression: " + cc.value);
+
+                        if (("placeholder".equalsIgnoreCase(cc.type) || "permission".equalsIgnoreCase(cc.type))
+                                && PlaceholderUtils.isInvalidLogicalExpression(cc.value)) {
+                            result.addError(ccp + ".value", "Invalid logical expression: " + cc.value);
+                        }
+
+                        // mode
+                        String mode = (cc.mode == null) ? "set" : cc.mode.toLowerCase(Locale.ROOT);
+                        if (!Set.of("set", "add", "mul").contains(mode)) {
+                            result.addError(ccp + ".mode", "Invalid mode. Valid: set, add, mul");
+                        }
+
+                        // bounds per mode
+                        switch (mode) {
+                            case "set" -> {
+                                Validators.min(result, ccp + ".weight", cc.weight, 0, "For mode=set, weight must be within 0..100");
+                                Validators.max(result, ccp + ".weight", cc.weight, 100, "For mode=set, weight must be within 0..100");
+                            }
+                            case "add" -> {
+                                // allow +/-; loosely restrict to [-100..100]
+                                Validators.min(result, ccp + ".weight", cc.weight, -100, "For mode=add, weight too small (min -100)");
+                                Validators.max(result, ccp + ".weight", cc.weight, 100, "For mode=add, weight too large (max 100)");
+                            }
+                            case "mul" -> {
+                                Validators.min(result, ccp + ".weight", cc.weight, 0, "For mode=mul, weight (multiplier) must be >= 0");
+                                Validators.max(result, ccp + ".weight", cc.weight, 10, "For mode=mul, weight (multiplier) too large (max 10)");
+                            }
                         }
                     }
                 }
@@ -295,27 +410,51 @@ public class SpawnPointsConfigValidator {
 
         Validators.notBlank(result, prefix + ".world", loc.world, "Destination world cannot be empty");
 
-        // X/Z required
-        if (loc.x == null) {
-            result.addError(prefix + ".x", "X axis is required (value or range)");
-        } else {
-            validateAxisSpec(result, loc.x, prefix + ".x");
-        }
-        if (loc.z == null) {
-            result.addError(prefix + ".z", "Z axis is required (value or range)");
-        } else {
-            validateAxisSpec(result, loc.z, prefix + ".z");
+        boolean hasRects = loc.rects != null && !loc.rects.isEmpty();
+        boolean hasAxis = (loc.x != null || loc.y != null || loc.z != null);
+        if (hasRects && hasAxis) {
+            result.addError(prefix, "LocationOption: use either rects or x/y/z, not both");
         }
 
-        // Y required if requireSafe=false; optional otherwise
-        if (!loc.requireSafe) {
-            if (loc.y == null) {
-                result.addError(prefix + ".y", "Y axis is required when requireSafe=false (use value or range)");
-            } else {
+        if (hasRects) {
+            for (int i = 0; i < loc.rects.size(); i++) {
+                var r = loc.rects.get(i);
+                String rp = prefix + ".rects[" + i + "]";
+                if (r == null) { result.addError(rp, "Rect cannot be null"); continue; }
+                if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
+                else validateAxisSpec(result, r.x, rp + ".x");
+                if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
+                else validateAxisSpec(result, r.z, rp + ".z");
+                if (r.y != null) validateAxisSpec(result, r.y, rp + ".y");
+            }
+            if (loc.excludeRects != null) {
+                for (int i = 0; i < loc.excludeRects.size(); i++) {
+                    var r = loc.excludeRects.get(i);
+                    String rp = prefix + ".excludeRects[" + i + "]";
+                    if (r == null) { result.addError(rp, "Exclude rect cannot be null"); continue; }
+                    if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
+                    else validateAxisSpec(result, r.x, rp + ".x");
+                    if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
+                    else validateAxisSpec(result, r.z, rp + ".z");
+                    if (r.y != null) validateAxisSpec(result, r.y, rp + ".y");
+                }
+            }
+        } else {
+            // legacy axis rule
+            if (loc.x == null) result.addError(prefix + ".x", "X axis is required (value or range)");
+            else validateAxisSpec(result, loc.x, prefix + ".x");
+            if (loc.z == null) result.addError(prefix + ".z", "Z axis is required (value or range)");
+            else validateAxisSpec(result, loc.z, prefix + ".z");
+
+            if (!loc.requireSafe) {
+                if (loc.y == null) {
+                    result.addError(prefix + ".y", "Y axis is required when requireSafe=false (use value or range)");
+                } else {
+                    validateAxisSpec(result, loc.y, prefix + ".y");
+                }
+            } else if (loc.y != null) {
                 validateAxisSpec(result, loc.y, prefix + ".y");
             }
-        } else if (loc.y != null) {
-            validateAxisSpec(result, loc.y, prefix + ".y");
         }
 
         if (loc.yaw != null) validateAxisSpec(result, loc.yaw, prefix + ".yaw");
@@ -327,15 +466,37 @@ public class SpawnPointsConfigValidator {
             for (int i = 0; i < loc.weightConditions.size(); i++) {
                 SpawnPointsConfig.WeightConditionEntry wc = loc.weightConditions.get(i);
                 String wcp = prefix + ".weightConditions[" + i + "]";
+
                 Set<String> validTypes = Set.of("permission", "placeholder");
                 if (!validTypes.contains(wc.type)) {
                     result.addError(wcp + ".type", "Invalid condition type. Valid: permission, placeholder");
                 }
                 Validators.notBlank(result, wcp + ".value", wc.value, "Condition value cannot be empty");
-                if ("placeholder".equalsIgnoreCase(wc.type) && PlaceholderUtils.isInvalidLogicalExpression(wc.value)) {
-                    result.addError(wcp + ".value", "Invalid placeholder expression: " + wc.value);
+
+                if (("placeholder".equalsIgnoreCase(wc.type) || "permission".equalsIgnoreCase(wc.type))
+                        && PlaceholderUtils.isInvalidLogicalExpression(wc.value)) {
+                    result.addError(wcp + ".value", "Invalid logical expression: " + wc.value);
                 }
-                Validators.min(result, wcp + ".weight", wc.weight, 1, "Weight must be at least 1");
+
+                String mode = (wc.mode == null) ? "set" : wc.mode.toLowerCase(Locale.ROOT);
+                if (!Set.of("set", "add", "mul").contains(mode)) {
+                    result.addError(wcp + ".mode", "Invalid mode. Valid: set, add, mul");
+                }
+
+                // bounds for weight:
+                // set: >=1; add: allow [-10000..10000]; mul: >=0 and <=10
+                switch (mode) {
+                    case "set" -> Validators.min(result, wcp + ".weight", wc.weight, 1, "For mode=set, weight must be >= 1");
+                    case "add" -> {
+                        // allow a wide range; final weight clamped in runtime to >=1
+                        Validators.min(result, wcp + ".weight", wc.weight, -10000, "For mode=add, weight too small");
+                        Validators.max(result, wcp + ".weight", wc.weight, 10000, "For mode=add, weight too large");
+                    }
+                    case "mul" -> {
+                        Validators.min(result, wcp + ".weight", wc.weight, 0, "For mode=mul, weight (multiplier) must be >= 0");
+                        Validators.max(result, wcp + ".weight", wc.weight, 10, "For mode=mul, weight (multiplier) too large (max 10)");
+                    }
+                }
             }
         }
 

@@ -49,6 +49,10 @@ dependencies {
     compileOnly "net.kyori:adventure-text-minimessage:4.23.0"
 
     implementation("eu.okaeri:okaeri-configs-yaml-snakeyaml:5.0.9")
+
+    implementation "io.papermc:paperlib:1.0.8"
+
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.2")
 }
 
 // ⚠️ NOTE: Shading is required for legacy compatibility!
@@ -62,6 +66,10 @@ shadowJar {
     relocate 'eu.okaeri.configs', 'uz.alex2276564.mmospawnpoint.libs.okaeri.configs'
 
     relocate 'com.google.gson', 'uz.alex2276564.mmospawnpoint.libs.gson'
+
+    relocate "io.papermc.lib", "uz.alex2276564.mmospawnpoint.libs.paperlib"
+
+    relocate 'com.github.benmanes.caffeine', 'uz.alex2276564.mmospawnpoint.libs.caffeine'
 }
 
 build {

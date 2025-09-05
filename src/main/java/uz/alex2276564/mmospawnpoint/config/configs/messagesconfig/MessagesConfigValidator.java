@@ -220,7 +220,6 @@ public class MessagesConfigValidator {
     // ============================= JOINS =============================
 
     private static void validateJoinsSection(ValidationResult result, MessagesConfig.JoinsSection joins) {
-        Validators.notBlank(result, "joins.teleportedOnJoin", joins.teleportedOnJoin, "Teleported on join message cannot be empty");
         Validators.notBlank(result, "joins.skippedDead", joins.skippedDead, "Skipped dead message cannot be empty");
         Validators.notBlank(result, "joins.waitingInRoom", joins.waitingInRoom, "Waiting in room message cannot be empty");
         Validators.notBlank(result, "joins.resourcePackTimeout", joins.resourcePackTimeout, "Resource pack timeout message cannot be empty");

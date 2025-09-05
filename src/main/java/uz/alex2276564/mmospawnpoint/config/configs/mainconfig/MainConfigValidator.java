@@ -41,6 +41,8 @@ public class MainConfigValidator {
             }
         }
 
+        validateSafeSearchBatch(result, settings.safeSearchBatch);
+
         validateMaintenanceSection(result, settings.maintenance);
 
         // Validate teleport settings
@@ -69,6 +71,13 @@ public class MainConfigValidator {
         Validators.min(result, "settings.safeLocationCache.maxCacheSize", cache.maxCacheSize, 10, "Max cache size must be at least 10");
         Validators.max(result, "settings.safeLocationCache.maxCacheSize", cache.maxCacheSize, 10000, "Max cache size cannot exceed 10000");
 
+    }
+
+    private static void validateSafeSearchBatch(ValidationResult result, MainConfig.SafeSearchBatchSection b) {
+        Validators.min(result, "settings.safeSearchBatch.attemptsPerTick", b.attemptsPerTick, 10, "attemptsPerTick must be >= 10");
+        Validators.max(result, "settings.safeSearchBatch.attemptsPerTick", b.attemptsPerTick, 5000, "attemptsPerTick too high");
+        Validators.min(result, "settings.safeSearchBatch.timeBudgetMillis", b.timeBudgetMillis, 1, "timeBudgetMillis must be >= 1");
+        Validators.max(result, "settings.safeSearchBatch.timeBudgetMillis", b.timeBudgetMillis, 20, "timeBudgetMillis too high");
     }
 
     private static void validateMaintenanceSection(ValidationResult result, MainConfig.MaintenanceSection m) {

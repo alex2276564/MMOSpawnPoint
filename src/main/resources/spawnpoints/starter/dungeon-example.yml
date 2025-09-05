@@ -19,15 +19,19 @@
 spawns:
   # Boss room - highest priority, harsh penalty
   - kind: region
-    event: deaths
+    event: death
     priority: 1500
-    region: "dungeon_boss"
+    region: dungeon_boss
     regionWorld: world
     destinations:
       - world: world
         requireSafe: true
-        x: { min: 200, max: 210 }
-        z: { min: 200, max: 210 }
+        x:
+          min: 200
+          max: 210
+        z:
+          min: 200
+          max: 210
     conditions:
       # Requires dungeon access permission
       permissions:
@@ -35,14 +39,17 @@ spawns:
     actions:
       messages:
         - text: "<dark_red>💀 The Ancient Guardian has slain you!"
-          phases: [ BEFORE ]
+          phases:
+            - BEFORE
         - text: "<red>⚰️ Your party must continue without you..."
-          phases: [ AFTER ]
+          phases:
+            - AFTER
       commands:
+        # Remove EXP on boss death (requires MMO plugin)
         - command: "mmo addexp %player% -500"
           chance: 100
-          phases: [ AFTER ]
-          # Remove EXP on boss death (requires MMO plugin)
+          phases:
+            - AFTER
     waitingRoom:
       world: world
       x: 250
@@ -55,7 +62,7 @@ spawns:
 
   # Dungeon rooms - medium penalty
   - kind: region
-    event: deaths
+    event: death
     priority: 1200
     region: "dungeon_.*"
     regionMatchMode: regex
@@ -64,18 +71,23 @@ spawns:
       # Safe room spawn
       - world: world
         requireSafe: true
-        x: { min: 195, max: 205 }
-        z: { min: 180, max: 190 }
+        x:
+          min: 195
+          max: 205
+        z:
+          min: 180
+          max: 190
         weight: 80
         actions:
           messages:
             - text: "<yellow>🛡️ Respawned in the safe room"
-              phases: [ AFTER ]
+              phases:
+                - AFTER
           commands:
             - command: "effect give %player% minecraft:weakness 60 1"
               chance: 100
-              phases: [ AFTER ]
-
+              phases:
+                - AFTER
       # Entrance spawn (fallback)
       - world: world
         requireSafe: false
@@ -86,22 +98,25 @@ spawns:
         actions:
           messages:
             - text: "<red>💨 Blown back to dungeon entrance!"
-              phases: [ AFTER ]
+              phases:
+                - AFTER
     actions:
       messages:
         - text: "<red>🗡️ You fell to the dungeon's dangers"
-          phases: [ BEFORE ]
-      commands:
+          phases:
+            - BEFORE
       # Optional: requires MMO plugin for EXP system
-      # - command: "mmo addexp %player% -100"
-      #   chance: 100
-      #   phases: [AFTER]
+      # commands:
+      #   - command: "mmo addexp %player% -100"
+      #     chance: 100
+      #     phases:
+      #       - AFTER
 
   # Dungeon entrance - light penalty
   - kind: region
     event: both
     priority: 1000
-    region: "dungeon_entrance"
+    region: dungeon_entrance
     regionWorld: world
     destinations:
       - world: world
@@ -120,19 +135,22 @@ spawns:
     actions:
       messages:
         - text: "<blue>🏰 Entering the Ancient Ruins..."
-          phases: [ AFTER ]
+          phases:
+            - AFTER
         - text: "<gray>💡 Tip: Bring a party for better survival!"
-          phases: [ AFTER ]
+          phases:
+            - AFTER
       commands:
         - command: "effect give %player% minecraft:night_vision 300 1"
           chance: 100
-          phases: [ AFTER ]
+          phases:
+            - AFTER
 
   # Emergency dungeon exit (any dungeon region)
   - kind: region
-    event: deaths
+    event: death
     priority: 800
-    region: "dungeon_emergency"
+    region: dungeon_emergency
     regionWorld: world
     destinations:
       - world: world
@@ -143,9 +161,11 @@ spawns:
     actions:
       messages:
         - text: "<red>🚨 Emergency evacuation activated!"
-          phases: [ BEFORE ]
+          phases:
+            - BEFORE
         - text: "<yellow>⚡ Teleported to safety"
-          phases: [ AFTER ]
+          phases:
+            - AFTER
 
 # ================================================================
 # 🗺️ MMO Server Setup Guide:

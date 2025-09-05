@@ -48,8 +48,14 @@ public class SpawnPointsConfig extends OkaeriConfig {
         @Comment("Message text (MiniMessage supported)")
         public String text;
 
+        @Comment("Chance to send this message (0-100)")
+        public int chance = 100;
+
         @Comment("Phases when to execute this message: BEFORE, WAITING_ROOM, AFTER")
         public List<Phase> phases = new ArrayList<>(List.of(Phase.AFTER));
+
+        @Comment("Conditional chances (permission/placeholder)")
+        public List<ChanceConditionEntry> chanceConditions = new ArrayList<>();
     }
 
     public static class ActionsConfig extends OkaeriConfig {
@@ -78,10 +84,13 @@ public class SpawnPointsConfig extends OkaeriConfig {
         @Comment("Condition type: permission or placeholder")
         public String type;
 
-        @Comment("Condition value")
+        @Comment("Condition value (permission node or placeholder expression)")
         public String value;
 
-        @Comment("Chance to use if this condition is met")
+        @Comment("Mode: set | add | mul (default: set)")
+        public String mode = "set";
+
+        @Comment("Value to apply based on mode. For set: 0..100; add: +/-delta; mul: multiplier (e.g., 2)")
         public int weight = 100;
     }
 
@@ -92,7 +101,10 @@ public class SpawnPointsConfig extends OkaeriConfig {
         @Comment("Condition value (permission node or placeholder expression)")
         public String value;
 
-        @Comment("Weight to use if this condition is met")
+        @Comment("Mode: set | add | mul (default: set)")
+        public String mode = "set";
+
+        @Comment("Value to apply based on mode. For set: final weight; add: +/-delta; mul: multiplier")
         public int weight = 100;
     }
 
@@ -135,6 +147,12 @@ public class SpawnPointsConfig extends OkaeriConfig {
         @Comment("Pitch spec (value or range)")
         public AxisSpec pitch;
 
+        @Comment("Optional list of rectangles to pick from (overrides x/y/z axis specs)")
+        public List<RectSpec> rects = new ArrayList<>();
+
+        @Comment("Optional exclusion rectangles (applied for safe search)")
+        public List<RectSpec> excludeRects = new ArrayList<>();
+
         @Comment("Weight for weighted selection (higher = more likely)")
         public int weight = 100;
 
@@ -171,6 +189,11 @@ public class SpawnPointsConfig extends OkaeriConfig {
 
         @Comment("Z axis trigger (value or range). If null -> no constraint on Z")
         public AxisSpec z;
+
+        @Comment("Optional list of include rectangles")
+        public List<RectSpec> rects = new ArrayList<>();
+        @Comment("Optional list of exclude rectangles")
+        public List<RectSpec> excludeRects = new ArrayList<>();
     }
 
     public static class SpawnPointEntry extends OkaeriConfig {
@@ -222,5 +245,11 @@ public class SpawnPointsConfig extends OkaeriConfig {
 
         @Comment("Whether party respawn is disabled for this spawn point")
         public boolean partyRespawnDisabled = false;
+    }
+
+    public static class RectSpec extends OkaeriConfig {
+        public AxisSpec x;
+        public AxisSpec y; // optional
+        public AxisSpec z;
     }
 }

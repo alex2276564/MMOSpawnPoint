@@ -42,7 +42,7 @@ public class MainConfig extends OkaeriConfig {
 
         @Comment("")
         @Comment("Maximum attempts to find safe location for random spawns")
-        public int maxSafeLocationAttempts = 20;
+        public int maxSafeLocationAttempts = 40;
 
         @Comment("")
         @Comment("Base radius to search for safe locations (used by SafeLocationFinder)")
@@ -77,6 +77,9 @@ public class MainConfig extends OkaeriConfig {
                 "WATER", "KELP", "KELP_PLANT", "SEAGRASS", "TALL_SEAGRASS", "BUBBLE_COLUMN", "LAVA", "POWDER_SNOW"
         );
 
+        @Comment("Batched safe-location search settings")
+        public SafeSearchBatchSection safeSearchBatch = new SafeSearchBatchSection();
+
         @Comment("")
         @Comment("Permissions and bypass settings")
         public PermissionsSection permissions = new PermissionsSection();
@@ -84,6 +87,14 @@ public class MainConfig extends OkaeriConfig {
         @Comment("")
         @Comment("Maintenance and scheduler parameters")
         public MaintenanceSection maintenance = new MaintenanceSection();
+    }
+
+    public static class SafeSearchBatchSection extends OkaeriConfig {
+        @Comment("Total attempts across all players per tick")
+        public int attemptsPerTick = 200;
+
+        @Comment("Time budget per tick in milliseconds (2-8 recommended)")
+        public int timeBudgetMillis = 2;
     }
 
     public static class PermissionsSection extends OkaeriConfig {
@@ -162,7 +173,7 @@ public class MainConfig extends OkaeriConfig {
 
         @Comment("Caching for requireSafe=true when searching inside an area (x/z ranges) and the selection produced multiple destinations with weights.")
         @Comment("Used for region/area-based safe search when there are several destination options (weighted).")
-        public CacheTypeSection regionSafeWeighted = new CacheTypeSection(true, false);
+        public CacheTypeSection regionSafeWeighted = new CacheTypeSection(true, true);
     }
 
     public static class CacheTypeSection extends OkaeriConfig {
@@ -195,6 +206,8 @@ public class MainConfig extends OkaeriConfig {
     public static class TeleportSection extends OkaeriConfig {
         @Comment("Delay before teleport in ticks (20 ticks = 1 second, 1 = almost instant)")
         public int delayTicks = 1;
+
+        public boolean useSetRespawnLocationForDeath = true;
 
         @Comment("")
         @Comment("Overworld Y selection for region-safe search")

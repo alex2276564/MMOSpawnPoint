@@ -12,9 +12,9 @@ spawns:
   # === WORLDGUARD REGION APPROACH ===
   # Classic PvP zone with WorldGuard region
   - kind: region
-    event: deaths
+    event: death
     priority: 1300
-    region: "pvp"
+    region: pvp
     regionWorld: world
     destinations:
       # Main PvP spawn outside the zone
@@ -29,12 +29,14 @@ spawns:
         actions:
           messages:
             - text: "<red>⚔️ Defeated in PvP combat!"
-              phases: [ AFTER ]
+              phases:
+                - AFTER
           commands:
             - command: "clear %player%"
               chance: 100
-              phases: [ AFTER ]
-
+              phases:
+                - AFTER
+                -
       # VIP lounge spawn (higher spawn point)
       - world: world
         requireSafe: false
@@ -49,27 +51,29 @@ spawns:
         actions:
           messages:
             - text: "<gold>👑 VIP respawn activated"
-              phases: [ AFTER ]
+              phases:
+                - AFTER
           commands:
             - command: "give %player% minecraft:golden_apple 1"
               chance: 50
-              phases: [ AFTER ]
-
+              phases:
+                - AFTER
     actions:
       messages:
         - text: "<yellow>💀 You were slain in the PvP zone!"
-          phases: [ BEFORE ]
+          phases:
+            - BEFORE
       commands:
         - command: "title %player% subtitle \"<red>Get revenge!\""
           chance: 100
-          phases: [ AFTER ]
-
+          phases:
+            - AFTER
     # Disable party respawn for fair PvP
     partyRespawnDisabled: true
 
   # Multiple PvP arenas with regex (pvp_arena1, pvp_arena2, etc.)
   - kind: region
-    event: deaths
+    event: death
     priority: 1250
     region: "pvp_arena\\d+"
     regionMatchMode: regex
@@ -77,8 +81,12 @@ spawns:
     destinations:
       - world: world
         requireSafe: true
-        x: { min: 90, max: 110 }
-        z: { min: 90, max: 110 }
+        x:
+          min: 90
+          max: 110
+        z:
+          min: 90
+          max: 110
         groundWhitelist:
           - STONE
           - COBBLESTONE
@@ -86,29 +94,39 @@ spawns:
     actions:
       messages:
         - text: "<blue>🏟️ Arena match completed!"
-          phases: [ AFTER ]
+          phases:
+            - AFTER
       commands:
         - command: "heal %player%"
           chance: 100
-          phases: [ AFTER ]
+          phases:
+            - AFTER
     partyRespawnDisabled: true
 
   # === COORDINATE AREA APPROACH ===
   # Custom coordinate-based PvP area
   - kind: coordinate
-    event: deaths
+    event: death
     priority: 1200
     triggerArea:
       world: world
-      x: { min: 500, max: 600 }
-      z: { min: 500, max: 600 }
+      x:
+        min: 500
+        max: 600
+      z:
+        min: 500
+        max: 600
       # No Y limit = works at any height (good for multi-level arenas)
     destinations:
       # Primary spawn outside arena
       - world: world
         requireSafe: true
-        x: { min: 480, max: 490 }
-        z: { min: 540, max: 560 }
+        x:
+          min: 480
+          max: 490
+        z:
+          min: 540
+          max: 560
         weight: 70
         groundWhitelist:
           - STONE
@@ -117,12 +135,13 @@ spawns:
         actions:
           messages:
             - text: "<red>⚔️ Eliminated from the arena!"
-              phases: [ AFTER ]
+              phases:
+                - AFTER
           commands:
             - command: "clear %player%"
               chance: 100
-              phases: [ AFTER ]
-
+              phases:
+                - AFTER
       # Spectator area spawn
       - world: world
         requireSafe: false
@@ -137,17 +156,18 @@ spawns:
         actions:
           messages:
             - text: "<blue>👁 Moved to spectator area"
-              phases: [ AFTER ]
+              phases:
+                - AFTER
           commands:
             - command: "gamemode spectator %player%"
               chance: 100
-              phases: [ AFTER ]
-
+              phases:
+                - AFTER
     actions:
       messages:
         - text: "<yellow>🔍 Finding safe respawn location..."
-          phases: [ WAITING_ROOM ]
-
+          phases:
+            - WAITING_ROOM
     waitingRoom:
       world: world
       x: 550
@@ -155,17 +175,20 @@ spawns:
       z: 550
       yaw: 0
       pitch: 90
-
     partyRespawnDisabled: true
 
   # Dueling area (smaller coordinate zone)
   - kind: coordinate
-    event: deaths
+    event: death
     priority: 1100
     triggerArea:
       world: world
-      x: { min: 700, max: 750 }
-      z: { min: 700, max: 750 }
+      x:
+        min: 700
+        max: 750
+      z:
+        min: 700
+        max: 750
     destinations:
       - world: world
         requireSafe: false
@@ -177,11 +200,13 @@ spawns:
     actions:
       messages:
         - text: "<gold>🥊 Duel completed! Good fight!"
-          phases: [ AFTER ]
+          phases:
+            - AFTER
       commands:
         - command: "heal %player%"
           chance: 100
-          phases: [ AFTER ]
+          phases:
+            - AFTER
     partyRespawnDisabled: true
 
 # ================================================================

@@ -14,7 +14,7 @@
 spawns:
   # Global join spawn (replaces /spawn on join)
   - kind: world
-    event: joins
+    event: join
     priority: 1000
     world: ".*"
     worldMatchMode: regex
@@ -29,17 +29,20 @@ spawns:
     actions:
       messages:
         - text: "<green><bold>🌟 Welcome to the Server!</bold>"
-          phases: [ AFTER ]
+          phases:
+            - AFTER
         - text: "<gray>You're now in the main hub"
-          phases: [ AFTER ]
+          phases:
+            - AFTER
       commands:
         - command: "effect give %player% minecraft:saturation 10 1"
           chance: 100
-          phases: [ AFTER ]
+          phases:
+            - AFTER
 
   # Global death spawn (replaces default respawn)
   - kind: world
-    event: deaths
+    event: death
     priority: 900
     world: ".*"
     worldMatchMode: regex
@@ -54,16 +57,20 @@ spawns:
     actions:
       messages:
         - text: "<red>💀 You died and returned to safety"
-          phases: [ BEFORE ]
+          phases:
+            - BEFORE
         - text: "<yellow>🏥 Use /heal if you need health"
-          phases: [ AFTER ]
+          phases:
+            - AFTER
       commands:
         - command: "heal %player%"
           chance: 100
-          phases: [ AFTER ]
+          phases:
+            - AFTER
         - command: "feed %player%"
           chance: 100
-          phases: [ AFTER ]
+          phases:
+            - AFTER
 
 # ================================================================
 # 🔧 Setup Instructions:

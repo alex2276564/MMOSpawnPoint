@@ -225,7 +225,7 @@ You can also configure special spawn points or weighted chances in your config b
 # Example of VIP-only spawn point
 spawns:
   - kind: world
-    event: deaths
+    event: death
     world: world
     conditions:
       permissions:
@@ -241,17 +241,21 @@ spawns:
 # Example of weighted chances for premium players
 spawns:
   - kind: region
-    event: deaths
+    event: death
     region: premium_area
     destinations:
       - world: world
         requireSafe: true
-        x: { min: 50, max: 100 }
-        z: { min: 50, max: 100 }
+        x:
+          min: 50
+          max: 100
+        z:
+          min: 50
+          max: 100
         weight: 50
         weightConditions:
           - type: permission
-            value: mmospawnpoint.premium
+            value: "mmospawnpoint.premium"
             weight: 100  # 100% chance for premium players
 ```
 
@@ -266,6 +270,17 @@ spawns:
 - **Cache Settings:** Default cache behavior is optimized for most use cases
 
 **Safe approach:** Only modify default values if you fully understand how they might affect installed maps. Consider creating separate configuration files for different map areas instead of changing global defaults.
+
+### Triggering MSP without death/join events
+
+By design, MMOSpawnPoint does not implement arbitrary “teleport me now” entry points beyond death/join events. However, you can integrate MSP with portals or NPC scripts as a workaround:
+
+- Create a portal with AdvancedPortals (or similar).
+- Configure MSP to target the portal’s location in a coordinate-based rule (e.g., event: death for that area).
+- In the portal, execute: /msp simulate death <player> (or run the command via an NPC/trigger system).
+- The player will be processed by MSP as if they had died in the configured triggerArea, and teleported according to your MSP rules.
+
+This lets you reuse all MSP features (party, waiting room, safe search, weights) for custom flows such as portals, checkpoints, scripted events, etc.
 
 ### Safe Location Finding & Performance Optimization
 
@@ -340,7 +355,7 @@ MMOSpawnPoint (priority-based logic)
     - If the party system is enabled and conditions are met, the player can be teleported to a party member before any spawn rules are checked.
 
 - 🧠 Priority decides everything next
-    - The plugin collects all spawn entries that match the current event (deaths/joins/both), the player’s location, and your conditions (permissions/placeholders).
+    - The plugin collects all spawn entries that match the current event (death/join/both), the player’s location, and your conditions (permissions/placeholders).
     - It then sorts those entries by priority (highest → lowest) and uses the first one that matches.
     - There is no hard-coded “type order.” Only priority matters.
 
@@ -388,15 +403,21 @@ MMOSpawnPoint can potentially work alongside respawn handling from CMI or Essent
 ```yaml
 spawns:
   - kind: coordinate
-    event: joins
+    event: join
     priority: 1500
     triggerArea:
-      world: "world"
-      x: { min: -5, max: 5 }
-      z: { min: -5, max: 5 }
-      y: { min: 60, max: 70 }
+      world: world
+      x:
+        min: -5
+        max: 5
+      z:
+        min: -5
+        max: 5
+      y:
+        min: 60
+        max: 70
     destinations:
-      - world: "hub_world"
+      - world: hub_world
         x: 100
         y: 64
         z: 100
@@ -411,7 +432,7 @@ spawns:
 ```yaml
 spawns:
   - kind: world
-    event: deaths
+    event: death
     priority: 2000  # High priority to override other rules
     world: "MythicDungeonWorld_.*"
     worldMatchMode: regex
@@ -419,21 +440,93 @@ spawns:
     partyRespawnDisabled: true
 ```
 
-**For region-based dungeon plugins**, use coordinate-based matching instead of regions to avoid WorldGuard conflicts:
+**For region-based dungeon plugins**, prefer coordinate-based matching with rects and excludeRects:
+
+Example: one playable “dungeon courtyard” area, but excluding a boss room; then a second explicit entry that marks the boss room as “no party respawn”.
+
+ASCII map (top view, X horizontal, Z vertical):
+- █ = included rects
+- ░ = excluded (carved out)
+
+            Z+
+        1000 ┌───────────────────────────┐
+             │███████████████████████████│  ← include: rect #1 (1000..1160 x 1000..1160)
+             │███████████████████████████│
+             │███████████████████████████│
+             │███████████████████████████│
+        1160 └───────────────────────────┘
+                      ┌───────────────┐
+                      │███████████████│  ← include: rect #2 (1080..1200 x 1040..1160)
+                      │███████████████│
+                      │███████████████│
+                      └───────────────┘
+                                ┌───────┐
+                                │░░░░░░░│  ← exclude: boss room (1160..1200 x 1160..1200)
+                                │░░░░░░░│
+                                └───────┘
+                 X+         1000             1160             1200
+
+Note: Legacy x/y/z axes on destinations or triggerAreas are internally mapped to a single rect at runtime. You can keep writing simple xyz if you want; under the hood it becomes a rect.
+
+1) Playable area with an excluded boss room
 
 ```yaml
 spawns:
   - kind: coordinate
-    event: deaths
-    priority: 1800  # High priority
+    event: death
+    priority: 1800
     triggerArea:
-      world: "dungeon_world"
-      x: { min: 0, max: 100 }
-      z: { min: 0, max: 100 }
-      # Y omitted = works at any height
-    destinations: []
+      world: dungeon_world
+      # You may use legacy axes here – internally they become one rect:
+      x: { min: 950, max: 1250 }
+      z: { min: 950, max: 1250 }
+      # y omitted → any height
+      
+    destinations:
+      - world: dungeon_world
+        requireSafe: true
+        rects:
+          - x: { min: 1000, max: 1160 }
+            z: { min: 1000, max: 1160 }
+            y: { min: 60, max: 90 }
+          - x: { min: 1080, max: 1200 }
+            z: { min: 1040, max: 1160 }
+            y: { min: 60, max: 90 }
+        excludeRects:
+          - x: { min: 1160, max: 1200 }
+            z: { min: 1160, max: 1200 }
+            y: { min: 60, max: 90 }
+        weight: 100
+        actions:
+          messages:
+            - text: "<gray>Dungeon courtyard respawn"
+              phases:
+                - BEFORE
+```
+
+2) Boss room marked as “party respawn disabled” (no teleport, actions only)
+
+```yaml
+spawns:
+  - kind: coordinate
+    event: death
+    priority: 2000  # High to override general rules
+    triggerArea:
+      world: dungeon_world
+      rects:
+        - x: { min: 1160, max: 1200 }
+          z: { min: 1160, max: 1200 }
+          y: { min: 60, max: 90 }
+    destinations: []   # no teleport, actions only
+    actions:
+      messages:
+        - text: "<red>Party respawn is disabled in this boss room."
+          phases:
+            - BEFORE
     partyRespawnDisabled: true
 ```
+
+This pattern easily extends to any event arenas, minigame areas, temporary zones, etc.
 
 ### Regex Pattern Matching: When to Use and When to Avoid
 
@@ -443,7 +536,7 @@ spawns:
 # ❌ AVOID: Hard to debug, unclear priorities
 spawns:
   - kind: region
-    region: "shop_.*"     # Matches shop_weapons, shop_armor, shop_food
+    region: "shop_.*"   # Matches shop_weapons, shop_armor, shop_food
     # Which shop has higher priority? Unclear!
 ```
 
@@ -456,12 +549,14 @@ spawns:
 spawns:
   - kind: region
     priority: 100
-    region: "shop_weapons"
+    region: shop_weapons
+    regionWorld: spawn     # restrict entries to "spawn" world
     destinations: [...]
-    
-  - kind: region  
+
+  - kind: region
     priority: 90
-    region: "shop_armor"
+    region: shop_armor
+    regionWorld: spawn     # restrict entries to "spawn" world
     destinations: [...]
 ```
 
@@ -471,8 +566,10 @@ spawns:
 ```yaml
 spawns:
   - kind: region
-    region: "pvparena_.*"    # pvparena_1, pvparena_2, etc.
-    destinations: []         # Disable party spawns in all arenas
+    region: "pvparena_.*"  # pvparena_1, pvparena_2, etc.
+    regionMatchMode: regex
+    regionWorld: spawn     # restrict regex-based entries to admin-managed worlds
+    destinations: []       # Disable party spawns in all arenas
     partyRespawnDisabled: true
 ```
 
@@ -491,10 +588,12 @@ spawns:
 spawns:
   - kind: region
     region: "event_christmas_.*"
+    regionMatchMode: regex
+    regionWorld: event_christmas # restrict regex-based entries to admin-managed worlds
     destinations:
-      - world: "hub"
+      - world: hub
         x: 0
-        y: 64  
+        y: 64
         z: 0
 ```
 
@@ -505,6 +604,7 @@ Instead of regex, use **YAML Anchors** for DRY (Don't Repeat Yourself) configura
 ```yaml
 # Define reusable configuration blocks
 pvp_config: &pvp_settings
+  regionWorld: spawn     # restrict entries to "spawn" world
   destinations: []
   partyRespawnDisabled: true
   actions:
@@ -513,15 +613,15 @@ pvp_config: &pvp_settings
 
 spawns:
   - kind: region
-    region: "pvparena_1"
+    region: pvparena_1
     <<: *pvp_settings    # Reuse the configuration
     
   - kind: region
-    region: "pvparena_2"
+    region: pvparena_2
     <<: *pvp_settings    # Same configuration, clear priorities
     
   - kind: region
-    region: "battleground_main"
+    region: battleground_main
     <<: *pvp_settings    # Consistent behavior across PvP areas
 ```
 
@@ -560,8 +660,6 @@ If you encounter issues with the plugin:
     - PlaceholderAPI 2.11.6+ (for condition-based spawns)
 
 ## 📦 Other Plugins
-
-Also check out my other plugins for protecting your Minecraft server:
 
 > 🔍 **You can find more of my Minecraft plugins here:**  
 > [https://github.com/alex2276564?tab=repositories](https://github.com/alex2276564?tab=repositories)
