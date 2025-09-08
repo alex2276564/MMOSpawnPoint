@@ -52,8 +52,8 @@ public class PartyManager {
         int partyPeriod = plugin.getConfigManager().getMainConfig().settings.maintenance.partyCleanupPeriodTicks;
         int invitePeriod = plugin.getConfigManager().getMainConfig().settings.maintenance.invitationCleanupPeriodTicks;
 
-        plugin.getRunner().runPeriodical(this::cleanupParties, partyPeriod, partyPeriod);
-        plugin.getRunner().runPeriodical(this::cleanupInvitations, invitePeriod, invitePeriod);
+        plugin.getRunner().runGlobalTimer(this::cleanupParties, partyPeriod, partyPeriod);
+        plugin.getRunner().runGlobalTimer(this::cleanupInvitations, invitePeriod, invitePeriod);
     }
 
     public void shutdown() {
@@ -387,7 +387,7 @@ public class PartyManager {
         if (party.getRespawnMode() != Party.RespawnMode.PARTY_MEMBER) return null;
 
         String partyScope = plugin.getConfigManager().getMainConfig().party.scope;
-        if (!"joins".equals(partyScope) && !"both".equals(partyScope)) {
+        if (!"join".equals(partyScope) && !"both".equals(partyScope)) {
             return null;
         }
 
@@ -745,8 +745,8 @@ public class PartyManager {
     // ============================= RESTRICTIONS & REASONS =============================
 
     private RestrictionReason getRestrictionReason(Location location) {
-        // Only consider 'deaths' entries for party respawn restrictions
-        List<SpawnEntry> entries = plugin.getConfigManager().getSpawnEntriesForEvent("deaths");
+        // Only consider 'death' entries for party respawn restrictions
+        List<SpawnEntry> entries = plugin.getConfigManager().getSpawnEntriesForEvent("death");
         for (SpawnEntry e : entries) {
             if (!e.matchesLocation(location)) continue;
 

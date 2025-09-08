@@ -15,7 +15,7 @@ import uz.alex2276564.mmospawnpoint.utils.adventure.AdventureMessageManager;
 import uz.alex2276564.mmospawnpoint.utils.adventure.LegacyMessageManager;
 import uz.alex2276564.mmospawnpoint.utils.adventure.MessageManager;
 import uz.alex2276564.mmospawnpoint.utils.backup.BackupManager;
-import uz.alex2276564.mmospawnpoint.utils.runner.BukkitRunner;
+import uz.alex2276564.mmospawnpoint.utils.runner.FoliaRunner;
 import uz.alex2276564.mmospawnpoint.utils.runner.Runner;
 
 public final class MMOSpawnPoint extends JavaPlugin {
@@ -73,7 +73,12 @@ public final class MMOSpawnPoint extends JavaPlugin {
     }
 
     private void setupRunner() {
-        runner = new BukkitRunner(this);
+        runner = new FoliaRunner(this);
+        getLogger().info("Initialized " + runner.getPlatformName() + " scheduler support");
+
+        if (runner.isFolia()) {
+            getLogger().info("Folia detected - using RegionScheduler and EntityScheduler for optimal performance");
+        }
     }
 
     private void setupMessageManager() {
@@ -146,10 +151,9 @@ public final class MMOSpawnPoint extends JavaPlugin {
         // Check for backup need on startup
         backupManager.checkAndBackupAsync();
 
-        // Schedule periodic checks
-        runner.runPeriodicalAsync(() -> backupManager.checkAndBackupAsync(),
-                20L * 60 * 60 * 24, // Check daily
-                20L * 60 * 60 * 24); // Every 24 hours
+        // Schedule periodic checks - daily (24 hours)
+        long dailyTicks = Runner.secondsToTicks(24 * 60 * 60);
+        runner.runAsyncTimer(() -> backupManager.checkAndBackupAsync(), dailyTicks, dailyTicks);
     }
 
     private void setupManagers() {
@@ -170,7 +174,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
         pm.registerEvents(new PlayerQuitListener(this), this);
         pm.registerEvents(new PlayerWorldChangeListener(this), this);
 
-        if (configManager.getMainConfig().joins.waitForResourcePack) {
+        if (configManager.getMainConfig().join.waitForResourcePack) {
             resourcePackListener = new PlayerResourcePackListener(this);
             pm.registerEvents(resourcePackListener, this);
         }
@@ -198,12 +202,12 @@ public final class MMOSpawnPoint extends JavaPlugin {
             spawnManager.cleanup();
         }
 
-        if (runner != null) {
-            runner.cancelTasks();
-        }
-
         if (resourcePackListener != null) {
             resourcePackListener.cleanup();
+        }
+
+        if (runner != null) {
+            runner.cancelAllTasks();
         }
     }
 }

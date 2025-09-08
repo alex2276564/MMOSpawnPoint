@@ -15,7 +15,7 @@ public class MainConfigValidator {
 
         validateSettingsSection(result, config.settings);
         validatePartySection(result, config.party);
-        validateJoinsSection(result, config.joins);
+        validateJoinSection(result, config.join);
 
         result.throwIfInvalid("Main configuration");
     }
@@ -24,7 +24,7 @@ public class MainConfigValidator {
 
         // Validate numeric values
         Validators.min(result, "settings.maxSafeLocationAttempts", settings.maxSafeLocationAttempts, 1, "Max safe location attempts must be at least 1");
-        Validators.max(result, "settings.maxSafeLocationAttempts", settings.maxSafeLocationAttempts, 100, "Max safe location attempts cannot exceed 100");
+        Validators.max(result, "settings.maxSafeLocationAttempts", settings.maxSafeLocationAttempts, 200, "Max safe location attempts cannot exceed 200");
 
         Validators.min(result, "settings.safeLocationRadius", settings.safeLocationRadius, 1, "Safe location radius must be at least 1");
         Validators.max(result, "settings.safeLocationRadius", settings.safeLocationRadius, 50, "Safe location radius cannot exceed 50");
@@ -133,9 +133,9 @@ public class MainConfigValidator {
     private static void validatePartySection(ValidationResult result, MainConfig.PartySection party) {
         // Validate scope
         if (party.scope != null) {
-            Set<String> validScopes = Set.of("deaths", "joins", "both");
+            Set<String> validScopes = Set.of("death", "join", "both");
             if (!validScopes.contains(party.scope)) {
-                result.addError("party.scope", "Invalid party scope: " + party.scope + ". Valid scopes: deaths, joins, both");
+                result.addError("party.scope", "Invalid party scope: " + party.scope + ". Valid scopes: death, join, both");
             }
         }
 
@@ -211,10 +211,10 @@ public class MainConfigValidator {
         Validators.max(result, "party.respawnBehavior.targetSelection.maxAlternativeAttempts", targetSelection.maxAlternativeAttempts, 10, "Max alternative attempts cannot exceed 10");
     }
 
-    private static void validateJoinsSection(ValidationResult result, MainConfig.JoinsSection joins) {
-        if (joins.waitForResourcePack) {
-            Validators.min(result, "joins.resourcePackTimeout", joins.resourcePackTimeout, 5, "Resource pack timeout must be at least 5 seconds");
-            Validators.max(result, "joins.resourcePackTimeout", joins.resourcePackTimeout, 300, "Resource pack timeout cannot exceed 5 minutes");
+    private static void validateJoinSection(ValidationResult result, MainConfig.JoinSection join) {
+        if (join.waitForResourcePack) {
+            Validators.min(result, "join.resourcePackTimeout", join.resourcePackTimeout, 5, "Resource pack timeout must be at least 5 seconds");
+            Validators.max(result, "join.resourcePackTimeout", join.resourcePackTimeout, 300, "Resource pack timeout cannot exceed 5 minutes");
         }
     }
 }

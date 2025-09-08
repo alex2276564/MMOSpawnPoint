@@ -528,6 +528,12 @@ spawns:
 
 This pattern easily extends to any event arenas, minigame areas, temporary zones, etc.
 
+**Note:** You can also simply exclude an area if not need disable party respawn and not define any MSP rule for it at all. In that case:
+- Either the world-level MSP fallback (if any) will catch the player,
+- Or vanilla respawn will apply,
+- Or the dungeon/minigames plugin you use might handle the respawn itself.
+  This is often the safest choice when other plugins own the death/join flow for that area.
+
 ### Regex Pattern Matching: When to Use and When to Avoid
 
 **⚠️ Generally NOT Recommended:** While MMOSpawnPoint supports regex pattern matching for regions and worlds, **avoid using it in most cases** as it can significantly complicate debugging and priority management:
@@ -650,10 +656,13 @@ If you encounter issues with the plugin:
 6. **Check for conflicts:** Ensure no other plugins are handling respawn events
 7. **Plugin conflicts:** Disable party respawn in worlds managed by dungeon plugins (MythicDungeons, DungeonsXL, etc.)
 
-## 📦 Compatibility
+## 🛠️ Compatibility
 
 - **Minecraft Versions:** 1.16.5 to the latest release
-- **Server Software:** [Paper](https://papermc.io/) (1.16.5 and newer) - **Paper strongly recommended**
+- **Server Software:**
+    - ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
+    - ✅ [Folia](https://papermc.io/software/folia) - **Fully Supported** with optimized region-aware scheduling
+    - ❌ Spigot - Not supported
 - **Java Version:** Java 17 or higher
 - **Optional Dependencies:**
     - WorldGuard 7.0.5+ (for region-based spawns)

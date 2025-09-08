@@ -3,6 +3,7 @@ package uz.alex2276564.mmospawnpoint.config;
 import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.yaml.snakeyaml.YamlSnakeYamlConfigurer;
 import lombok.Getter;
+import org.bukkit.Location;
 import org.yaml.snakeyaml.Yaml;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.config.configs.mainconfig.MainConfig;
@@ -297,7 +298,7 @@ public class MMOSpawnPointConfigManager {
                 .toList();
     }
 
-    public List<SpawnEntry> getMatchingSpawnEntries(String eventType, org.bukkit.Location location) {
+    public List<SpawnEntry> getMatchingSpawnEntries(String eventType, Location location) {
         return allSpawnEntries.stream()
                 .filter(entry -> entry.isForEventType(eventType))
                 .filter(entry -> entry.matchesLocation(location))

@@ -21,7 +21,7 @@ public class MainConfig extends OkaeriConfig {
 
     @Comment("")
     @Comment("Join handling settings")
-    public JoinsSection joins = new JoinsSection();
+    public JoinSection join = new JoinSection();
 
     @Comment("")
     @Comment("External hooks (enable/disable integrations)")
@@ -158,6 +158,11 @@ public class MainConfig extends OkaeriConfig {
         @Comment("Caching behavior for different spawn types")
         public SpawnTypeCachingSection spawnTypeCaching = new SpawnTypeCachingSection();
 
+        @Comment("")
+        @Comment("NOTE:")
+        @Comment("Cache keys are salted with Y-selection policy and groundWhitelist to avoid cross-policy reuse.")
+
+        @Comment("")
         @Comment("Advanced cache options")
         public AdvancedCacheSection advanced = new AdvancedCacheSection();
     }
@@ -250,11 +255,11 @@ public class MainConfig extends OkaeriConfig {
         @Comment("Enable party system")
         public boolean enabled = true;
 
-        @Comment("Party system scope: deaths, joins, both")
-        @Comment("deaths - only work on player death")
-        @Comment("joins - only work on player join")
+        @Comment("Party system scope: death, join, both")
+        @Comment("death - only work on player death")
+        @Comment("join - only work on player join")
         @Comment("both - work on both events")
-        public String scope = "deaths";
+        public String scope = "death";
 
         @Comment("Maximum number of players in a party (0 for unlimited)")
         public int maxSize = 10;
@@ -351,7 +356,7 @@ public class MainConfig extends OkaeriConfig {
         public int maxAlternativeAttempts = 3;
     }
 
-    public static class JoinsSection extends OkaeriConfig {
+    public static class JoinSection extends OkaeriConfig {
         @Comment("Wait for resource pack to load before processing join spawns")
         @Comment("Performance note: best practice is to load RP in hub/lobby.")
         public boolean waitForResourcePack = false;

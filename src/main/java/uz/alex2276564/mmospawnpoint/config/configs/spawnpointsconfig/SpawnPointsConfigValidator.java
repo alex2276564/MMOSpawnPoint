@@ -67,22 +67,25 @@ public class SpawnPointsConfigValidator {
                         }
 
                         // match modes
-                        validateMatchMode(result, e.regionMatchMode, p + ".regionMatchMode");
-                        validateMatchMode(result, e.regionWorldMatchMode, p + ".regionWorldMatchMode");
-
-                        if ("regex".equalsIgnoreCase(e.regionMatchMode)) {
-                            try {
-                                Pattern.compile(e.region);
-                            } catch (Exception ex) {
-                                result.addError(p + ".region", "Invalid regex: " + ex.getMessage());
+                        if (e.region != null) {
+                            validateMatchMode(result, e.regionMatchMode, p + ".regionMatchMode");
+                            if ("regex".equalsIgnoreCase(e.regionMatchMode)) {
+                                try {
+                                    Pattern.compile(e.region);
+                                } catch (Exception ex) {
+                                    result.addError(p + ".region", "Invalid regex: " + ex.getMessage());
+                                }
                             }
                         }
                         // regionWorld is optional (null -> any world)
-                        if (e.regionWorld != null && "regex".equalsIgnoreCase(e.regionWorldMatchMode)) {
-                            try {
-                                Pattern.compile(e.regionWorld);
-                            } catch (Exception ex) {
-                                result.addError(p + ".regionWorld", "Invalid regex: " + ex.getMessage());
+                        if (e.regionWorld != null) {
+                            validateMatchMode(result, e.regionWorldMatchMode, p + ".regionWorldMatchMode");
+                            if ("regex".equalsIgnoreCase(e.regionWorldMatchMode)) {
+                                try {
+                                    Pattern.compile(e.regionWorld);
+                                } catch (Exception ex) {
+                                    result.addError(p + ".regionWorld", "Invalid regex: " + ex.getMessage());
+                                }
                             }
                         }
                     }
@@ -136,13 +139,10 @@ public class SpawnPointsConfigValidator {
                                 }
                                 // validate rects if present (x/z required, y optional)
                                 if (hasRects) {
-                                    while (i < e.triggerArea.rects.size()) {
-                                        var r = e.triggerArea.rects.get(i);
-                                        String rp = p + ".triggerArea.rects[" + i + "]";
-                                        if (r == null) {
-                                            result.addError(rp, "Rect cannot be null");
-                                            continue;
-                                        }
+                                    for (int j = 0; j < e.triggerArea.rects.size(); j++) {
+                                        var r = e.triggerArea.rects.get(j);
+                                        String rp = p + ".triggerArea.rects[" + j + "]";
+                                        if (r == null) { result.addError(rp, "Rect cannot be null"); continue; }
                                         if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
                                         else validateAxisSpec(result, r.x, rp + ".x");
                                         if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
@@ -151,13 +151,10 @@ public class SpawnPointsConfigValidator {
                                     }
                                     // excludeRects
                                     if (e.triggerArea.excludeRects != null) {
-                                        while (i < e.triggerArea.excludeRects.size()) {
-                                            var r = e.triggerArea.excludeRects.get(i);
-                                            String rp = p + ".triggerArea.excludeRects[" + i + "]";
-                                            if (r == null) {
-                                                result.addError(rp, "Exclude rect cannot be null");
-                                                continue;
-                                            }
+                                        for (int j = 0; j < e.triggerArea.excludeRects.size(); j++) {
+                                            var r = e.triggerArea.excludeRects.get(j);
+                                            String rp = p + ".triggerArea.excludeRects[" + j + "]";
+                                            if (r == null) { result.addError(rp, "Exclude rect cannot be null"); continue; }
                                             if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
                                             else validateAxisSpec(result, r.x, rp + ".x");
                                             if (r.z == null) result.addError(rp + ".z", "Rect.z is required");

@@ -29,6 +29,10 @@ repositories {
         name = "okaeri"
         url = "https://storehouse.okaeri.eu/repository/maven-public/"
     }
+    maven {
+        name = "tcoded-releases"
+        url = "https://repo.tcoded.com/releases"
+    }
 }
 
 dependencies {
@@ -53,6 +57,8 @@ dependencies {
     implementation "io.papermc:paperlib:1.0.8"
 
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.2")
+
+    implementation 'com.tcoded:FoliaLib:0.5.1'
 }
 
 // ⚠️ NOTE: Shading is required for legacy compatibility!
@@ -70,6 +76,8 @@ shadowJar {
     relocate "io.papermc.lib", "uz.alex2276564.mmospawnpoint.libs.paperlib"
 
     relocate 'com.github.benmanes.caffeine', 'uz.alex2276564.mmospawnpoint.libs.caffeine'
+
+    relocate 'com.tcoded.folialib', 'uz.alex2276564.mmospawnpoint.libs.folialib'
 }
 
 build {

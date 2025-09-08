@@ -1,5 +1,8 @@
 package uz.alex2276564.mmospawnpoint.listener;
 
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -24,6 +27,13 @@ public class PlayerJoinListener implements Listener {
                 plugin.getLogger().info("Player " + player.getName() + " joined while dead, handling respawn");
             }
             plugin.getSpawnManager().recordDeathLocation(player, player.getLocation());
+
+            // Notify the player that join teleport is skipped because they are dead
+            String skipped = plugin.getConfigManager().getMessagesConfig().join.skippedDead;
+            if (skipped != null && !skipped.isEmpty()) {
+                plugin.getMessageManager().sendMessage(player, skipped);
+            }
+
             return;
         }
 
@@ -36,11 +46,11 @@ public class PlayerJoinListener implements Listener {
 
 
         // Handle resource pack waiting
-        if (plugin.getConfigManager().getMainConfig().joins.waitForResourcePack) {
+        if (plugin.getConfigManager().getMainConfig().join.waitForResourcePack) {
             handleResourcePackWait(player);
         } else {
             // Process join spawn immediately
-            plugin.getRunner().runDelayed(() -> {
+            plugin.getRunner().runGlobalLater(() -> {
                 if (player.isOnline() && !player.isDead()) {
                     processJoinSpawn(player);
                 }
@@ -66,20 +76,20 @@ public class PlayerJoinListener implements Listener {
         }
 
         // Move to waiting room if enabled
-        if (plugin.getConfigManager().getMainConfig().joins.useWaitingRoomForResourcePack) {
+        if (plugin.getConfigManager().getMainConfig().join.useWaitingRoomForResourcePack) {
             moveToWaitingRoom(player);
         }
 
         // Set timeout
-        int timeout = plugin.getConfigManager().getMainConfig().joins.resourcePackTimeout;
-        plugin.getRunner().runDelayed(() -> {
+        int timeout = plugin.getConfigManager().getMainConfig().join.resourcePackTimeout;
+        plugin.getRunner().runGlobalLater(() -> {
             if (player.isOnline() && resourcePackListener != null &&
                     resourcePackListener.isWaitingForResourcePack(player.getUniqueId())) {
 
                 // Timeout reached
                 resourcePackListener.removeWaitingPlayer(player.getUniqueId());
 
-                String timeoutMessage = plugin.getConfigManager().getMessagesConfig().joins.resourcePackTimeout;
+                String timeoutMessage = plugin.getConfigManager().getMessagesConfig().join.resourcePackTimeout;
                 if (!timeoutMessage.isEmpty()) {
                     plugin.getMessageManager().sendMessage(player, timeoutMessage);
                 }
@@ -99,10 +109,10 @@ public class PlayerJoinListener implements Listener {
 
         // Get global waiting room location
         var waitingRoomConfig = plugin.getConfigManager().getMainConfig().settings.waitingRoom.location;
-        org.bukkit.World world = org.bukkit.Bukkit.getWorld(waitingRoomConfig.world);
+        World world = Bukkit.getWorld(waitingRoomConfig.world);
 
         if (world != null) {
-            org.bukkit.Location waitingRoom = new org.bukkit.Location(
+            Location waitingRoom = new org.bukkit.Location(
                     world,
                     waitingRoomConfig.x,
                     waitingRoomConfig.y,
@@ -111,9 +121,20 @@ public class PlayerJoinListener implements Listener {
                     waitingRoomConfig.pitch
             );
 
-            player.teleport(waitingRoom);
+            plugin.getRunner().teleportAsync(player, waitingRoom)
+                    .thenAccept(success -> {
+                        if (Boolean.TRUE.equals(success)) {
+                            String waitingMessage = plugin.getConfigManager().getMessagesConfig().join.waitingInRoom;
+                            if (!waitingMessage.isEmpty()) {
+                                plugin.getMessageManager().sendMessage(player, waitingMessage);
+                            }
+                            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                                plugin.getLogger().info("Moved " + player.getName() + " to waiting room for resource pack");
+                            }
+                        }
+                    });
 
-            String waitingMessage = plugin.getConfigManager().getMessagesConfig().joins.waitingInRoom;
+            String waitingMessage = plugin.getConfigManager().getMessagesConfig().join.waitingInRoom;
             if (!waitingMessage.isEmpty()) {
                 plugin.getMessageManager().sendMessage(player, waitingMessage);
             }

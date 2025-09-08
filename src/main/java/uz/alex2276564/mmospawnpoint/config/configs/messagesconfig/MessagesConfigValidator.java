@@ -13,7 +13,7 @@ public class MessagesConfigValidator {
         validateCommandsSection(result, config.commands);
         validateGeneralSection(result, config.general);
         validatePartySection(result, config.party);
-        validateJoinsSection(result, config.joins);
+        validateJoinSection(result, config.join);
 
         result.throwIfInvalid("Messages configuration");
     }
@@ -217,11 +217,12 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.help.options", help.options, "Party help options cannot be empty");
     }
 
-    // ============================= JOINS =============================
+    // ============================= JOIN =============================
 
-    private static void validateJoinsSection(ValidationResult result, MessagesConfig.JoinsSection joins) {
-        Validators.notBlank(result, "joins.skippedDead", joins.skippedDead, "Skipped dead message cannot be empty");
-        Validators.notBlank(result, "joins.waitingInRoom", joins.waitingInRoom, "Waiting in room message cannot be empty");
-        Validators.notBlank(result, "joins.resourcePackTimeout", joins.resourcePackTimeout, "Resource pack timeout message cannot be empty");
+    private static void validateJoinSection(ValidationResult result, MessagesConfig.JoinSection join) {
+        Validators.notBlank(result, "join.teleportedOnJoin", join.teleportedOnJoin, "Teleported on join message cannot be empty");
+        Validators.notBlank(result, "join.skippedDead", join.skippedDead, "Skipped dead message cannot be empty");
+        Validators.notBlank(result, "join.waitingInRoom", join.waitingInRoom, "Waiting in room message cannot be empty");
+        Validators.notBlank(result, "join.resourcePackTimeout", join.resourcePackTimeout, "Resource pack timeout message cannot be empty");
     }
 }

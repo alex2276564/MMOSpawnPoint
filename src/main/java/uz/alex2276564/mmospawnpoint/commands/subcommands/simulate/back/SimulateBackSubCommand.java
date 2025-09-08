@@ -45,7 +45,9 @@ public class SimulateBackSubCommand implements NestedSubCommandProvider {
                         return;
                     }
 
-                    target.teleport(prev);
+                    plugin.getRunner().teleportAsync(target, prev).thenAccept(success -> {
+                    });
+
                     if (sender.equals(target)) plugin.getMessageManager().sendMessage(sender, msg.backSelf);
                     else plugin.getMessageManager().sendMessage(sender, msg.backOther, "player", target.getName());
                 });

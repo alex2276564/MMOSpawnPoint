@@ -327,6 +327,12 @@ spawns:
         y: 64
         z: -10
         weight: 100
+        actionExecutionMode: instead
+        actions:
+          messages:
+            - text: "<gold>Local greeting! (Overrides global BEFORE messages)"
+              phases:
+                - BEFORE
       - world: world
         requireSafe: false
         x: 10
@@ -351,6 +357,7 @@ spawns:
 # Notes:
 # - Placeholder expressions require: hooks.usePlaceholderAPI=true and PlaceholderAPI installed
 # - YAML: strings with expressions must be quoted: "!mmospawnpoint.vip"
+# - With actionExecutionMode: instead, only the local actions (destination.actions) will run for the specified phase (AFTER), and global actions are skipped.
 
 # ================================================================
 # ✅ Example 5: Regex patterns for flexible matching

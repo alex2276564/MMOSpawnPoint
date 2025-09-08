@@ -226,13 +226,13 @@ public class SafeLocationFinder {
             Location test = baseLocation.clone().add(offsetX, 0.0, offsetZ);
 
             double y;
+            int hy;
             if (isNether) {
-                int hy = findSafeYInNether(world, test.getBlockX(), test.getBlockZ(), world.getMaxHeight(), resolveMinY(world));
-                y = hy + 1.0;
+                hy = findSafeYInNether(world, test.getBlockX(), test.getBlockZ(), world.getMaxHeight(), resolveMinY(world));
             } else {
-                int hy = world.getHighestBlockYAt(test.getBlockX(), test.getBlockZ());
-                y = hy + 1.0;
+                hy = world.getHighestBlockYAt(test.getBlockX(), test.getBlockZ());
             }
+            y = hy + 1.0;
             test.setY(y);
             return isSafeLocation(test) ? test.clone() : null;
         });
@@ -360,6 +360,174 @@ public class SafeLocationFinder {
 
     private static double clamp(double v, double min, double max) {
         return (v < min) ? min : (v > max) ? max : v;
+    }
+
+    public static Location cachedFindSafeNear(Location base,
+                                              int radius,
+                                              Set<Material> groundWhitelist,
+                                              UUID playerId,
+                                              boolean playerSpecific,
+                                              boolean enabled,
+                                              String typeTag) {
+        if (!enabled || !cacheEnabled || CACHE == null || base == null || base.getWorld() == null) {
+            return attemptFindSafeNearSingle(base, radius, groundWhitelist);
+        }
+
+        String world = base.getWorld().getName();
+        int bx = base.getBlockX();
+        int by = base.getBlockY();
+        int bz = base.getBlockZ();
+
+        CacheKey key = new CacheKey(
+                typeTag, world,
+                bx, by, bz,
+                0, 0, 0, 0, 0, 0,
+                playerSpecific ? playerId : null,
+                playerSpecific
+        );
+
+        Location cached = CACHE.getIfPresent(key);
+        if (cached != null) {
+            return cached.clone();
+        }
+
+        Location found = attemptFindSafeNearSingle(base, radius, groundWhitelist);
+            CACHE.put(key, found.clone());
+        return found;
+    }
+
+    public static Location cachedFindSafeInRegion(World world,
+                                                  double minX, double maxX,
+                                                  double minY, double maxY,
+                                                  double minZ, double maxZ,
+                                                  Set<Material> groundWhitelist,
+                                                  UUID playerId,
+                                                  boolean playerSpecific,
+                                                  boolean enabled,
+                                                  String typeTag) {
+        if (!enabled || !cacheEnabled || CACHE == null || world == null) {
+            return attemptFindSafeInRegionSingle(world, minX, maxX, minY, maxY, minZ, maxZ, groundWhitelist);
+        }
+
+        String wname = world.getName();
+        int kMinX = (int) Math.floor(Math.min(minX, maxX));
+        int kMaxX = (int) Math.floor(Math.max(minX, maxX));
+        int kMinY = (int) Math.floor(Math.min(minY, maxY));
+        int kMaxY = (int) Math.floor(Math.max(minY, maxY));
+        int kMinZ = (int) Math.floor(Math.min(minZ, maxZ));
+        int kMaxZ = (int) Math.floor(Math.max(minZ, maxZ));
+
+        CacheKey key = new CacheKey(
+                typeTag, wname,
+                0, 0, 0,
+                kMinX, kMaxX, kMinY, kMaxY, kMinZ, kMaxZ,
+                playerSpecific ? playerId : null,
+                playerSpecific
+        );
+
+        Location cached = CACHE.getIfPresent(key);
+        if (cached != null) {
+            return cached.clone();
+        }
+
+        Location found = attemptFindSafeInRegionSingle(world, minX, maxX, minY, maxY, minZ, maxZ, groundWhitelist);
+            CACHE.put(key, found.clone());
+        return found;
+    }
+
+    // Invalidate helpers (key must match cachedFindSafeNear/Region)
+    public static void invalidateNearKey(Location base,
+                                         UUID playerId,
+                                         boolean playerSpecific,
+                                         String typeTag) {
+        if (CACHE == null || base == null || base.getWorld() == null) return;
+        CacheKey key = new CacheKey(
+                typeTag,
+                base.getWorld().getName(),
+                base.getBlockX(), base.getBlockY(), base.getBlockZ(),
+                0, 0, 0, 0, 0, 0,
+                playerSpecific ? playerId : null,
+                playerSpecific
+        );
+        CACHE.invalidate(key);
+    }
+
+    public static void invalidateRegionKey(World world,
+                                           double minX, double maxX,
+                                           double minY, double maxY,
+                                           double minZ, double maxZ,
+                                           UUID playerId,
+                                           boolean playerSpecific,
+                                           String typeTag) {
+        if (CACHE == null || world == null) return;
+        int kMinX = (int) Math.floor(Math.min(minX, maxX));
+        int kMaxX = (int) Math.floor(Math.max(minX, maxX));
+        int kMinY = (int) Math.floor(Math.min(minY, maxY));
+        int kMaxY = (int) Math.floor(Math.max(minY, maxY));
+        int kMinZ = (int) Math.floor(Math.min(minZ, maxZ));
+        int kMaxZ = (int) Math.floor(Math.max(minZ, maxZ));
+
+        CacheKey key = new CacheKey(
+                typeTag,
+                world.getName(),
+                0, 0, 0,
+                kMinX, kMaxX, kMinY, kMaxY, kMinZ, kMaxZ,
+                playerSpecific ? playerId : null,
+                playerSpecific
+        );
+        CACHE.invalidate(key);
+    }
+
+    // Cached region lookup with validation predicate:
+    // - on hit: if !accept.test(cached) -> invalidate + recompute
+    // - on recompute: if result accepted -> store, else don't store
+    public static Location cachedFindSafeInRegionValidated(World world,
+                                                           double minX, double maxX,
+                                                           double minY, double maxY,
+                                                           double minZ, double maxZ,
+                                                           Set<Material> groundWhitelist,
+                                                           UUID playerId,
+                                                           boolean playerSpecific,
+                                                           boolean enabled,
+                                                           String typeTag,
+                                                           java.util.function.Predicate<Location> accept) {
+        if (!enabled || !cacheEnabled || CACHE == null || world == null) {
+            Location fresh = attemptFindSafeInRegionSingle(world, minX, maxX, minY, maxY, minZ, maxZ, groundWhitelist);
+            return (fresh != null && (accept == null || accept.test(fresh))) ? fresh : null;
+        }
+
+        String wname = world.getName();
+        int kMinX = (int) Math.floor(Math.min(minX, maxX));
+        int kMaxX = (int) Math.floor(Math.max(minX, maxX));
+        int kMinY = (int) Math.floor(Math.min(minY, maxY));
+        int kMaxY = (int) Math.floor(Math.max(minY, maxY));
+        int kMinZ = (int) Math.floor(Math.min(minZ, maxZ));
+        int kMaxZ = (int) Math.floor(Math.max(minZ, maxZ));
+
+        CacheKey key = new CacheKey(
+                typeTag, wname,
+                0, 0, 0,
+                kMinX, kMaxX, kMinY, kMaxY, kMinZ, kMaxZ,
+                playerSpecific ? playerId : null,
+                playerSpecific
+        );
+
+        Location cached = CACHE.getIfPresent(key);
+        if (cached != null) {
+            if (accept == null || accept.test(cached)) {
+                return cached.clone();
+            }
+            // Invalidate bad cached (e.g., fell into exclude) and recompute
+            CACHE.invalidate(key);
+        }
+
+        Location fresh = attemptFindSafeInRegionSingle(world, minX, maxX, minY, maxY, minZ, maxZ, groundWhitelist);
+        if (fresh != null && (accept == null || accept.test(fresh))) {
+            CACHE.put(key, fresh.clone());
+            return fresh;
+        }
+        // Do not store rejected result
+        return null;
     }
 
     // --------------- Snapshot ----------------
