@@ -10,14 +10,33 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import uz.alex2276564.mmospawnpoint.utils.StringUtils;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
 
 public class AdventureMessageManager implements MessageManager {
 
     private final MiniMessage miniMessage;
+    private Supplier<Set<String>> disabledKeysSupplier = Collections::emptySet;
 
     public AdventureMessageManager() {
         this.miniMessage = MiniMessage.miniMessage();
+    }
+
+    @Override
+    public void configureDisabledKeysProvider(@NotNull Supplier<Set<String>> supplier) {
+        this.disabledKeysSupplier = supplier;
+    }
+
+    private boolean isDisabled(String key) {
+        if (key == null || key.isBlank()) return false;
+        try {
+            Set<String> s = disabledKeysSupplier.get();
+            return s != null && s.contains(key);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     @Override
@@ -64,6 +83,7 @@ public class AdventureMessageManager implements MessageManager {
         return miniMessage.stripTags(message);
     }
 
+    // non-keyed
     @Override
     public void sendMessage(@NotNull Player player, @NotNull String message) {
         player.sendMessage(parse(message));
@@ -79,14 +99,47 @@ public class AdventureMessageManager implements MessageManager {
         if (sender instanceof Player player) {
             sendMessage(player, message);
         } else {
-            // For console - strip tags and send as plain text
             sender.sendMessage(stripTags(message));
         }
     }
 
     @Override
-    public void sendMessage(@NotNull CommandSender sender, @NotNull String message,
-                            @NotNull String placeholder, @NotNull String replacement) {
+    public void sendMessage(@NotNull CommandSender sender, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
+        if (sender instanceof Player player) {
+            player.sendMessage(parse(message, placeholder, replacement));
+        } else {
+            Component parsed = parse(message, placeholder, replacement);
+            String plainText = PlainTextComponentSerializer.plainText().serialize(parsed);
+            sender.sendMessage(plainText);
+        }
+    }
+
+    // keyed
+    @Override
+    public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message) {
+        if (isDisabled(key)) return;
+        player.sendMessage(parse(message));
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
+        if (isDisabled(key)) return;
+        player.sendMessage(parse(message, placeholder, replacement));
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message) {
+        if (isDisabled(key)) return;
+        if (sender instanceof Player player) {
+            sendMessageKeyed(player, key, message);
+        } else {
+            sender.sendMessage(stripTags(message));
+        }
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
+        if (isDisabled(key)) return;
         if (sender instanceof Player player) {
             player.sendMessage(parse(message, placeholder, replacement));
         } else {

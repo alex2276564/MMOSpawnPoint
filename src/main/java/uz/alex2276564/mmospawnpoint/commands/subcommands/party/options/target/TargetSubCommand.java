@@ -29,19 +29,19 @@ public class TargetSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
                     if (!plugin.getPartyManager().isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
@@ -50,7 +50,7 @@ public class TargetSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.notLeader);
                         return;
                     }
@@ -58,14 +58,14 @@ public class TargetSubCommand implements NestedSubCommandProvider {
                     Player targetPlayer = context.getArgument("player");
 
                     if (party.isNotMember(targetPlayer.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.playerNotInYourParty",
                                 plugin.getConfigManager().getMessagesConfig().party.playerNotInYourParty);
                         return;
                     }
 
                     if (plugin.getPartyManager().setRespawnTarget(player, targetPlayer)) {
                         String targetMessage = plugin.getConfigManager().getMessagesConfig().party.respawnTargetSet;
-                        plugin.getMessageManager().sendMessage(player, targetMessage, "player", targetPlayer.getName());
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.respawnTargetSet", targetMessage, "player", targetPlayer.getName());
                     }
                 });
     }

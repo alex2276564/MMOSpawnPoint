@@ -30,26 +30,26 @@ public class SimulateBackSubCommand implements NestedSubCommandProvider {
                     Player target = ctx.getArgument("player");
                     if (target == null) {
                         if (!(sender instanceof Player self)) {
-                            plugin.getMessageManager().sendMessage(sender, msg.onlyPlayers);
+                            plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.onlyPlayers", msg.onlyPlayers);
                             return;
                         }
                         target = self;
                     } else if (!sender.hasPermission("mmospawnpoint.simulate.others")) {
-                        plugin.getMessageManager().sendMessage(sender, msg.noPermission);
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.noPermission", msg.noPermission);
                         return;
                     }
 
                     Location prev = SimulateContext.popPrev(target.getUniqueId());
                     if (prev == null) {
-                        plugin.getMessageManager().sendMessage(sender, msg.backNone);
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.backNone", msg.backNone);
                         return;
                     }
 
                     plugin.getRunner().teleportAsync(target, prev).thenAccept(success -> {
                     });
 
-                    if (sender.equals(target)) plugin.getMessageManager().sendMessage(sender, msg.backSelf);
-                    else plugin.getMessageManager().sendMessage(sender, msg.backOther, "player", target.getName());
+                    if (sender.equals(target)) plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.backSelf", msg.backSelf);
+                    else plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.backOther", msg.backOther, "player", target.getName());
                 });
     }
 }

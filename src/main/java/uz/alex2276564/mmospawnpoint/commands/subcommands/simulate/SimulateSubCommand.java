@@ -18,10 +18,10 @@ public class SimulateSubCommand implements SubCommandProvider {
                 .executor((sender, ctx) -> {
                     var plugin = MMOSpawnPoint.getInstance();
                     var help = plugin.getConfigManager().getMessagesConfig().commands.simulate;
-                    plugin.getMessageManager().sendMessage(sender, help.helpHeader);
-                    plugin.getMessageManager().sendMessage(sender, help.helpDeathLine);
-                    plugin.getMessageManager().sendMessage(sender, help.helpJoinLine);
-                    plugin.getMessageManager().sendMessage(sender, help.helpBackLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.helpHeader", help.helpHeader);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.helpDeathLine", help.helpDeathLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.helpJoinLine", help.helpJoinLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.helpBackLine", help.helpBackLine);
                 });
 
         new SimulateDeathSubCommand().build(simulate);

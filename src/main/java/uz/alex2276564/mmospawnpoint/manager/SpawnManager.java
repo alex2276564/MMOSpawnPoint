@@ -127,6 +127,7 @@ public class SpawnManager {
             if (isDebug()) {
                 plugin.getLogger().info("No join spawn location found for " + player.getName());
             }
+            plugin.getMessageManager().sendMessage(player, plugin.getConfigManager().getMessagesConfig().general.noSpawnFound);
             return false;
 
         } catch (Exception e) {
@@ -178,6 +179,7 @@ public class SpawnManager {
             if (isDebug()) {
                 plugin.getLogger().warning("No death spawn location found for " + player.getName());
             }
+            plugin.getMessageManager().sendMessage(player, plugin.getConfigManager().getMessagesConfig().general.noSpawnFound);
             return false;
 
         } catch (Exception e) {
@@ -1321,7 +1323,7 @@ public class SpawnManager {
             message = plugin.getConfigManager().getMessagesConfig().join.teleportedOnJoin;
         }
         if (!message.isEmpty()) {
-            plugin.getMessageManager().sendMessage(player, message);
+            plugin.getMessageManager().sendMessageKeyed(player, "join.teleportedOnJoin", message);
         }
     }
 

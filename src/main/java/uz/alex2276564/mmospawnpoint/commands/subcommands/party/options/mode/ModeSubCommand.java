@@ -21,19 +21,19 @@ public class ModeSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
                     if (!plugin.getPartyManager().isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
@@ -42,7 +42,7 @@ public class ModeSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.notLeader);
                         return;
                     }
@@ -53,9 +53,9 @@ public class ModeSubCommand implements NestedSubCommandProvider {
                         plugin.getPartyManager().setRespawnMode(player, respawnMode);
 
                         String modeMessage = plugin.getConfigManager().getMessagesConfig().party.respawnModeChanged;
-                        plugin.getMessageManager().sendMessage(player, modeMessage, "mode", respawnMode.name());
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.respawnModeChanged", modeMessage, "mode", respawnMode.name());
                     } catch (IllegalArgumentException e) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.invalidRespawnMode",
                                 plugin.getConfigManager().getMessagesConfig().party.invalidRespawnMode);
                     }
                 });

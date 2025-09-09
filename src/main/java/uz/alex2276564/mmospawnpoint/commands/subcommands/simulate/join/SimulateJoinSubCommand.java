@@ -29,12 +29,12 @@ public class SimulateJoinSubCommand implements NestedSubCommandProvider {
                     Player target = ctx.getArgument("player");
                     if (target == null) {
                         if (!(sender instanceof Player self)) {
-                            plugin.getMessageManager().sendMessage(sender, msg.onlyPlayers);
+                            plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.onlyPlayers", msg.onlyPlayers);
                             return;
                         }
                         target = self;
                     } else if (!sender.hasPermission("mmospawnpoint.simulate.others")) {
-                        plugin.getMessageManager().sendMessage(sender, msg.noPermission);
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.noPermission", msg.noPermission);
                         return;
                     }
 
@@ -42,10 +42,10 @@ public class SimulateJoinSubCommand implements NestedSubCommandProvider {
                     boolean ok = plugin.getSpawnManager().processJoinSpawn(target);
 
                     if (ok) {
-                        if (sender.equals(target)) plugin.getMessageManager().sendMessage(sender, msg.joinSelf);
-                        else plugin.getMessageManager().sendMessage(sender, msg.joinOther, "player", target.getName());
+                        if (sender.equals(target)) plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.joinSelf", msg.joinSelf);
+                        else plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.joinOther", msg.joinOther, "player", target.getName());
                     } else {
-                        plugin.getMessageManager().sendMessage(sender, msg.simulationFailed);
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.simulationFailed", msg.simulationFailed);
                     }
                 });
     }

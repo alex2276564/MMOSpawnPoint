@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 import uz.alex2276564.mmospawnpoint.utils.StringUtils;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 public class LegacyMessageManager implements MessageManager {
 
@@ -37,6 +38,23 @@ public class LegacyMessageManager implements MessageManager {
             Map.entry("underlined", "n"),
             Map.entry("italic", "o")
     );
+
+    private Supplier<Set<String>> disabledKeysSupplier = Collections::emptySet;
+
+    @Override
+    public void configureDisabledKeysProvider(@NotNull Supplier<Set<String>> supplier) {
+        this.disabledKeysSupplier = supplier;
+    }
+
+    private boolean isDisabled(String key) {
+        if (key == null || key.isBlank()) return false;
+        try {
+            Set<String> s = disabledKeysSupplier.get();
+            return s != null && s.contains(key);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
 
     @Override
     public @NotNull Component parse(@NotNull String message) {
@@ -86,6 +104,7 @@ public class LegacyMessageManager implements MessageManager {
         return out.toString();
     }
 
+    // non-keyed
     @Override
     public void sendMessage(@NotNull Player player, @NotNull String message) {
         player.sendMessage(parse(message));
@@ -108,6 +127,40 @@ public class LegacyMessageManager implements MessageManager {
     @Override
     public void sendMessage(@NotNull CommandSender sender, @NotNull String message,
                             @NotNull String placeholder, @NotNull String replacement) {
+        if (sender instanceof Player p) {
+            p.sendMessage(parse(message, placeholder, replacement));
+        } else {
+            String processed = message.replace(placeholder, escapeForLegacy(replacement));
+            sender.sendMessage(stripTags(processed));
+        }
+    }
+
+    // keyed
+    @Override
+    public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message) {
+        if (isDisabled(key)) return;
+        player.sendMessage(parse(message));
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
+        if (isDisabled(key)) return;
+        player.sendMessage(parse(message, placeholder, replacement));
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message) {
+        if (isDisabled(key)) return;
+        if (sender instanceof Player p) {
+            sendMessageKeyed(p, key, message);
+        } else {
+            sender.sendMessage(stripTags(message));
+        }
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
+        if (isDisabled(key)) return;
         if (sender instanceof Player p) {
             p.sendMessage(parse(message, placeholder, replacement));
         } else {
@@ -185,7 +238,6 @@ public class LegacyMessageManager implements MessageManager {
 
             // unknown tag -> strip
         }
-
         return out.toString();
     }
 
@@ -210,7 +262,6 @@ public class LegacyMessageManager implements MessageManager {
             if (t.type == TagType.STYLE) out.append(t.code);
         }
     }
-
 
     private static void removeFirstFromStack(Deque<Tag> stack, java.util.function.Predicate<Tag> p) {
         if (stack.isEmpty()) return;

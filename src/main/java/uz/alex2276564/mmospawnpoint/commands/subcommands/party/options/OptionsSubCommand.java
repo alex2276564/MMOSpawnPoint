@@ -19,19 +19,19 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
                     if (!plugin.getPartyManager().isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
@@ -40,18 +40,19 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.notLeader);
                         return;
                     }
 
                     // Display current options
-                    plugin.getMessageManager().sendMessage(player, "<dark_gray>[<red>Death Circle Options<dark_gray>]");
-                    plugin.getMessageManager().sendMessage(player, "<gray>Soul Binding Mode: <red><mode>", "mode", party.getRespawnMode().name());
-                    plugin.getMessageManager().sendMessage(player, "<gray>Soul Target: <red><target>", "target", getRespawnTargetDisplayName(party));
-                    plugin.getMessageManager().sendMessage(player, "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                    plugin.getMessageManager().sendMessage(player, "<gray>Use <white>/msp party options mode <red><normal|party_member><gray> to change binding");
-                    plugin.getMessageManager().sendMessage(player, "<gray>Use <white>/msp party options target <red><soul><gray> to set target soul");
+                    var options = plugin.getConfigManager().getMessagesConfig().party.options;
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.header", options.header);
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.respawnMode", options.respawnMode, "mode", party.getRespawnMode().name());
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.respawnTarget", options.respawnTarget, "target", getRespawnTargetDisplayName(party));
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.separator", options.separator);
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.modeHelp", options.modeHelp);
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.targetHelp", options.targetHelp);
                 });
 
         // Register nested options subcommands

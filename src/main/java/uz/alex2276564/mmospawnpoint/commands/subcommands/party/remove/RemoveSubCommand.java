@@ -29,13 +29,13 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
@@ -44,7 +44,7 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is in a party
                     if (!partyManager.isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
@@ -53,7 +53,7 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.notLeader);
                         return;
                     }
@@ -63,14 +63,14 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
 
                     // Check if target is in the party
                     if (party.isNotMember(targetPlayer.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.playerNotInYourParty",
                                 plugin.getConfigManager().getMessagesConfig().party.playerNotInYourParty);
                         return;
                     }
 
                     // Can't remove yourself (use leave instead)
                     if (targetPlayer.equals(player)) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.cannotRemoveSelf",
                                 plugin.getConfigManager().getMessagesConfig().party.cannotRemoveSelf);
                         return;
                     }
@@ -80,7 +80,7 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
 
                     if (success) {
                         // Notify target player
-                        plugin.getMessageManager().sendMessage(targetPlayer,
+                        plugin.getMessageManager().sendMessageKeyed(targetPlayer, "party.playerRemoved",
                                 plugin.getConfigManager().getMessagesConfig().party.playerRemoved);
 
                         // Notify party members
@@ -88,11 +88,11 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
 
                         for (Player member : party.getOnlineMembers()) {
                             if (!member.equals(targetPlayer)) {
-                                plugin.getMessageManager().sendMessage(member, removedMessage, "player", targetPlayer.getName());
+                                plugin.getMessageManager().sendMessageKeyed(member, "party.playerRemovedFromParty", removedMessage, "player", targetPlayer.getName());
                             }
                         }
                     } else {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.errorOccurred",
                                 plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
                     }
                 });

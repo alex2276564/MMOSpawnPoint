@@ -31,7 +31,7 @@ public class PlayerJoinListener implements Listener {
             // Notify the player that join teleport is skipped because they are dead
             String skipped = plugin.getConfigManager().getMessagesConfig().join.skippedDead;
             if (skipped != null && !skipped.isEmpty()) {
-                plugin.getMessageManager().sendMessage(player, skipped);
+                plugin.getMessageManager().sendMessageKeyed(player, "join.skippedDead", skipped);
             }
 
             return;
@@ -40,7 +40,7 @@ public class PlayerJoinListener implements Listener {
         // Check party scope
         String partyScope = plugin.getConfigManager().getMainConfig().party.scope;
         if (plugin.getConfigManager().getMainConfig().party.enabled &&
-                ("joins".equals(partyScope) || "both".equals(partyScope)) && plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                ("join".equals(partyScope) || "both".equals(partyScope)) && plugin.getConfigManager().getMainConfig().settings.debugMode) {
             plugin.getLogger().info("Party system active for joins, processing party join spawn for " + player.getName());
         }
 
@@ -70,9 +70,9 @@ public class PlayerJoinListener implements Listener {
         }
 
         // Send waiting message
-        String waitingMessage = plugin.getConfigManager().getMessagesConfig().general.waitingForResourcePack;
+        String waitingMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.waiting;
         if (!waitingMessage.isEmpty()) {
-            plugin.getMessageManager().sendMessage(player, waitingMessage);
+            plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waiting", waitingMessage);
         }
 
         // Move to waiting room if enabled
@@ -89,9 +89,9 @@ public class PlayerJoinListener implements Listener {
                 // Timeout reached
                 resourcePackListener.removeWaitingPlayer(player.getUniqueId());
 
-                String timeoutMessage = plugin.getConfigManager().getMessagesConfig().join.resourcePackTimeout;
+                String timeoutMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.timeout;
                 if (!timeoutMessage.isEmpty()) {
-                    plugin.getMessageManager().sendMessage(player, timeoutMessage);
+                    plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.timeout", timeoutMessage);
                 }
 
                 // Process join spawn anyway
@@ -124,24 +124,15 @@ public class PlayerJoinListener implements Listener {
             plugin.getRunner().teleportAsync(player, waitingRoom)
                     .thenAccept(success -> {
                         if (Boolean.TRUE.equals(success)) {
-                            String waitingMessage = plugin.getConfigManager().getMessagesConfig().join.waitingInRoom;
+                            String waitingMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.waitingInRoom;
                             if (!waitingMessage.isEmpty()) {
-                                plugin.getMessageManager().sendMessage(player, waitingMessage);
+                                plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waitingInRoom", waitingMessage);
                             }
                             if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                                 plugin.getLogger().info("Moved " + player.getName() + " to waiting room for resource pack");
                             }
                         }
                     });
-
-            String waitingMessage = plugin.getConfigManager().getMessagesConfig().join.waitingInRoom;
-            if (!waitingMessage.isEmpty()) {
-                plugin.getMessageManager().sendMessage(player, waitingMessage);
-            }
-
-            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                plugin.getLogger().info("Moved " + player.getName() + " to waiting room for resource pack");
-            }
         }
     }
 

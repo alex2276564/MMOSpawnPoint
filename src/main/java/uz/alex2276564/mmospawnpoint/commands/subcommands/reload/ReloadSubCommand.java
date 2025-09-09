@@ -5,7 +5,6 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandProvider;
 import uz.alex2276564.mmospawnpoint.config.configs.messagesconfig.MessagesConfig;
-import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
 
 public class ReloadSubCommand implements SubCommandProvider {
 
@@ -19,14 +18,13 @@ public class ReloadSubCommand implements SubCommandProvider {
 
                     MessagesConfig msg = MMOSpawnPoint.getInstance().getConfigManager().getMessagesConfig();
                     try {
-                        SafeLocationFinder.clearCache();
                         plugin.getConfigManager().reload();
 
                         String message = msg.commands.reload.success;
-                        plugin.getMessageManager().sendMessage(sender, message, "type", "all configurations");
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.reload.success", message, "type", "all configurations");
 
                     } catch (Exception e) {
-                        plugin.getMessageManager().sendMessage(sender, msg.commands.reload.error, "error", e.getMessage());
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.reload.error", msg.commands.reload.error, "error", e.getMessage());
                     }
                 });
     }

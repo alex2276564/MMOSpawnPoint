@@ -27,13 +27,13 @@ public class SetLeaderSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
@@ -42,7 +42,7 @@ public class SetLeaderSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is in a party
                     if (!partyManager.isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
@@ -51,7 +51,7 @@ public class SetLeaderSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.notLeader);
                         return;
                     }
@@ -61,14 +61,14 @@ public class SetLeaderSubCommand implements NestedSubCommandProvider {
 
                     // Check if target is in the party
                     if (party.isNotMember(targetPlayer.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.playerNotInYourParty",
                                 plugin.getConfigManager().getMessagesConfig().party.playerNotInYourParty);
                         return;
                     }
 
                     // Can't transfer leadership to yourself
                     if (targetPlayer.equals(player)) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.alreadyLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.alreadyLeader);
                         return;
                     }
@@ -80,10 +80,10 @@ public class SetLeaderSubCommand implements NestedSubCommandProvider {
                         // Notify party members
                         String leaderMessage = plugin.getConfigManager().getMessagesConfig().party.newLeaderAssigned;
                         for (Player member : party.getOnlineMembers()) {
-                            plugin.getMessageManager().sendMessage(member, leaderMessage, "player", targetPlayer.getName());
+                            plugin.getMessageManager().sendMessageKeyed(member, "party.newLeaderAssigned", leaderMessage, "player", targetPlayer.getName());
                         }
                     } else {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.errorOccurred",
                                 plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
                     }
                 });

@@ -20,13 +20,13 @@ public class AcceptSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
@@ -37,7 +37,7 @@ public class AcceptSubCommand implements NestedSubCommandProvider {
                     // Check if player has a pending invitation
                     UUID pendingInvitation = partyManager.getPendingInvitation(playerId);
                     if (pendingInvitation == null) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.noInvitations",
                                 plugin.getConfigManager().getMessagesConfig().party.noInvitations);
                         return;
                     }
@@ -53,15 +53,15 @@ public class AcceptSubCommand implements NestedSubCommandProvider {
 
                         for (Player member : party.getOnlineMembers()) {
                             if (!member.equals(player)) {
-                                plugin.getMessageManager().sendMessage(member, joinMessage, "player", player.getName());
+                                plugin.getMessageManager().sendMessageKeyed(member, "party.playerJoinedParty", joinMessage, "player", player.getName());
                             }
                         }
 
                         // Message to the player who joined
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.joinedParty",
                                 plugin.getConfigManager().getMessagesConfig().party.joinedParty);
                     } else {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.invitationExpiredOrInvalid",
                                 plugin.getConfigManager().getMessagesConfig().party.invitationExpiredOrInvalid);
                     }
                 });

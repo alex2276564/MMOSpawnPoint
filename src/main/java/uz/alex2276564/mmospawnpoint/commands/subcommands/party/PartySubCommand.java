@@ -24,22 +24,22 @@ public class PartySubCommand implements SubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
                     // Show party help
                     var messages = plugin.getConfigManager().getMessagesConfig().party.help;
-                    plugin.getMessageManager().sendMessage(sender, messages.header);
-                    plugin.getMessageManager().sendMessage(sender, messages.invite);
-                    plugin.getMessageManager().sendMessage(sender, messages.accept);
-                    plugin.getMessageManager().sendMessage(sender, messages.deny);
-                    plugin.getMessageManager().sendMessage(sender, messages.leave);
-                    plugin.getMessageManager().sendMessage(sender, messages.list);
-                    plugin.getMessageManager().sendMessage(sender, messages.remove);
-                    plugin.getMessageManager().sendMessage(sender, messages.setleader);
-                    plugin.getMessageManager().sendMessage(sender, messages.options);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.header", messages.header);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.invite", messages.invite);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.accept", messages.accept);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.deny", messages.deny);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.leave", messages.leave);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.list", messages.list);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.remove", messages.remove);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.setleader", messages.setleader);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.options", messages.options);
                 });
 
         // Register nested party subcommands

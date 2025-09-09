@@ -19,35 +19,35 @@ public class ListSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
                     if (!plugin.getPartyManager().isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
 
                     Party party = plugin.getPartyManager().getPlayerParty(player.getUniqueId());
 
-                    plugin.getMessageManager().sendMessage(player,
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.listHeader",
                             plugin.getConfigManager().getMessagesConfig().party.listHeader);
 
                     Player leader = party.getLeaderPlayer();
                     if (leader != null) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.listLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.listLeader,
                                 "player", leader.getName());
                     } else {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.listLeaderMissing",
                                 plugin.getConfigManager().getMessagesConfig().party.listLeaderMissing);
                     }
 
@@ -56,39 +56,39 @@ public class ListSubCommand implements NestedSubCommandProvider {
 
                     for (Player member : onlineMembers) {
                         if (party.getRespawnTarget() != null && party.getRespawnTarget().equals(member.getUniqueId())) {
-                            plugin.getMessageManager().sendMessage(player,
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchor",
                                     plugin.getConfigManager().getMessagesConfig().party.listAnchor,
                                     "player", member.getName());
                         } else {
-                            plugin.getMessageManager().sendMessage(player,
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.listMember",
                                     plugin.getConfigManager().getMessagesConfig().party.listMember,
                                     "player", member.getName());
                         }
                     }
 
-                    plugin.getMessageManager().sendMessage(player,
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.listSettingsHeader",
                             plugin.getConfigManager().getMessagesConfig().party.listSettingsHeader);
 
-                    plugin.getMessageManager().sendMessage(player,
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.listRespawnMode",
                             plugin.getConfigManager().getMessagesConfig().party.listRespawnMode,
                             "mode", party.getRespawnMode().name());
 
                     if (party.getRespawnTarget() != null) {
                         Player target = party.getRespawnTargetPlayer();
                         if (target != null) {
-                            plugin.getMessageManager().sendMessage(player,
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchor",
                                     plugin.getConfigManager().getMessagesConfig().party.listAnchor,
                                     "player", target.getName());
                         } else {
-                            plugin.getMessageManager().sendMessage(player,
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchorMissing",
                                     plugin.getConfigManager().getMessagesConfig().party.listAnchorMissing);
                         }
                     } else {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.listNoAnchor",
                                 plugin.getConfigManager().getMessagesConfig().party.listNoAnchor);
                     }
 
-                    plugin.getMessageManager().sendMessage(player,
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.listSeparator",
                             plugin.getConfigManager().getMessagesConfig().party.listSeparator);
                 });
     }

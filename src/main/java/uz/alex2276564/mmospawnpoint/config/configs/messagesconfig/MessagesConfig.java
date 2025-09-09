@@ -3,6 +3,9 @@ package uz.alex2276564.mmospawnpoint.config.configs.messagesconfig;
 import eu.okaeri.configs.OkaeriConfig;
 import eu.okaeri.configs.annotation.Comment;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class MessagesConfig extends OkaeriConfig {
 
     @Comment("# ================================================================")
@@ -21,6 +24,41 @@ public class MessagesConfig extends OkaeriConfig {
     @Comment("#     → https://www.spigotmc.org/resources/triton.30331/")
     @Comment("# ================================================================")
     @Comment("")
+
+    @Comment("")
+    @Comment("# ================================================================")
+    @Comment("# 🔇 DISABLE SPECIFIC MESSAGES")
+    @Comment("#")
+    @Comment("# You can disable individual messages by adding their keys here.")
+    @Comment("# This is useful if you want to silence certain notifications")
+    @Comment("# while keeping others active.")
+    @Comment("#")
+    @Comment("# HOW TO USE:")
+    @Comment("# 1. Find the message you want to disable in this config file")
+    @Comment("# 2. Use dot-notation to reference it (section.subsection.messageKey)")
+    @Comment("# 3. Add the key to the list below")
+    @Comment("#")
+    @Comment("# EXAMPLES:")
+    @Comment("# To disable specific command feedback:")
+    @Comment("# - commands.reload.success")
+    @Comment("# - commands.help.header")
+    @Comment("#")
+    @Comment("# To disable general system messages:")
+    @Comment("# - general.noSpawnFound")
+    @Comment("# - general.systemDisabled")
+    @Comment("#")
+    @Comment("# STRUCTURE:")
+    @Comment("# - Most messages follow: section.subsection.messageKey")
+    @Comment("# - Check the structure of this config file to find the right keys")
+    @Comment("# - Keys are case-sensitive and must match exactly")
+    @Comment("#")
+    @Comment("# NOTE: This affects ALL message recipients (players AND console)")
+    @Comment("# Use with caution - some messages may be important for debugging.")
+    @Comment("# ================================================================")
+    @Comment("")
+    public Set<String> disabledKeys = new HashSet<>();
+
+    @Comment("")
     @Comment("Command messages")
     public CommandsSection commands = new CommandsSection();
 
@@ -32,9 +70,20 @@ public class MessagesConfig extends OkaeriConfig {
     @Comment("Party system messages")
     public PartySection party = new PartySection();
 
+    @Comment("Resource pack loading messages")
+    public ResourcePackSection resourcepack = new ResourcePackSection();
+
     @Comment("")
     @Comment("Join system messages")
     public JoinSection join = new JoinSection();
+
+    public static class ResourcePackSection extends OkaeriConfig {
+        public String waiting = "<yellow>Waiting for resource pack to load...";
+        public String loaded = "<green>Resource pack loaded successfully!";
+        public String failed = "<red>Resource pack failed to load, continuing anyway...";
+        public String waitingInRoom = "<yellow>Please wait while your resource pack loads...";
+        public String timeout = "<red>Resource pack loading timed out, teleporting anyway...";
+    }
 
     public static class CommandsSection extends OkaeriConfig {
         @Comment("Help command messages")
@@ -161,15 +210,6 @@ public class MessagesConfig extends OkaeriConfig {
     public static class GeneralSection extends OkaeriConfig {
         @Comment("Message when no spawn location found")
         public String noSpawnFound = "<red>No suitable spawn location found, using server default.";
-
-        @Comment("Message when waiting for resource pack")
-        public String waitingForResourcePack = "<yellow>Waiting for resource pack to load...";
-
-        @Comment("Message when resource pack loading completed")
-        public String resourcePackLoaded = "<green>Resource pack loaded successfully!";
-
-        @Comment("Message when resource pack loading failed")
-        public String resourcePackFailed = "<red>Resource pack failed to load, continuing anyway...";
     }
 
     public static class PartySection extends OkaeriConfig {
@@ -228,6 +268,19 @@ public class MessagesConfig extends OkaeriConfig {
         public String listNoAnchor = "<gray>Soul Anchor: <red>None";
         public String listSeparator = "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
 
+        @Comment("")
+        @Comment("Party options messages")
+        public PartyOptionsSection options = new PartyOptionsSection();
+
+        public static class PartyOptionsSection extends OkaeriConfig {
+            public String header = "<dark_gray>[<red>Death Circle Options<dark_gray>]";
+            public String respawnMode = "<gray>Soul Binding Mode: <red><mode>";
+            public String respawnTarget = "<gray>Soul Target: <red><target>";
+            public String separator = "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
+            public String modeHelp = "<gray>Use <white>/msp party options mode <red><normal|party_member><gray> to change binding";
+            public String targetHelp = "<gray>Use <white>/msp party options target <red><soul><gray> to set target soul";
+        }
+
         @Comment("Party help messages")
         public PartyHelpSection help = new PartyHelpSection();
 
@@ -250,11 +303,5 @@ public class MessagesConfig extends OkaeriConfig {
 
         @Comment("Message when join teleport is skipped because player is dead")
         public String skippedDead = "<gray>Join teleport skipped - you will respawn normally.";
-
-        @Comment("Message when waiting in waiting room for resource pack")
-        public String waitingInRoom = "<yellow>Please wait while your resource pack loads...";
-
-        @Comment("Message when resource pack timeout reached")
-        public String resourcePackTimeout = "<red>Resource pack loading timed out, teleporting anyway...";
     }
 }

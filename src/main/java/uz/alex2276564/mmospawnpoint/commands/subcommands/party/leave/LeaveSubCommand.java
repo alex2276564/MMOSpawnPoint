@@ -21,13 +21,13 @@ public class LeaveSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
@@ -36,7 +36,7 @@ public class LeaveSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is in a party
                     if (!partyManager.isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         return;
                     }
@@ -53,14 +53,14 @@ public class LeaveSubCommand implements NestedSubCommandProvider {
 
                     if (success) {
                         // Message to the player who left
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.leftParty",
                                 plugin.getConfigManager().getMessagesConfig().party.leftParty);
 
                         // Notify other party members
                         String leftMessage = plugin.getConfigManager().getMessagesConfig().party.playerLeftParty;
 
                         for (Player member : partyMembers) {
-                            plugin.getMessageManager().sendMessage(member, leftMessage, "player", player.getName());
+                            plugin.getMessageManager().sendMessageKeyed(member, "party.playerLeftParty", leftMessage, "player", player.getName());
                         }
 
                         // If player was leader and party still exists
@@ -70,12 +70,12 @@ public class LeaveSubCommand implements NestedSubCommandProvider {
                                 String newLeaderMessage = plugin.getConfigManager().getMessagesConfig().party.newLeaderAssigned;
 
                                 for (Player member : party.getOnlineMembers()) {
-                                    plugin.getMessageManager().sendMessage(member, newLeaderMessage, "player", newLeader.getName());
+                                    plugin.getMessageManager().sendMessageKeyed(member, "party.newLeaderAssigned", newLeaderMessage, "player", newLeader.getName());
                                 }
                             }
                         }
                     } else {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.errorOccurred",
                                 plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
                     }
                 });

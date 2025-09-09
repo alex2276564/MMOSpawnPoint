@@ -125,15 +125,6 @@ public class SafeLocationFinder {
         }
     }
 
-    public static void configureSearchRadius(int radius) {
-        // Search settings
-        int baseSearchRadius = Math.max(1, radius);
-        int maxSearchRadius = Math.max(baseSearchRadius, baseSearchRadius * 4);
-        if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Search radius configured - base: " + baseSearchRadius + ", cap: " + maxSearchRadius);
-        }
-    }
-
     /**
      * Configure overworld Y selection strategy for region safe search.
      *

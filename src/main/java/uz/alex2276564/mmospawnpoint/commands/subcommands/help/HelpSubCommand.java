@@ -16,13 +16,13 @@ public class HelpSubCommand implements SubCommandProvider {
                     var plugin = MMOSpawnPoint.getInstance();
                     var help = plugin.getConfigManager().getMessagesConfig().commands.help;
 
-                    plugin.getMessageManager().sendMessage(sender, help.header);
-                    plugin.getMessageManager().sendMessage(sender, help.reloadLine);
-                    plugin.getMessageManager().sendMessage(sender, help.partyLine);
-                    plugin.getMessageManager().sendMessage(sender, help.simulateLine);
-                    plugin.getMessageManager().sendMessage(sender, help.cacheLine);
-                    plugin.getMessageManager().sendMessage(sender, help.setspawnpointLine);
-                    plugin.getMessageManager().sendMessage(sender, help.helpLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.header", help.header);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.reloadLine", help.reloadLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.partyLine", help.partyLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.simulateLine", help.simulateLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.cacheLine", help.cacheLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.setspawnpointLine", help.setspawnpointLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.helpLine", help.helpLine);
                 });
     }
 }

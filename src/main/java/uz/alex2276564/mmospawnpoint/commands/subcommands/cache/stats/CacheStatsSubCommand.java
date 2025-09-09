@@ -28,7 +28,7 @@ public class CacheStatsSubCommand implements NestedSubCommandProvider {
                             .replace("<enabled>", String.valueOf(snap.enabled()))
                             .replace("<expiry>", String.valueOf(snap.expirySeconds()))
                             .replace("<max>", String.valueOf(snap.maxSize()));
-                    plugin.getMessageManager().sendMessage(sender, line);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.cache.statsLine", line);
                 });
     }
 }

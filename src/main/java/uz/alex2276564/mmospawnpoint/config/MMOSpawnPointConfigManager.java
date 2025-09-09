@@ -79,6 +79,7 @@ public class MMOSpawnPointConfigManager {
         });
 
         MessagesConfigValidator.validate(messagesConfig);
+        MMOSpawnPoint.getInstance().getMessageManager().configureDisabledKeysProvider(() -> getMessagesConfig().disabledKeys);
         plugin.getLogger().info("Messages configuration loaded and validated successfully");
     }
 
@@ -255,6 +256,8 @@ public class MMOSpawnPointConfigManager {
         var cfg = mainConfig.settings;
         var cacheConfig = cfg.safeLocationCache;
 
+        SafeLocationFinder.clearCache();
+
         // Cache toggles
         SafeLocationFinder.configureCaching(
                 cacheConfig.enabled,
@@ -262,9 +265,6 @@ public class MMOSpawnPointConfigManager {
                 cacheConfig.maxCacheSize,
                 cacheConfig.advanced.debugCache
         );
-
-        // Search radius
-        SafeLocationFinder.configureSearchRadius(cfg.safeLocationRadius);
 
         // Global block rules
         SafeLocationFinder.configureGlobalGroundBlacklist(cfg.globalGroundBlacklist);

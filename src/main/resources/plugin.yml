@@ -16,7 +16,7 @@ commands:
 permissions:
   mmospawnpoint.command:
     description: Allows access to basic MMOSpawnPoint commands
-    default: true
+    default: op
   mmospawnpoint.reload:
     description: Allows reloading the MMOSpawnPoint configuration
     default: op
@@ -49,28 +49,34 @@ permissions:
     default: op
   mmospawnpoint.party:
     description: Root permission for party command
-    default: true
+    default: op
   mmospawnpoint.party.invite:
     description: Allows inviting players to a party
-    default: true
+    default: op
   mmospawnpoint.party.accept:
     description: Allows accepting party invitations
-    default: true
+    default: op
   mmospawnpoint.party.deny:
     description: Allows denying party invitations
-    default: true
+    default: op
   mmospawnpoint.party.leave:
     description: Allows leaving a party
-    default: true
+    default: op
   mmospawnpoint.party.list:
     description: Allows listing party members
-    default: true
+    default: op
   mmospawnpoint.party.remove:
     description: Allows removing players from a party
-    default: true
+    default: op
   mmospawnpoint.party.setleader:
     description: Allows transferring party leadership
-    default: true
+    default: op
   mmospawnpoint.party.options:
-    description: Allows changing party options
-    default: true
+    description: Root permission for party options command
+    default: op
+  mmospawnpoint.party.options.mode:
+    description: Allows changing party respawn mode
+    default: op
+  mmospawnpoint.party.options.target:
+    description: Allows set party respawn target
+    default: op

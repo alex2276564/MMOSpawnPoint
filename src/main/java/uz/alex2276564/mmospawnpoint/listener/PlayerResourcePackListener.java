@@ -43,13 +43,11 @@ public class PlayerResourcePackListener implements Listener {
             // Send appropriate message
             String message;
             if (status == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
-                message = plugin.getConfigManager().getMessagesConfig().general.resourcePackLoaded;
+                message = plugin.getConfigManager().getMessagesConfig().resourcepack.loaded;
+                plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.loaded", message);
             } else {
-                message = plugin.getConfigManager().getMessagesConfig().general.resourcePackFailed;
-            }
-
-            if (!message.isEmpty()) {
-                plugin.getMessageManager().sendMessage(player, message);
+                message = plugin.getConfigManager().getMessagesConfig().resourcepack.failed;
+                plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.failed", message);
             }
 
             // Process join spawn after resource pack is ready

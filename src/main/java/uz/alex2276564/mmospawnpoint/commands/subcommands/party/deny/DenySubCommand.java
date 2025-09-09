@@ -20,13 +20,13 @@ public class DenySubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
@@ -37,7 +37,7 @@ public class DenySubCommand implements NestedSubCommandProvider {
                     // Check if player has a pending invitation
                     UUID pendingInvitation = partyManager.getPendingInvitation(playerId);
                     if (pendingInvitation == null) {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.noInvitations",
                                 plugin.getConfigManager().getMessagesConfig().party.noInvitations);
                         return;
                     }
@@ -51,16 +51,16 @@ public class DenySubCommand implements NestedSubCommandProvider {
 
                     if (success) {
                         // Message to the player who declined
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.invitationDeclined",
                                 plugin.getConfigManager().getMessagesConfig().party.invitationDeclined);
 
                         // Notify party leader
                         if (leader != null && leader.isOnline()) {
                             String declineMessage = plugin.getConfigManager().getMessagesConfig().party.invitationDeclinedToLeader;
-                            plugin.getMessageManager().sendMessage(leader, declineMessage, "player", player.getName());
+                            plugin.getMessageManager().sendMessageKeyed(leader, "party.invitationDeclinedToLeader", declineMessage, "player", player.getName());
                         }
                     } else {
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.invitationExpiredOrInvalid",
                                 plugin.getConfigManager().getMessagesConfig().party.invitationExpiredOrInvalid);
                     }
                 });

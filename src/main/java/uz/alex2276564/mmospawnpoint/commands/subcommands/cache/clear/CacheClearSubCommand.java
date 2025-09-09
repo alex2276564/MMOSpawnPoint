@@ -29,10 +29,10 @@ public class CacheClearSubCommand implements NestedSubCommandProvider {
                     Player p = ctx.getArgument("player");
                     if (p == null) {
                         SafeLocationFinder.clearCache();
-                        plugin.getMessageManager().sendMessage(sender, msg.clearedAll);
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.cache.clearedAll", msg.clearedAll);
                     } else {
                         SafeLocationFinder.clearPlayerCache(p.getUniqueId());
-                        plugin.getMessageManager().sendMessage(sender, msg.clearedPlayer, "player", p.getName());
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.cache.clearedPlayer", msg.clearedPlayer, "player", p.getName());
                     }
                 });
     }

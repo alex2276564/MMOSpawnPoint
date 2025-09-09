@@ -17,9 +17,9 @@ public class CacheSubCommand implements SubCommandProvider {
                 .executor((sender, ctx) -> {
                     var plugin = MMOSpawnPoint.getInstance();
                     var help = plugin.getConfigManager().getMessagesConfig().commands.cache;
-                    plugin.getMessageManager().sendMessage(sender, help.helpHeader);
-                    plugin.getMessageManager().sendMessage(sender, help.helpStatsLine);
-                    plugin.getMessageManager().sendMessage(sender, help.helpClearLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.cache.helpHeader", help.helpHeader);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.cache.helpStatsLine", help.helpStatsLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.cache.helpClearLine", help.helpClearLine);
                 });
 
         new CacheStatsSubCommand().build(cache);

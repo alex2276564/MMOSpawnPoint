@@ -26,13 +26,13 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                     MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
                                 plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
                     if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessage(sender,
+                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
                                 plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
                         return;
                     }
@@ -40,7 +40,7 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                     Player targetPlayer = context.getArgument("player");
                     if (targetPlayer == null) {
                         // Should not happen with ArgumentType.PLAYER, but just in case
-                        plugin.getMessageManager().sendMessage(player,
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.errorOccurred",
                                 plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
                         return;
                     }
@@ -57,25 +57,25 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                     switch (result) {
                         case SUCCESS -> {
                             String sent = plugin.getConfigManager().getMessagesConfig().party.inviteSent;
-                            plugin.getMessageManager().sendMessage(player, sent, "player", targetPlayer.getName());
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.inviteSent", sent, "player", targetPlayer.getName());
 
                             String recv = plugin.getConfigManager().getMessagesConfig().party.inviteReceived;
-                            plugin.getMessageManager().sendMessage(targetPlayer, recv, "player", player.getName());
+                            plugin.getMessageManager().sendMessageKeyed(targetPlayer, "party.inviteReceived", recv, "player", player.getName());
                         }
                         case ALREADY_INVITED -> {
                             // No dedicated message in config — reuse "inviteSent" as an idempotent feedback
                             String sent = plugin.getConfigManager().getMessagesConfig().party.inviteSent;
-                            plugin.getMessageManager().sendMessage(player, sent, "player", targetPlayer.getName());
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.inviteSent", sent, "player", targetPlayer.getName());
                         }
-                        case TARGET_ALREADY_IN_PARTY -> plugin.getMessageManager().sendMessage(player,
+                        case TARGET_ALREADY_IN_PARTY -> plugin.getMessageManager().sendMessageKeyed(player, "party.inviteFailedAlreadyInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.inviteFailedAlreadyInParty);
-                        case PARTY_FULL -> plugin.getMessageManager().sendMessage(player,
+                        case PARTY_FULL -> plugin.getMessageManager().sendMessageKeyed(player, "party.inviteFailedPartyFull",
                                 plugin.getConfigManager().getMessagesConfig().party.inviteFailedPartyFull);
-                        case NOT_LEADER -> plugin.getMessageManager().sendMessage(player,
+                        case NOT_LEADER -> plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.notLeader);
-                        case LEADER_NOT_IN_PARTY -> plugin.getMessageManager().sendMessage(player,
+                        case LEADER_NOT_IN_PARTY -> plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
                                 plugin.getConfigManager().getMessagesConfig().party.notInParty);
-                        default -> plugin.getMessageManager().sendMessage(player,
+                        default -> plugin.getMessageManager().sendMessageKeyed(player, "party.errorOccurred",
                                 plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
                     }
                 });

@@ -13,6 +13,7 @@ public class MessagesConfigValidator {
         validateCommandsSection(result, config.commands);
         validateGeneralSection(result, config.general);
         validatePartySection(result, config.party);
+        validateResourcePackSection(result, config.resourcepack);
         validateJoinSection(result, config.join);
 
         result.throwIfInvalid("Messages configuration");
@@ -81,9 +82,6 @@ public class MessagesConfigValidator {
 
     private static void validateGeneralSection(ValidationResult result, MessagesConfig.GeneralSection general) {
         Validators.notBlank(result, "general.noSpawnFound", general.noSpawnFound, "No spawn found message cannot be empty");
-        Validators.notBlank(result, "general.waitingForResourcePack", general.waitingForResourcePack, "Waiting for resource pack message cannot be empty");
-        Validators.notBlank(result, "general.resourcePackLoaded", general.resourcePackLoaded, "Resource pack loaded message cannot be empty");
-        Validators.notBlank(result, "general.resourcePackFailed", general.resourcePackFailed, "Resource pack failed message cannot be empty");
     }
 
     // ============================= PARTY =============================
@@ -201,8 +199,20 @@ public class MessagesConfigValidator {
             result.addError("party.listRespawnMode", "List respawn mode must contain <mode> placeholder");
         }
 
+        // Validate options section
+        validatePartyOptionsSection(result, party.options);
+
         // Validate help section
         validatePartyHelpSection(result, party.help);
+    }
+
+    private static void validatePartyOptionsSection(ValidationResult result, MessagesConfig.PartySection.PartyOptionsSection options) {
+        Validators.notBlank(result, "party.options.header", options.header, "Options header cannot be empty");
+        Validators.notBlank(result, "party.options.respawnMode", options.respawnMode, "Options respawn mode cannot be empty");
+        Validators.notBlank(result, "party.options.respawnTarget", options.respawnTarget, "Options respawn target cannot be empty");
+        Validators.notBlank(result, "party.options.separator", options.separator, "Options separator cannot be empty");
+        Validators.notBlank(result, "party.options.modeHelp", options.modeHelp, "Options mode help cannot be empty");
+        Validators.notBlank(result, "party.options.targetHelp", options.targetHelp, "Options target help cannot be empty");
     }
 
     private static void validatePartyHelpSection(ValidationResult result, MessagesConfig.PartySection.PartyHelpSection help) {
@@ -217,12 +227,21 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.help.options", help.options, "Party help options cannot be empty");
     }
 
+    // ============================= RESOURCEPACK =============================
+
+
+    private static void validateResourcePackSection(ValidationResult result, MessagesConfig.ResourcePackSection resourcepack) {
+        Validators.notBlank(result, "resourcepack.waiting", resourcepack.waiting, "Resource pack waiting message cannot be empty");
+        Validators.notBlank(result, "resourcepack.loaded", resourcepack.loaded, "Resource pack loaded message cannot be empty");
+        Validators.notBlank(result, "resourcepack.failed", resourcepack.failed, "Resource pack failed message cannot be empty");
+        Validators.notBlank(result, "resourcepack.waitingInRoom", resourcepack.waitingInRoom, "Resource pack waiting in room message cannot be empty");
+        Validators.notBlank(result, "resourcepack.timeout", resourcepack.timeout, "Resource pack timeout message cannot be empty");
+    }
+
     // ============================= JOIN =============================
 
     private static void validateJoinSection(ValidationResult result, MessagesConfig.JoinSection join) {
         Validators.notBlank(result, "join.teleportedOnJoin", join.teleportedOnJoin, "Teleported on join message cannot be empty");
         Validators.notBlank(result, "join.skippedDead", join.skippedDead, "Skipped dead message cannot be empty");
-        Validators.notBlank(result, "join.waitingInRoom", join.waitingInRoom, "Waiting in room message cannot be empty");
-        Validators.notBlank(result, "join.resourcePackTimeout", join.resourcePackTimeout, "Resource pack timeout message cannot be empty");
     }
 }

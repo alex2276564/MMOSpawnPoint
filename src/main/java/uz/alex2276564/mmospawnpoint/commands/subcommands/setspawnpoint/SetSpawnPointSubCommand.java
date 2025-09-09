@@ -65,7 +65,7 @@ public class SetSpawnPointSubCommand implements SubCommandProvider {
             // /msp setspawnpoint (self, sender must be player)
             if (args.length == 0) {
                 if (!(sender instanceof Player p)) {
-                    plugin.getMessageManager().sendMessage(sender, msgs.consoleUsage);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.setspawnpoint.consoleUsage", msgs.consoleUsage);
                     return;
                 }
                 setBedSpawn(plugin, p, p.getLocation(), sender);
@@ -76,12 +76,12 @@ public class SetSpawnPointSubCommand implements SubCommandProvider {
             World worldFirst = Bukkit.getWorld(args[0]);
             if (worldFirst != null) {
                 if (!(sender instanceof Player p)) {
-                    plugin.getMessageManager().sendMessage(sender, msgs.consoleNeedsPlayer);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.setspawnpoint.consoleNeedsPlayer", msgs.consoleNeedsPlayer);
                     return;
                 }
                 Location loc = parseLocation(worldFirst, args, 1);
                 if (loc == null) {
-                    plugin.getMessageManager().sendMessage(sender, msgs.invalidCoords);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.setspawnpoint.invalidCoords", msgs.invalidCoords);
                     return;
                 }
                 setBedSpawn(plugin, p, loc, sender);
@@ -91,14 +91,14 @@ public class SetSpawnPointSubCommand implements SubCommandProvider {
             // /msp setspawnpoint <player> [...]
             Player target = Bukkit.getPlayerExact(args[0]);
             if (target == null) {
-                plugin.getMessageManager().sendMessage(sender, msgs.playerNotFound, "player", args[0]);
+                plugin.getMessageManager().sendMessageKeyed(sender, "commands.setspawnpoint.playerNotFound", msgs.playerNotFound, "player", args[0]);
                 return;
             }
 
             // /msp setspawnpoint <player>
             if (args.length == 1) {
                 if (!(sender instanceof Player p)) {
-                    plugin.getMessageManager().sendMessage(sender, msgs.consoleNeedsCoords);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.setspawnpoint.consoleNeedsCoords", msgs.consoleNeedsCoords);
                     return;
                 }
                 setBedSpawn(plugin, target, p.getLocation(), sender);
@@ -108,12 +108,12 @@ public class SetSpawnPointSubCommand implements SubCommandProvider {
             // /msp setspawnpoint <player> <world> <x> <y> <z> [yaw] [pitch]
             World world = Bukkit.getWorld(args[1]);
             if (world == null) {
-                plugin.getMessageManager().sendMessage(sender, msgs.invalidWorld, "world", args[1]);
+                plugin.getMessageManager().sendMessageKeyed(sender, "commands.setspawnpoint.invalidWorld", msgs.invalidWorld, "world", args[1]);
                 return;
             }
             Location loc = parseLocation(world, args, 2);
             if (loc == null) {
-                plugin.getMessageManager().sendMessage(sender, msgs.invalidCoords);
+                plugin.getMessageManager().sendMessageKeyed(sender, "commands.setspawnpoint.invalidCoords", msgs.invalidCoords);
                 return;
             }
             setBedSpawn(plugin, target, loc, sender);
@@ -151,17 +151,17 @@ public class SetSpawnPointSubCommand implements SubCommandProvider {
 
             if (feedback instanceof Player senderP && senderP.getUniqueId().equals(target.getUniqueId())) {
                 // Self
-                plugin.getMessageManager().sendMessage(feedback, msgs.selfSuccess, "location", locationStr);
+                plugin.getMessageManager().sendMessageKeyed(feedback, "commands.setspawnpoint.selfSuccess", msgs.selfSuccess, "location", locationStr);
             } else {
                 // Other (admin sets player's spawn)
-                plugin.getMessageManager().sendMessage(feedback,
+                plugin.getMessageManager().sendMessageKeyed(feedback, "commands.setspawnpoint.otherSuccess",
                         msgs.otherSuccess.replace("<player>", target.getName()).replace("<location>", locationStr));
-                plugin.getMessageManager().sendMessage(target,
+                plugin.getMessageManager().sendMessageKeyed(target, "commands.setspawnpoint.targetNotification",
                         msgs.targetNotification.replace("<setter>", feedback.getName()).replace("<location>", locationStr));
             }
         } catch (Throwable t) {
             // An extremely rare case, but just in case
-            plugin.getMessageManager().sendMessage(feedback, msgs.failed, "player", target.getName());
+            plugin.getMessageManager().sendMessageKeyed(feedback, "commands.setspawnpoint.failed", msgs.failed, "player", target.getName());
         }
     }
 }

@@ -200,8 +200,8 @@ public class SpawnPointsConfig extends OkaeriConfig {
         @Comment("Match type: region | world | coordinate")
         public String kind = "region";
 
-        @Comment("Event type: deaths | joins | both")
-        public String event = "deaths";
+        @Comment("Event type: death | join | both")
+        public String event = "death";
 
         @Comment("Priority for this specific spawn point (0-9999). If null -> uses defaults by kind from main config")
         public Integer priority;
