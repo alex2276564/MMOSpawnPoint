@@ -714,7 +714,7 @@ public class SpawnManager {
 
                 Set<Material> wl = toMaterialSet(option.groundWhitelist);
                 String tag = buildCacheTag(wl);
-                Predicate<Location> notExcluded = l -> !isInsideAny(l, excludeRects);
+                Predicate<Location> notExcluded = l -> isOutsideAny(l, excludeRects);
                 Location found = cacheEnabled
                         ? SafeLocationFinder.cachedFindSafeInRegionValidated(
                         world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
@@ -768,15 +768,13 @@ public class SpawnManager {
                 }
 
                 String tag = buildCacheTag(wl);
-                Predicate<Location> notExcluded = l -> !isInsideAny(l, exclude);
-                Location loc = cacheEnabled
+                Predicate<Location> notExcluded = l -> isOutsideAny(l, exclude);
+                // no need to re-check exclude here because validated() already enforced it
+                return cacheEnabled
                         ? SafeLocationFinder.cachedFindSafeInRegionValidated(
                         world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
                         wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
                         : SafeLocationFinder.attemptFindSafeInRegionSingle(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl);
-                if (loc == null) return null;
-
-                return loc;
             }
 
             // 2) Pick random chunk inside rect
@@ -812,18 +810,13 @@ public class SpawnManager {
             }
 
             String tag = buildCacheTag(wl);
-            Location loc = cacheEnabled
-                    ? SafeLocationFinder.cachedFindSafeInRegion(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
-                    wl, playerId, cachePlayerSpecific, true, tag)
-                    : SafeLocationFinder.attemptFindSafeInRegionSingle(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl);
-            if (loc == null) return null;
+            Predicate<Location> notExcluded = l -> isOutsideAny(l, exclude);
 
-            if (!exclude.isEmpty()) {
-                for (Rect ex : exclude) {
-                    if (isInsideRect(loc, ex)) return null;
-                }
-            }
-            return loc;
+            return cacheEnabled
+                    ? SafeLocationFinder.cachedFindSafeInRegionValidated(
+                    world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
+                    wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
+                    : SafeLocationFinder.attemptFindSafeInRegionSingle(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl);
         }
 
         private void bumpFailCounters() {
@@ -927,12 +920,12 @@ public class SpawnManager {
             return cacheTypeTag + "|ys=" + yMode + ":" + yFirst + ":" + yShare + "|wl=" + wlHash;
         }
 
-        private boolean isInsideAny(Location loc, List<Rect> rects) {
-            if (rects == null || rects.isEmpty() || loc == null) return false;
+        private boolean isOutsideAny(Location loc, List<Rect> rects) {
+            if (rects == null || rects.isEmpty() || loc == null) return true;
             for (Rect r : rects) {
-                if (isInsideRect(loc, r)) return true;
+                if (isInsideRect(loc, r)) return false;
             }
-            return false;
+            return true;
         }
     }
 

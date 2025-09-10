@@ -10,6 +10,7 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class SetSpawnPointSubCommand implements SubCommandProvider {
 
@@ -18,41 +19,202 @@ public class SetSpawnPointSubCommand implements SubCommandProvider {
         return parent.subcommand("setspawnpoint")
                 .permission("mmospawnpoint.setspawnpoint")
                 .description("Set vanilla respawn point (bed) for a player")
-                // Arg1: player name or world name
+
+                // ARG 0: target_or_world
                 .argument(new ArgumentBuilder<>("target_or_world", ArgumentType.STRING)
                         .optional(null)
-                        .dynamicSuggestions(partial -> {
-                            String p = (partial == null) ? "" : partial.toLowerCase();
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
                             // players
                             for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
                                 String name = online.getName();
-                                if (name.toLowerCase().startsWith(p)) out.add(name);
+                                if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                             }
                             // worlds
                             for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
                                 String name = w.getName();
-                                if (name.toLowerCase().startsWith(p)) out.add(name);
+                                if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                             }
                             return out;
                         }))
-                // X/Y/Z/Yaw/Pitch as optional hints (for both world-first and player-first syntaxes)
+
+                // ARG 1: “x” by name, but semantically:
+                // - player-first: this is actually <world>
+                // - world-first: this is X
                 .argument(new ArgumentBuilder<>("x", ArgumentType.STRING)
                         .optional(null)
-                        .suggestions("-100", "-50", "0", "50", "100"))
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            if (soFar.length < 1) return List.of(); // no first token yet
+
+                            String first = soFar[0];
+                            boolean firstIsPlayer = isOnlinePlayer(first);
+                            boolean firstIsWorld = isWorld(first);
+
+                            if (firstIsPlayer) {
+                                // Suggest worlds
+                                String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
+                                List<String> worlds = new ArrayList<>();
+                                for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                    String name = w.getName();
+                                    if (name.toLowerCase(Locale.ROOT).startsWith(p)) worlds.add(name);
+                                }
+                                return worlds;
+                            }
+
+                            if (firstIsWorld) {
+                                // Suggest X
+                                return suggestCoordX(sender, partial);
+                            }
+
+                            // If unknown first token: no strong hint
+                            return List.of();
+                        }))
+
+                // ARG 2: “y” by name, but semantically:
+                // - player-first: X
+                // - world-first: Y
                 .argument(new ArgumentBuilder<>("y", ArgumentType.STRING)
                         .optional(null)
-                        .suggestions("64", "80", "100"))
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            if (soFar.length < 1) return List.of();
+
+                            String first = soFar[0];
+                            boolean firstIsPlayer = isOnlinePlayer(first);
+                            boolean firstIsWorld = isWorld(first);
+
+                            if (firstIsPlayer) {
+                                // now we expect X
+                                return suggestCoordX(sender, partial);
+                            }
+                            if (firstIsWorld) {
+                                // now we expect Y
+                                return suggestCoordY(sender, partial);
+                            }
+                            return List.of();
+                        }))
+
+                // ARG 3: “z” by name, but semantically:
+                // - player-first: Y
+                // - world-first: Z
                 .argument(new ArgumentBuilder<>("z", ArgumentType.STRING)
                         .optional(null)
-                        .suggestions("-100", "-50", "0", "50", "100"))
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            if (soFar.length < 1) return List.of();
+
+                            String first = soFar[0];
+                            boolean firstIsPlayer = isOnlinePlayer(first);
+                            boolean firstIsWorld = isWorld(first);
+
+                            if (firstIsPlayer) {
+                                // now expect Y
+                                return suggestCoordY(sender, partial);
+                            }
+                            if (firstIsWorld) {
+                                // now expect Z
+                                return suggestCoordZ(sender, partial);
+                            }
+                            return List.of();
+                        }))
+
+                // ARG 4: “yaw” by name, but semantically:
+                // - player-first: Z
+                // - world-first: yaw
                 .argument(new ArgumentBuilder<>("yaw", ArgumentType.STRING)
                         .optional(null)
-                        .suggestions("0", "90", "180", "270"))
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            if (soFar.length < 1) return List.of();
+
+                            String first = soFar[0];
+                            boolean firstIsPlayer = isOnlinePlayer(first);
+                            boolean firstIsWorld = isWorld(first);
+
+                            if (firstIsPlayer) {
+                                // now expect Z
+                                return suggestCoordZ(sender, partial);
+                            }
+                            if (firstIsWorld) {
+                                // now expect yaw
+                                return suggestYaw(sender, partial);
+                            }
+                            return List.of();
+                        }))
+
+                // ARG 5: “pitch” by name, but semантически:
+                // - player-first: yaw
+                // - world-first: pitch
                 .argument(new ArgumentBuilder<>("pitch", ArgumentType.STRING)
                         .optional(null)
-                        .suggestions("-30", "0", "30"))
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            if (soFar.length < 1) return List.of();
+
+                            String first = soFar[0];
+                            boolean firstIsPlayer = isOnlinePlayer(first);
+                            boolean firstIsWorld = isWorld(first);
+
+                            if (firstIsPlayer) {
+                                // now expect yaw
+                                return suggestYaw(sender, partial);
+                            }
+                            if (firstIsWorld) {
+                                // now expect pitch
+                                return suggestPitch(sender, partial);
+                            }
+                            return List.of();
+                        }))
                 .executor(this::execute);
+    }
+
+    // ---- helpers (suggestions) ----
+    private static boolean isOnlinePlayer(String name) {
+        if (name == null || name.isEmpty()) return false;
+        return Bukkit.getPlayerExact(name) != null;
+    }
+
+    private static boolean isWorld(String w) {
+        if (w == null || w.isEmpty()) return false;
+        return Bukkit.getWorld(w) != null;
+    }
+
+    private static List<String> suggestCoordX(CommandSender sender, String partial) {
+        if (sender instanceof Player pl) {
+            return List.of(String.format(Locale.US, "%.1f", pl.getLocation().getX()));
+        }
+        return List.of("0", "100", "-100");
+    }
+
+    private static List<String> suggestCoordY(CommandSender sender, String partial) {
+        if (sender instanceof Player pl) {
+            return List.of(String.format(Locale.US, "%.1f", pl.getLocation().getY()), "64", "80", "100");
+        }
+        return List.of("64", "80", "100");
+    }
+
+    private static List<String> suggestCoordZ(CommandSender sender, String partial) {
+        if (sender instanceof Player pl) {
+            return List.of(String.format(Locale.US, "%.1f", pl.getLocation().getZ()));
+        }
+        return List.of("0", "100", "-100");
+    }
+
+    private static List<String> suggestYaw(CommandSender sender, String partial) {
+        if (sender instanceof Player pl) {
+            return List.of(
+                    String.format(Locale.US, "%.0f", pl.getLocation().getYaw()),
+                    "0", "90", "180", "270"
+            );
+        }
+        return List.of("0", "90", "180", "270");
+    }
+
+    private static List<String> suggestPitch(CommandSender sender, String partial) {
+        if (sender instanceof Player pl) {
+            return List.of(
+                    String.format(Locale.US, "%.0f", pl.getLocation().getPitch()),
+                    "-30", "0", "30"
+            );
+        }
+        return List.of("-30", "0", "30");
     }
 
     private void execute(CommandSender sender, CommandContext ctx) {

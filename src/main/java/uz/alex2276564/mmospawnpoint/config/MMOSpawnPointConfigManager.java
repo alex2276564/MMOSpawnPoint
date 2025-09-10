@@ -22,6 +22,7 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class MMOSpawnPointConfigManager {
     private final MMOSpawnPoint plugin;
@@ -79,8 +80,67 @@ public class MMOSpawnPointConfigManager {
         });
 
         MessagesConfigValidator.validate(messagesConfig);
+        applyPartyPrefixToken(messagesConfig);
         MMOSpawnPoint.getInstance().getMessageManager().configureDisabledKeysProvider(() -> getMessagesConfig().disabledKeys);
         plugin.getLogger().info("Messages configuration loaded and validated successfully");
+    }
+
+    private void applyPartyPrefixToken(MessagesConfig cfg) {
+        String px = (cfg.party != null && cfg.party.prefix != null) ? cfg.party.prefix : "";
+        Function<String, String> inject = s -> (s == null) ? null : s.replace("<prefix>", px);
+
+        var p = cfg.party;
+        if (p == null) return;
+
+        // List of fields where we want to insert the prefix
+        p.inviteSent = inject.apply(p.inviteSent);
+        p.inviteReceived = inject.apply(p.inviteReceived);
+        p.invitationDeclined = inject.apply(p.invitationDeclined);
+        p.invitationDeclinedToLeader = inject.apply(p.invitationDeclinedToLeader);
+        p.invitationExpiredOrInvalid = inject.apply(p.invitationExpiredOrInvalid);
+        p.inviteFailedPartyFull = inject.apply(p.inviteFailedPartyFull);
+        p.inviteFailedAlreadyInParty = inject.apply(p.inviteFailedAlreadyInParty);
+        p.noInvitations = inject.apply(p.noInvitations);
+        p.inviteExpired = inject.apply(p.inviteExpired);
+
+        p.joinedParty = inject.apply(p.joinedParty);
+        p.playerJoinedParty = inject.apply(p.playerJoinedParty);
+        p.leftParty = inject.apply(p.leftParty);
+        p.playerLeftParty = inject.apply(p.playerLeftParty);
+        p.playerRemoved = inject.apply(p.playerRemoved);
+        p.playerRemovedFromParty = inject.apply(p.playerRemovedFromParty);
+        p.cannotRemoveSelf = inject.apply(p.cannotRemoveSelf);
+        p.partyDisbanded = inject.apply(p.partyDisbanded);
+
+        p.onlyPlayers = inject.apply(p.onlyPlayers);
+        p.systemDisabled = inject.apply(p.systemDisabled);
+        p.notInParty = inject.apply(p.notInParty);
+        p.notLeader = inject.apply(p.notLeader);
+        p.playerNotInYourParty = inject.apply(p.playerNotInYourParty);
+        p.invalidRespawnMode = inject.apply(p.invalidRespawnMode);
+        p.errorOccurred = inject.apply(p.errorOccurred);
+        p.respawnedAtMember = inject.apply(p.respawnedAtMember);
+        p.respawnModeChanged = inject.apply(p.respawnModeChanged);
+        p.respawnTargetSet = inject.apply(p.respawnTargetSet);
+        p.respawnDisabledRegion = inject.apply(p.respawnDisabledRegion);
+        p.respawnDisabledWorld = inject.apply(p.respawnDisabledWorld);
+        p.respawnCooldown = inject.apply(p.respawnCooldown);
+        p.walkingSpawnPointMessage = inject.apply(p.walkingSpawnPointMessage);
+        p.walkingSpawnPointRestricted = inject.apply(p.walkingSpawnPointRestricted);
+        p.alreadyLeader = inject.apply(p.alreadyLeader);
+        p.newLeaderAssigned = inject.apply(p.newLeaderAssigned);
+        p.respawnTooFar = inject.apply(p.respawnTooFar);
+
+        p.listHeader = inject.apply(p.listHeader);
+        p.listLeader = inject.apply(p.listLeader);
+        p.listLeaderMissing = inject.apply(p.listLeaderMissing);
+        p.listMember = inject.apply(p.listMember);
+        p.listAnchor = inject.apply(p.listAnchor);
+        p.listAnchorMissing = inject.apply(p.listAnchorMissing);
+        p.listSettingsHeader = inject.apply(p.listSettingsHeader);
+        p.listRespawnMode = inject.apply(p.listRespawnMode);
+        p.listNoAnchor = inject.apply(p.listNoAnchor);
+        p.listSeparator = inject.apply(p.listSeparator);
     }
 
     private void loadSpawnPointConfigs() {
@@ -270,7 +330,7 @@ public class MMOSpawnPointConfigManager {
         SafeLocationFinder.configureGlobalGroundBlacklist(cfg.globalGroundBlacklist);
         SafeLocationFinder.configureGlobalPassableBlacklist(cfg.globalPassableBlacklist);
 
-        // Overworld Y selection (moved under teleport)
+        // Overworld Y selection
         var ysel = cfg.teleport.ySelection;
         SafeLocationFinder.configureOverworldYSelection(
                 ysel.mode,
@@ -284,7 +344,6 @@ public class MMOSpawnPointConfigManager {
                             "enabled=" + cacheConfig.enabled +
                             ", expiry=" + cacheConfig.expiryTime + "s" +
                             ", maxSize=" + cacheConfig.maxCacheSize +
-                            ", searchRadius=" + cfg.safeLocationRadius +
                             ", ySelection={mode=" + ysel.mode +
                             ", first=" + ysel.first +
                             ", firstShare=" + ysel.firstShare + "}"

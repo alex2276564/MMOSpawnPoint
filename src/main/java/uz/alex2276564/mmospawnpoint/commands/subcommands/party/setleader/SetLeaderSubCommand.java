@@ -1,6 +1,5 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.party.setleader;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
@@ -10,6 +9,8 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder
 import uz.alex2276564.mmospawnpoint.party.Party;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
 
+import java.util.List;
+
 public class SetLeaderSubCommand implements NestedSubCommandProvider {
 
     @Override
@@ -18,13 +19,20 @@ public class SetLeaderSubCommand implements NestedSubCommandProvider {
                 .permission("mmospawnpoint.party.setleader")
                 .description("Transfer party leadership")
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
-                        .dynamicSuggestions(partial ->
-                                Bukkit.getOnlinePlayers().stream()
-                                        .map(Player::getName)
-                                        .filter(name -> name.toLowerCase().startsWith(partial.toLowerCase()))
-                                        .toList()))
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            if (!(sender instanceof Player p)) return List.of();
+                            var pm = MMOSpawnPoint.getInstance().getPartyManager();
+                            var party = pm != null ? pm.getPlayerParty(p.getUniqueId()) : null;
+                            if (party == null) return List.of();
+                            String needle = partial == null ? "" : partial.toLowerCase();
+                            return party.getOnlineMembers().stream()
+                                    .filter(m -> !m.getUniqueId().equals(p.getUniqueId()))
+                                    .map(Player::getName)
+                                    .filter(name -> name.toLowerCase().startsWith(needle))
+                                    .toList();
+                        }))
                 .executor((sender, context) -> {
-                    MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+                    var plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
                         plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",

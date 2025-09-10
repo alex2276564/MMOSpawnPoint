@@ -1,6 +1,7 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.simulate.back;
 
 import org.bukkit.Location;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
@@ -18,10 +19,10 @@ public class SimulateBackSubCommand implements NestedSubCommandProvider {
                 .description("Return to location before simulation")
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
                         .optional(null)
-                        .dynamicSuggestions(partial ->
+                        .dynamicSuggestions((CommandSender sender, String partial, String[] soFar) ->
                                 MMOSpawnPoint.getInstance().getServer().getOnlinePlayers().stream()
                                         .map(Player::getName)
-                                        .filter(n -> n.toLowerCase().startsWith(partial.toLowerCase()))
+                                        .filter(n -> partial == null || n.toLowerCase().startsWith(partial.toLowerCase()))
                                         .toList()))
                 .executor((sender, ctx) -> {
                     var plugin = MMOSpawnPoint.getInstance();
@@ -45,11 +46,11 @@ public class SimulateBackSubCommand implements NestedSubCommandProvider {
                         return;
                     }
 
-                    plugin.getRunner().teleportAsync(target, prev).thenAccept(success -> {
-                    });
-
-                    if (sender.equals(target)) plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.backSelf", msg.backSelf);
-                    else plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.backOther", msg.backOther, "player", target.getName());
+                    plugin.getRunner().teleportAsync(target, prev).thenAccept(success -> {});
+                    if (sender.equals(target))
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.backSelf", msg.backSelf);
+                    else
+                        plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.backOther", msg.backOther, "player", target.getName());
                 });
     }
 }

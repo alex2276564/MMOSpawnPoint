@@ -204,6 +204,9 @@ public class MainConfig extends OkaeriConfig {
         @Comment("Clear specific player's cache when they change worlds")
         public boolean clearPlayerCacheOnWorldChange = true;
 
+        @Comment("Clear specific player's cache when they quit.")
+        public boolean clearPlayerCacheOnQuit = false;
+
         @Comment("Debug cache operations")
         public boolean debugCache = false;
     }

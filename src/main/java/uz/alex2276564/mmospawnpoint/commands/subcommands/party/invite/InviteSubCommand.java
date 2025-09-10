@@ -1,6 +1,5 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.party.invite;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
@@ -8,6 +7,8 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentType;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
+
+import java.util.List;
 
 public class InviteSubCommand implements NestedSubCommandProvider {
 
@@ -17,13 +18,31 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                 .permission("mmospawnpoint.party.invite")
                 .description("Invite a player to your party")
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
-                        .dynamicSuggestions(partial ->
-                                Bukkit.getOnlinePlayers().stream()
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            if (!(sender instanceof Player p)) return List.of();
+                            var pm = MMOSpawnPoint.getInstance().getPartyManager();
+                            var party = (pm != null ? pm.getPlayerParty(p.getUniqueId()) : null);
+
+                            String needle = partial == null ? "" : partial.toLowerCase();
+
+                            if (party == null) {
+                                // not in party -> suggest all online + yourself
+                                return MMOSpawnPoint.getInstance().getServer().getOnlinePlayers().stream()
                                         .map(Player::getName)
-                                        .filter(name -> name.toLowerCase().startsWith(partial.toLowerCase()))
-                                        .toList()))
+                                        .filter(name -> name.toLowerCase().startsWith(needle))
+                                        .toList();
+                            } else {
+                                // in party -> suggest NON-members + yourself
+                                var memberIds = party.getMembers(); // Set<UUID>
+                                return MMOSpawnPoint.getInstance().getServer().getOnlinePlayers().stream()
+                                        .filter(pl -> pl.getUniqueId().equals(p.getUniqueId()) || !memberIds.contains(pl.getUniqueId()))
+                                        .map(Player::getName)
+                                        .filter(name -> name.toLowerCase().startsWith(needle))
+                                        .toList();
+                            }
+                        }))
                 .executor((sender, context) -> {
-                    MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+                    var plugin = MMOSpawnPoint.getInstance();
 
                     if (!(sender instanceof Player player)) {
                         plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
@@ -47,7 +66,7 @@ public class InviteSubCommand implements NestedSubCommandProvider {
 
                     PartyManager partyManager = plugin.getPartyManager();
 
-                    // Auto-create party if player is not in one (keep your previous UX)
+                    // Auto-create party if player is not in one
                     if (!partyManager.isInParty(player.getUniqueId())) {
                         partyManager.createParty(player);
                     }
@@ -63,7 +82,6 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                             plugin.getMessageManager().sendMessageKeyed(targetPlayer, "party.inviteReceived", recv, "player", player.getName());
                         }
                         case ALREADY_INVITED -> {
-                            // No dedicated message in config — reuse "inviteSent" as an idempotent feedback
                             String sent = plugin.getConfigManager().getMessagesConfig().party.inviteSent;
                             plugin.getMessageManager().sendMessageKeyed(player, "party.inviteSent", sent, "player", targetPlayer.getName());
                         }

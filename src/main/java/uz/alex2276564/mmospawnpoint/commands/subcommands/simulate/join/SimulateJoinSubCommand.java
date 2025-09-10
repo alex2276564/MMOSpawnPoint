@@ -1,5 +1,6 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.simulate.join;
 
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
@@ -17,10 +18,10 @@ public class SimulateJoinSubCommand implements NestedSubCommandProvider {
                 .description("Simulate join teleport")
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
                         .optional(null)
-                        .dynamicSuggestions(partial ->
+                        .dynamicSuggestions((CommandSender sender, String partial, String[] soFar) ->
                                 MMOSpawnPoint.getInstance().getServer().getOnlinePlayers().stream()
                                         .map(Player::getName)
-                                        .filter(n -> n.toLowerCase().startsWith(partial.toLowerCase()))
+                                        .filter(n -> partial == null || n.toLowerCase().startsWith(partial.toLowerCase()))
                                         .toList()))
                 .executor((sender, ctx) -> {
                     var plugin = MMOSpawnPoint.getInstance();
@@ -42,8 +43,10 @@ public class SimulateJoinSubCommand implements NestedSubCommandProvider {
                     boolean ok = plugin.getSpawnManager().processJoinSpawn(target);
 
                     if (ok) {
-                        if (sender.equals(target)) plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.joinSelf", msg.joinSelf);
-                        else plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.joinOther", msg.joinOther, "player", target.getName());
+                        if (sender.equals(target))
+                            plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.joinSelf", msg.joinSelf);
+                        else
+                            plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.joinOther", msg.joinOther, "player", target.getName());
                     } else {
                         plugin.getMessageManager().sendMessageKeyed(sender, "commands.simulate.simulationFailed", msg.simulationFailed);
                     }

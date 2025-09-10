@@ -8,6 +8,8 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandP
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.party.Party;
 
+import java.util.List;
+
 public class TargetSubCommand implements NestedSubCommandProvider {
 
     @Override
@@ -16,13 +18,16 @@ public class TargetSubCommand implements NestedSubCommandProvider {
                 .permission("mmospawnpoint.party.options.target")
                 .description("Set party respawn target")
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
-                        .dynamicSuggestions(partial -> {
-                            // Suggest only party members
-                            if (partial == null) return java.util.List.of();
+                        .dynamicSuggestions((sender, partial, soFar) -> {
+                            if (!(sender instanceof Player p)) return List.of();
+                            var pm = MMOSpawnPoint.getInstance().getPartyManager();
+                            var party = pm != null ? pm.getPlayerParty(p.getUniqueId()) : null;
+                            if (party == null) return List.of();
 
-                            return MMOSpawnPoint.getInstance().getServer().getOnlinePlayers().stream()
+                            String needle = partial == null ? "" : partial.toLowerCase();
+                            return party.getOnlineMembers().stream()
                                     .map(Player::getName)
-                                    .filter(name -> name.toLowerCase().startsWith(partial.toLowerCase()))
+                                    .filter(name -> name.toLowerCase().startsWith(needle))
                                     .toList();
                         }))
                 .executor((sender, context) -> {

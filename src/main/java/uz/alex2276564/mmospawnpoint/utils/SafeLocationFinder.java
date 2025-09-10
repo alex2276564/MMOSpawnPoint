@@ -8,9 +8,11 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -172,14 +174,15 @@ public class SafeLocationFinder {
 
     // --------------- Attempt (single-step) API ----------------
 
-    public static Location attemptFindSafeInRegionSingle(World world,
-                                                         double minX, double maxX,
-                                                         double minY, double maxY,
-                                                         double minZ, double maxZ,
-                                                         java.util.Set<org.bukkit.Material> groundWhitelist) {
+    public static @Nullable Location attemptFindSafeInRegionSingle(World world,
+                                                                   double minX, double maxX,
+                                                                   double minY, double maxY,
+                                                                   double minZ, double maxZ,
+                                                                   java.util.Set<org.bukkit.Material> groundWhitelist) {
+        totalSearches.incrementAndGet();
         return withWhitelist(groundWhitelist, () -> {
-            double x = minX + java.util.concurrent.ThreadLocalRandom.current().nextDouble(Math.max(1.0, (maxX - minX)));
-            double z = minZ + java.util.concurrent.ThreadLocalRandom.current().nextDouble(Math.max(1.0, (maxZ - minZ)));
+            double x = minX + ThreadLocalRandom.current().nextDouble(Math.max(1.0, (maxX - minX)));
+            double z = minZ + ThreadLocalRandom.current().nextDouble(Math.max(1.0, (maxZ - minZ)));
 
             boolean isNether = world.getEnvironment() == World.Environment.NETHER;
             double y;
@@ -189,14 +192,14 @@ public class SafeLocationFinder {
             } else {
                 int modePick = (yMode == OverworldYMode.HIGHEST_ONLY) ? 0 :
                         (yMode == OverworldYMode.RANDOM_ONLY) ? 1 :
-                                (java.util.concurrent.ThreadLocalRandom.current().nextDouble() < mixedFirstShare
+                                (ThreadLocalRandom.current().nextDouble() < mixedFirstShare
                                         ? (mixedFirstGroup == MixedFirstGroup.HIGHEST ? 0 : 1)
                                         : (mixedFirstGroup == MixedFirstGroup.HIGHEST ? 1 : 0));
                 if (modePick == 0) {
                     int hy = world.getHighestBlockYAt((int) Math.floor(x), (int) Math.floor(z));
                     y = clamp(hy + 1.0, minY, maxY);
                 } else {
-                    y = minY + java.util.concurrent.ThreadLocalRandom.current().nextDouble(Math.max(1.0, (maxY - minY)));
+                    y = minY + ThreadLocalRandom.current().nextDouble(Math.max(1.0, (maxY - minY)));
                 }
             }
             Location loc = new Location(world, x, y, z);
@@ -207,13 +210,14 @@ public class SafeLocationFinder {
     public static Location attemptFindSafeNearSingle(Location baseLocation,
                                                      int radius,
                                                      java.util.Set<org.bukkit.Material> groundWhitelist) {
+        totalSearches.incrementAndGet();
         return withWhitelist(groundWhitelist, () -> {
             if (baseLocation == null || baseLocation.getWorld() == null) return null;
             World world = baseLocation.getWorld();
             boolean isNether = world.getEnvironment() == World.Environment.NETHER;
 
-            double offsetX = java.util.concurrent.ThreadLocalRandom.current().nextDouble(-radius, radius);
-            double offsetZ = java.util.concurrent.ThreadLocalRandom.current().nextDouble(-radius, radius);
+            double offsetX = ThreadLocalRandom.current().nextDouble(-radius, radius);
+            double offsetZ = ThreadLocalRandom.current().nextDouble(-radius, radius);
             Location test = baseLocation.clone().add(offsetX, 0.0, offsetZ);
 
             double y;
@@ -353,7 +357,7 @@ public class SafeLocationFinder {
         return (v < min) ? min : (v > max) ? max : v;
     }
 
-    public static Location cachedFindSafeNear(Location base,
+    public static @Nullable Location cachedFindSafeNear(Location base,
                                               int radius,
                                               Set<Material> groundWhitelist,
                                               UUID playerId,
@@ -379,94 +383,20 @@ public class SafeLocationFinder {
 
         Location cached = CACHE.getIfPresent(key);
         if (cached != null) {
+            if (debugCache) {
+                MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] NEAR HIT " + typeTag + " @" + world + " (" + bx + "," + by + "," + bz + ")");
+            }
             return cached.clone();
+        }
+        if (debugCache) {
+            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] NEAR MISS " + typeTag + " @" + world + " (" + bx + "," + by + "," + bz + ")");
         }
 
         Location found = attemptFindSafeNearSingle(base, radius, groundWhitelist);
+        if (found != null) {
             CACHE.put(key, found.clone());
-        return found;
-    }
-
-    public static Location cachedFindSafeInRegion(World world,
-                                                  double minX, double maxX,
-                                                  double minY, double maxY,
-                                                  double minZ, double maxZ,
-                                                  Set<Material> groundWhitelist,
-                                                  UUID playerId,
-                                                  boolean playerSpecific,
-                                                  boolean enabled,
-                                                  String typeTag) {
-        if (!enabled || !cacheEnabled || CACHE == null || world == null) {
-            return attemptFindSafeInRegionSingle(world, minX, maxX, minY, maxY, minZ, maxZ, groundWhitelist);
         }
-
-        String wname = world.getName();
-        int kMinX = (int) Math.floor(Math.min(minX, maxX));
-        int kMaxX = (int) Math.floor(Math.max(minX, maxX));
-        int kMinY = (int) Math.floor(Math.min(minY, maxY));
-        int kMaxY = (int) Math.floor(Math.max(minY, maxY));
-        int kMinZ = (int) Math.floor(Math.min(minZ, maxZ));
-        int kMaxZ = (int) Math.floor(Math.max(minZ, maxZ));
-
-        CacheKey key = new CacheKey(
-                typeTag, wname,
-                0, 0, 0,
-                kMinX, kMaxX, kMinY, kMaxY, kMinZ, kMaxZ,
-                playerSpecific ? playerId : null,
-                playerSpecific
-        );
-
-        Location cached = CACHE.getIfPresent(key);
-        if (cached != null) {
-            return cached.clone();
-        }
-
-        Location found = attemptFindSafeInRegionSingle(world, minX, maxX, minY, maxY, minZ, maxZ, groundWhitelist);
-            CACHE.put(key, found.clone());
         return found;
-    }
-
-    // Invalidate helpers (key must match cachedFindSafeNear/Region)
-    public static void invalidateNearKey(Location base,
-                                         UUID playerId,
-                                         boolean playerSpecific,
-                                         String typeTag) {
-        if (CACHE == null || base == null || base.getWorld() == null) return;
-        CacheKey key = new CacheKey(
-                typeTag,
-                base.getWorld().getName(),
-                base.getBlockX(), base.getBlockY(), base.getBlockZ(),
-                0, 0, 0, 0, 0, 0,
-                playerSpecific ? playerId : null,
-                playerSpecific
-        );
-        CACHE.invalidate(key);
-    }
-
-    public static void invalidateRegionKey(World world,
-                                           double minX, double maxX,
-                                           double minY, double maxY,
-                                           double minZ, double maxZ,
-                                           UUID playerId,
-                                           boolean playerSpecific,
-                                           String typeTag) {
-        if (CACHE == null || world == null) return;
-        int kMinX = (int) Math.floor(Math.min(minX, maxX));
-        int kMaxX = (int) Math.floor(Math.max(minX, maxX));
-        int kMinY = (int) Math.floor(Math.min(minY, maxY));
-        int kMaxY = (int) Math.floor(Math.max(minY, maxY));
-        int kMinZ = (int) Math.floor(Math.min(minZ, maxZ));
-        int kMaxZ = (int) Math.floor(Math.max(minZ, maxZ));
-
-        CacheKey key = new CacheKey(
-                typeTag,
-                world.getName(),
-                0, 0, 0,
-                kMinX, kMaxX, kMinY, kMaxY, kMinZ, kMaxZ,
-                playerSpecific ? playerId : null,
-                playerSpecific
-        );
-        CACHE.invalidate(key);
     }
 
     // Cached region lookup with validation predicate:

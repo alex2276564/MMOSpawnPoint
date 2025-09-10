@@ -842,6 +842,7 @@ public class PartyManager {
     private Location findAlternativeTarget(Player player, Party party) {
         List<Player> list = new ArrayList<>(party.getOnlineMembers());
         list.remove(player);
+        Collections.shuffle(list); // randomize order for fairness
         int attempts = plugin.getConfigManager().getMainConfig().party.respawnBehavior.alternativeTargetAttempts;
         for (int i = 0; i < Math.min(attempts, list.size()); i++) {
             Player m = list.get(i);
@@ -860,6 +861,7 @@ public class PartyManager {
     private Location findAlternativeTargetForJoin(Player player, Party party) {
         List<Player> list = new ArrayList<>(party.getOnlineMembers());
         list.remove(player);
+        Collections.shuffle(list); // randomize
         int attempts = plugin.getConfigManager().getMainConfig().party.respawnBehavior.alternativeTargetAttempts;
         for (int i = 0; i < Math.min(attempts, list.size()); i++) {
             Player m = list.get(i);

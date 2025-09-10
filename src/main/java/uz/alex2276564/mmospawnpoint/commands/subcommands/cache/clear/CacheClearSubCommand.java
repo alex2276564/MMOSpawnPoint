@@ -1,5 +1,6 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.cache.clear;
 
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
@@ -17,10 +18,10 @@ public class CacheClearSubCommand implements NestedSubCommandProvider {
                 .description("Clear cache (all or for a specific player)")
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
                         .optional(null)
-                        .dynamicSuggestions(partial ->
+                        .dynamicSuggestions((CommandSender sender, String partial, String[] soFar) ->
                                 MMOSpawnPoint.getInstance().getServer().getOnlinePlayers().stream()
                                         .map(Player::getName)
-                                        .filter(n -> n.toLowerCase().startsWith(partial.toLowerCase()))
+                                        .filter(n -> partial == null || n.toLowerCase().startsWith(partial.toLowerCase()))
                                         .toList()))
                 .executor((sender, ctx) -> {
                     var plugin = MMOSpawnPoint.getInstance();

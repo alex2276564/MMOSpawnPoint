@@ -213,48 +213,48 @@ public class MessagesConfig extends OkaeriConfig {
     }
 
     public static class PartySection extends OkaeriConfig {
-        public String prefix = "<dark_gray>[<red>Death Party<dark_gray>] ";
+        public String prefix = "<dark_gray>[<red>Death Party<dark_gray>]";
 
         // Invite flow
-        public String inviteSent = prefix + "<gray>Soul bond invitation sent to <red><player>";
-        public String inviteReceived = prefix + "<gray><player> <gray>invites you to join their <red>death party<gray>. Type <white>/msp party accept <gray>to bind your souls";
-        public String invitationDeclined = prefix + "<green>You have rejected the call of darkness";
-        public String invitationDeclinedToLeader = prefix + "<red><player> <gray>has rejected your soul bond";
-        public String invitationExpiredOrInvalid = prefix + "<red>The soul bond has faded into the void";
-        public String inviteFailedPartyFull = prefix + "<red>The soul circle is complete - no room for more damned spirits";
-        public String inviteFailedAlreadyInParty = prefix + "<red>This soul is already bound to another death circle";
-        public String noInvitations = prefix + "<gray>No soul bonds await your decision";
-        public String inviteExpired = prefix + "<gray>The soul bond invitation has faded into darkness";
+        public String inviteSent = "<prefix> <gray>Soul bond invitation sent to <red><player>";
+        public String inviteReceived = "<prefix> <gray><player> <gray>invites you to join their <red>death party<gray>. Type <white>/msp party accept <gray>to bind your souls";
+        public String invitationDeclined = "<prefix> <green>You have rejected the call of darkness";
+        public String invitationDeclinedToLeader = "<prefix> <red><player> <gray>has rejected your soul bond";
+        public String invitationExpiredOrInvalid = "<prefix> <red>The soul bond has faded into the void";
+        public String inviteFailedPartyFull = "<prefix> <red>The soul circle is complete - no room for more damned spirits";
+        public String inviteFailedAlreadyInParty = "<prefix> <red>This soul is already bound to another death circle";
+        public String noInvitations = "<prefix> <gray>No soul bonds await your decision";
+        public String inviteExpired = "<prefix> <gray>The soul bond invitation has faded into darkness";
 
         // Join/Leave/Kick
-        public String joinedParty = prefix + "<green>Your soul has been bound to the death circle!";
-        public String playerJoinedParty = prefix + "<red><player><gray>'s soul has joined the death circle";
-        public String leftParty = prefix + "<green>Your soul has been freed from the death circle";
-        public String playerLeftParty = prefix + "<red><player><gray>'s soul has departed the death circle";
-        public String playerRemoved = prefix + "<red>Your soul has been cast out from the death circle";
-        public String playerRemovedFromParty = prefix + "<red><player> <gray>has been banished from the death circle";
-        public String cannotRemoveSelf = prefix + "<red>You cannot banish your own soul. Use <yellow>/msp party leave <red>to depart";
-        public String partyDisbanded = prefix + "<gray>The death party has dissolved into the void";
+        public String joinedParty = "<prefix> <green>Your soul has been bound to the death circle!";
+        public String playerJoinedParty = "<prefix> <red><player><gray>'s soul has joined the death circle";
+        public String leftParty = "<prefix> <green>Your soul has been freed from the death circle";
+        public String playerLeftParty = "<prefix> <red><player><gray>'s soul has departed the death circle";
+        public String playerRemoved = "<prefix> <red>Your soul has been cast out from the death circle";
+        public String playerRemovedFromParty = "<prefix> <red><player> <gray>has been banished from the death circle";
+        public String cannotRemoveSelf = "<prefix> <red>You cannot banish your own soul. Use <yellow>/msp party leave <red>to depart";
+        public String partyDisbanded = "<prefix> <gray>The death party has dissolved into the void";
 
         // Permissions/system
-        public String onlyPlayers = prefix + "<red>Only mortals can command the souls of darkness";
-        public String systemDisabled = prefix + "<red>The necromantic arts are forbidden in this realm";
-        public String notInParty = prefix + "<gray>Your soul walks alone in darkness";
-        public String notLeader = prefix + "<red>Only the death party leader can command the souls";
-        public String playerNotInYourParty = prefix + "<red>This soul is not bound to your death circle";
-        public String invalidRespawnMode = prefix + "<red>Unknown soul binding ritual. Use 'NORMAL' or 'PARTY_MEMBER'";
-        public String errorOccurred = prefix + "<red>Dark forces interfered with the ritual. Try again";
-        public String respawnedAtMember = prefix + "<gray>Your soul has been drawn to <red><player>'s <gray>essence";
-        public String respawnModeChanged = prefix + "<gray>Death party binding changed to: <red><mode>";
-        public String respawnTargetSet = prefix + "<gray>Your soul will now seek <red><player> <gray>in death";
-        public String respawnDisabledRegion = prefix + "<red>The necromantic bonds are severed in this sacred ground";
-        public String respawnDisabledWorld = prefix + "<red>Death party bonds cannot pierce this realm's barriers";
-        public String respawnCooldown = prefix + "<gray>Your soul must rest for <red><time> <gray>seconds before the next summoning";
-        public String walkingSpawnPointMessage = prefix + "<dark_gray>[<red>Death<dark_gray>] <gray>You have risen at your death location as a <red>walking spawn point<gray>.";
-        public String walkingSpawnPointRestricted = prefix + "<dark_gray>[<red>Death<dark_gray>] <red>Dark forces prevent you from rising here...";
-        public String alreadyLeader = prefix + "<red>You already command the death party, dark lord";
-        public String newLeaderAssigned = prefix + "<red><player> <gray>now commands the death party";
-        public String respawnTooFar = prefix + "<red>You are too far from your party member to respawn there.";
+        public String onlyPlayers = "<prefix> <red>Only mortals can command the souls of darkness";
+        public String systemDisabled = "<prefix> <red>The necromantic arts are forbidden in this realm";
+        public String notInParty = "<prefix> <gray>Your soul walks alone in darkness";
+        public String notLeader = "<prefix> <red>Only the death party leader can command the souls";
+        public String playerNotInYourParty = "<prefix> <red>This soul is not bound to your death circle";
+        public String invalidRespawnMode = "<prefix> <red>Unknown soul binding ritual. Use 'NORMAL' or 'PARTY_MEMBER'";
+        public String errorOccurred = "<prefix> <red>Dark forces interfered with the ritual. Try again";
+        public String respawnedAtMember = "<prefix> <gray>Your soul has been drawn to <red><player>'s <gray>essence";
+        public String respawnModeChanged = "<prefix> <gray>Death party binding changed to: <red><mode>";
+        public String respawnTargetSet = "<prefix> <gray>Your soul will now seek <red><player> <gray>in death";
+        public String respawnDisabledRegion = "<prefix> <red>The necromantic bonds are severed in this sacred ground";
+        public String respawnDisabledWorld = "<prefix> <red>Death party bonds cannot pierce this realm's barriers";
+        public String respawnCooldown = "<prefix> <gray>Your soul must rest for <red><time> <gray>seconds before the next summoning";
+        public String walkingSpawnPointMessage = "<prefix> <dark_gray>[<red>Death<dark_gray>] <gray>You have risen at your death location as a <red>walking spawn point<gray>.";
+        public String walkingSpawnPointRestricted = "<prefix> <dark_gray>[<red>Death<dark_gray>] <red>Dark forces prevent you from rising here...";
+        public String alreadyLeader = "<prefix> <red>You already command the death party, dark lord";
+        public String newLeaderAssigned = "<prefix> <red><player> <gray>now commands the death party";
+        public String respawnTooFar = "<prefix> <red>You are too far from your party member to respawn there.";
 
         // List command
         public String listHeader = "<dark_gray>[<red>Bound Souls<dark_gray>]";

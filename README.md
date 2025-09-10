@@ -305,6 +305,17 @@ The `requireSafe` option should be set to `false` for known safe locations to im
 **Region Entry vs Respawn**: 
 - MMOSpawnPoint only handles player respawning after death, not entry into regions or worlds. For region entry commands, use WorldGuard flags like `entry-command` or `entry-deny`.
 
+**This plugin uses a batched safe-search approach**:
+- Paper: N attempts per tick on the main thread within a configurable time budget. The search is spread across ticks (partial async feeling, no big stalls).
+- Folia: exactly one attempt per tick scheduled on the correct region thread (true region-aware parallelism).
+- Teleport to the waiting room happens immediately (if requireSafe=true), while the actual safe spot is being searched in the background.
+
+**About cache “near” searches**:
+- For fixed-point requireSafe=true searches (near X/Z), the cache key does not include the current radius. If radius expands over time, the cache still reuses the location found with the previous radius. This is a stability/performance optimization.
+
+###  Party self-invite
+The plugin allows inviting yourself. This is intentional: it lets a single player form a party quickly (e.g., to use the walking spawn point feature) without logging a second account.
+
 ### Waiting Room Design Considerations
 
 The waiting room feature is not just a temporary holding area - it's a fallback spawn location where players might remain if:

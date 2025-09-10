@@ -38,7 +38,7 @@ public class PlayerQuitListener implements Listener {
         }
 
         // Clean up safe location cache for this player
-        if (plugin.getConfigManager().getMainConfig().settings.safeLocationCache.advanced.clearPlayerCacheOnWorldChange) {
+        if (plugin.getConfigManager().getMainConfig().settings.safeLocationCache.advanced.clearPlayerCacheOnQuit) {
             SafeLocationFinder.clearPlayerCache(player.getUniqueId());
         }
     }
