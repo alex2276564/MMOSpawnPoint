@@ -1,7 +1,6 @@
 package uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig;
 
 import eu.okaeri.configs.OkaeriConfig;
-import eu.okaeri.configs.annotation.Comment;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,10 +11,10 @@ import java.util.List;
  */
 public class SpawnPointsConfig extends OkaeriConfig {
 
-    @Comment("Unified spawn rules list")
+    // Unified spawn rules list
     public List<SpawnPointEntry> spawns = new ArrayList<>();
 
-    // ---------- DSL ENUMS ----------
+    // ========== DSL ENUMS ==========
 
     public enum Phase {
         BEFORE,
@@ -23,96 +22,96 @@ public class SpawnPointsConfig extends OkaeriConfig {
         AFTER
     }
 
-    // ---------- DSL SHARED TYPES ----------
+    // ========== DSL SHARED TYPES ==========
 
     public static class AxisSpec extends OkaeriConfig {
-        @Comment("Fixed value for this axis")
+        // Fixed value for this axis
         public Double value;
 
-        @Comment("Minimum bound (strictly less than max)")
+        // Minimum bound (strictly less than max)
         public Double min;
 
-        @Comment("Maximum bound (strictly greater than min)")
+        // Maximum bound (strictly greater than min)
         public Double max;
 
-        public boolean isValue() {
+        public boolean Value() {
             return value != null && min == null && max == null;
         }
 
-        public boolean isRange() {
+        public boolean Range() {
             return value == null && min != null && max != null;
         }
     }
 
     public static class MessageEntry extends OkaeriConfig {
-        @Comment("Message text (MiniMessage supported)")
+        // Message text (MiniMessage supported)
         public String text;
 
-        @Comment("Chance to send this message (0-100)")
+        // Chance to send this message (0-100)
         public int chance = 100;
 
-        @Comment("Phases when to execute this message: BEFORE, WAITING_ROOM, AFTER")
+        // Phases when to execute this message: BEFORE, WAITING_ROOM, AFTER
         public List<Phase> phases = new ArrayList<>(List.of(Phase.AFTER));
 
-        @Comment("Conditional chances (permission/placeholder)")
+        // Conditional chances (permission/placeholder)
         public List<ChanceConditionEntry> chanceConditions = new ArrayList<>();
     }
 
     public static class ActionsConfig extends OkaeriConfig {
-        @Comment("Messages to send")
+        // Messages to send
         public List<MessageEntry> messages = new ArrayList<>();
 
-        @Comment("Commands to execute")
+        // Commands to execute
         public List<CommandActionEntry> commands = new ArrayList<>();
     }
 
     public static class CommandActionEntry extends OkaeriConfig {
-        @Comment("Command to execute (without leading slash)")
+        // Command to execute (without leading slash)
         public String command;
 
-        @Comment("Chance to execute this command (0-100)")
+        // Chance to execute this command (0-100)
         public int chance = 100;
 
-        @Comment("Phases when to execute this command: BEFORE, WAITING_ROOM, AFTER")
+        // Phases when to execute this command: BEFORE, WAITING_ROOM, AFTER
         public List<Phase> phases = new ArrayList<>(List.of(Phase.AFTER));
 
-        @Comment("Conditional chances based on player conditions")
+        // Conditional chances based on player conditions
         public List<ChanceConditionEntry> chanceConditions = new ArrayList<>();
     }
 
     public static class ChanceConditionEntry extends OkaeriConfig {
-        @Comment("Condition type: permission or placeholder")
+        // Condition type: permission or placeholder
         public String type;
 
-        @Comment("Condition value (permission node or placeholder expression)")
+        // Condition value (permission node or placeholder expression)
         public String value;
 
-        @Comment("Mode: set | add | mul (default: set)")
+        // Mode: set | add | mul (default: set)
         public String mode = "set";
 
-        @Comment("Value to apply based on mode. For set: 0..100; add: +/-delta; mul: multiplier (e.g., 2)")
+        // Value to apply based on mode. For set: 0..100; add: +/-delta; mul: multiplier (e.g., 2)
         public int weight = 100;
     }
 
     public static class WeightConditionEntry extends OkaeriConfig {
-        @Comment("Condition type: permission or placeholder")
+        // Condition type: permission or placeholder
         public String type;
 
-        @Comment("Condition value (permission node or placeholder expression)")
+        // Condition value (permission node or placeholder expression)
         public String value;
 
-        @Comment("Mode: set | add | mul (default: set)")
+        // Mode: set | add | mul (default: set)
         public String mode = "set";
 
-        @Comment("Value to apply based on mode. For set: final weight; add: +/-delta; mul: multiplier")
+        // Value to apply based on mode. For set: final weight; add: +/-delta; mul: multiplier
         public int weight = 100;
     }
 
     public static class ConditionsConfig extends OkaeriConfig {
-        @Comment("Permission conditions (supports full expressions with parentheses)")
+        // Permission conditions (supports full expressions with parentheses)
         public List<String> permissions = new ArrayList<>();
 
-        @Comment("PlaceholderAPI conditions (supports full expressions with parentheses)")
+        // PlaceholderAPI conditions (supports full expressions with parentheses)
         public List<String> placeholders = new ArrayList<>();
     }
 
@@ -125,126 +124,160 @@ public class SpawnPointsConfig extends OkaeriConfig {
         public float pitch = 0;
     }
 
-    public static class LocationOption extends OkaeriConfig {
-        @Comment("Destination world")
-        public String world = "world";
-
-        @Comment("Whether safe block checking is required for this destination")
-        public boolean requireSafe = false;
-
-        @Comment("X axis spec (value or range)")
-        public AxisSpec x;
-
-        @Comment("Y axis spec (value or range)")
-        public AxisSpec y;
-
-        @Comment("Z axis spec (value or range)")
-        public AxisSpec z;
-
-        @Comment("Yaw spec (value or range)")
-        public AxisSpec yaw;
-
-        @Comment("Pitch spec (value or range)")
-        public AxisSpec pitch;
-
-        @Comment("Optional list of rectangles to pick from (overrides x/y/z axis specs)")
-        public List<RectSpec> rects = new ArrayList<>();
-
-        @Comment("Optional exclusion rectangles (applied for safe search)")
-        public List<RectSpec> excludeRects = new ArrayList<>();
-
-        @Comment("Weight for weighted selection (higher = more likely)")
-        public int weight = 100;
-
-        @Comment("Conditional weight adjustments based on player conditions")
-        public List<WeightConditionEntry> weightConditions = new ArrayList<>();
-
-        @Comment("Custom waiting room for this destination (overrides entry/global)")
-        public WaitingRoomConfig waitingRoom;
-
-        @Comment("Actions specific to this destination")
-        public ActionsConfig actions = new ActionsConfig();
-
-        @Comment("Order of local vs global actions inside a phase: before, after, instead")
-        public String actionExecutionMode = "before";
-
-        @Comment("Per-entry ground whitelist (allowed blocks under feet)")
-        public List<String> groundWhitelist = new ArrayList<>();
+    public static class PartyRule extends OkaeriConfig {
+        public boolean respawnDisabled = false;
+        // future: Integer respawnCooldownOverride, String modeOverride, etc.
     }
 
-    // ---------- MATCHING TYPES ----------
+    // Per-destination Y-selection override
+    public static class YSelectionOverride extends OkaeriConfig {
+        // Mode: 'mixed'|'highest_only'|'random_only' or 'scan' (Nether only)
+        public String mode;
 
-    public static class TriggerArea extends OkaeriConfig {
-        @Comment("World name (or pattern controlled by worldMatchMode)")
+        // For 'mixed' only: first group and share
+        public String first;      // 'highest' | 'random'
+        public double firstShare = 0.6; // [0..1]
+
+        // Nether-specific: whether scan should respect destination Y-range (rects)
+        public Boolean respectRange; // optional; only meaningful for nether+scan
+    }
+
+    // Per-destination cache override
+    public static class CacheOverride extends OkaeriConfig {
+        // override global enabled
+        public Boolean enabled;
+
+        // override global playerSpecific
+        public Boolean playerSpecific;
+    }
+
+    public static class Destination extends OkaeriConfig {
+        // Destination world
         public String world = "world";
 
-        @Comment("Match mode for 'world': exact or regex")
-        public String worldMatchMode = "exact";
+        // Whether safe block checking is required for this destination
+        public boolean requireSafe = false;
 
-        @Comment("X axis trigger (value or range). If null -> no constraint on X")
+        // X axis spec (value or range)
         public AxisSpec x;
 
-        @Comment("Y axis trigger (value or range). If null -> no constraint on Y")
+        // Y axis spec (value or range)
         public AxisSpec y;
 
-        @Comment("Z axis trigger (value or range). If null -> no constraint on Z")
+        // Z axis spec (value or range)
         public AxisSpec z;
 
-        @Comment("Optional list of include rectangles")
+        // Yaw spec (value or range)
+        public AxisSpec yaw;
+
+        // Pitch spec (value or range)
+        public AxisSpec pitch;
+
+        // Optional list of rectangles to pick from (overrides x/y/z axis specs)
         public List<RectSpec> rects = new ArrayList<>();
-        @Comment("Optional list of exclude rectangles")
+
+        // Optional exclusion rectangles (applied for safe search)
+        public List<RectSpec> excludeRects = new ArrayList<>();
+
+        // Weight for weighted selection (higher = more likely)
+        public int weight = 100;
+
+        // Conditional weight adjustments based on player conditions
+        public List<WeightConditionEntry> weightConditions = new ArrayList<>();
+
+        // Custom waiting room for this destination (overrides entry/global)
+        public WaitingRoomConfig waitingRoom;
+
+        // Actions specific to this destination
+        public ActionsConfig actions = new ActionsConfig();
+
+        // Order of local vs global actions inside a phase: before, after, instead
+        public String actionExecutionMode = "before";
+
+        // Optional per-destination override
+        public YSelectionOverride ySelection;
+
+        // Per-entry ground whitelist (allowed blocks under feet)
+        public List<String> groundWhitelist = new ArrayList<>();
+
+        // Optional per-destination cache override
+        public CacheOverride cache;
+    }
+
+    // ========== MATCHING TYPES ==========
+
+    public static class TriggerArea extends OkaeriConfig {
+        // World name (or pattern controlled by worldMatchMode)
+        public String world = "world";
+
+        // Match mode for 'world': exact or regex
+        public String worldMatchMode = "exact";
+
+        // X axis trigger (value or range). If null -> no constraint on X
+        public AxisSpec x;
+
+        // Y axis trigger (value or range). If null -> no constraint on Y
+        public AxisSpec y;
+
+        // Z axis trigger (value or range). If null -> no constraint on Z
+        public AxisSpec z;
+
+        // Optional list of include rectangles
+        public List<RectSpec> rects = new ArrayList<>();
+
+        // Optional list of exclude rectangles
         public List<RectSpec> excludeRects = new ArrayList<>();
     }
 
     public static class SpawnPointEntry extends OkaeriConfig {
-        @Comment("Match type: region | world | coordinate")
+        // Match type: region | world | coordinate
         public String kind = "region";
 
-        @Comment("Event type: death | join | both")
+        // Event type: death | join | both
         public String event = "death";
 
-        @Comment("Priority for this specific spawn point (0-9999). If null -> uses defaults by kind from main config")
+        // Priority for this specific spawn point (0-9999). If null -> uses defaults by kind from main config
         public Integer priority;
 
-        // REGION matching
-        @Comment("WorldGuard region id or pattern (used if kind=region)")
+        // ========== REGION MATCHING ==========
+        // WorldGuard region id or pattern (used if kind=region)
         public String region;
 
-        @Comment("Match mode for 'region': exact | regex")
+        // Match mode for 'region': exact | regex
         public String regionMatchMode = "exact";
 
-        @Comment("World name or pattern for the region (used if kind=region). If null -> any world")
+        // World name or pattern for the region (used if kind=region). If null -> any world
         public String regionWorld;
 
-        @Comment("Match mode for 'regionWorld': exact | regex")
+        // Match mode for 'regionWorld': exact | regex
         public String regionWorldMatchMode = "exact";
 
-        // WORLD matching
-        @Comment("World name or pattern (used if kind=world)")
+        // ========== WORLD MATCHING ==========
+        // World name or pattern (used if kind=world)
         public String world;
 
-        @Comment("Match mode for 'world': exact | regex")
+        // Match mode for 'world': exact | regex
         public String worldMatchMode = "exact";
 
-        // COORDINATE matching
-        @Comment("Trigger area (used if kind=coordinate)")
+        // ========== COORDINATE MATCHING ==========
+        // Trigger area (used if kind=coordinate)
         public TriggerArea triggerArea;
 
-        // COMMON data
-        @Comment("Destinations list. Empty = actions only (no teleport)")
-        public List<LocationOption> destinations = new ArrayList<>();
+        // ========== COMMON DATA ==========
+        // Destinations list. Empty = actions only (no teleport)
+        public List<Destination> destinations = new ArrayList<>();
 
-        @Comment("Conditions that must be met for this spawn to be used")
+        // Conditions that must be met for this spawn to be used
         public ConditionsConfig conditions = new ConditionsConfig();
 
-        @Comment("Actions to execute when this spawn is used")
+        // Actions to execute when this spawn is used
         public ActionsConfig actions = new ActionsConfig();
 
-        @Comment("Custom waiting room for this spawn point (overrides global)")
+        // Custom waiting room for this spawn point (overrides global)
         public WaitingRoomConfig waitingRoom;
 
-        @Comment("Whether party respawn is disabled for this spawn point")
-        public boolean partyRespawnDisabled = false;
+        // nullable; if null – no special party rules
+        public PartyRule party;
     }
 
     public static class RectSpec extends OkaeriConfig {

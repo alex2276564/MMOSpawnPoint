@@ -68,7 +68,7 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
                     Player targetPlayer = context.getArgument("player");
 
                     // Check if target is in the party
-                    if (party.isNotMember(targetPlayer.getUniqueId())) {
+                    if (!party.isMember(targetPlayer.getUniqueId())) {
                         plugin.getMessageManager().sendMessageKeyed(player, "party.playerNotInYourParty",
                                 plugin.getConfigManager().getMessagesConfig().party.playerNotInYourParty);
                         return;

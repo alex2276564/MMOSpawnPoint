@@ -69,6 +69,8 @@ public interface MessageManager {
     void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message, @NotNull String placeholder, @NotNull String replacement);
     void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message);
     void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message, @NotNull String placeholder, @NotNull String replacement);
+    void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message, @NotNull Map<String, String> placeholders);
+    void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message, @NotNull Map<String, String> placeholders);
 
     // Configure provider for disabledKeys (from messages.yml)
     void configureDisabledKeysProvider(@NotNull Supplier<Set<String>> disabledKeysSupplier);

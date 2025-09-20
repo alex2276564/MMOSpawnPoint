@@ -28,7 +28,7 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "commands.help.partyLine", commands.help.partyLine, "Help party line cannot be empty");
         Validators.notBlank(result, "commands.help.simulateLine", commands.help.simulateLine, "Help simulate line cannot be empty");
         Validators.notBlank(result, "commands.help.cacheLine", commands.help.cacheLine, "Help cache line cannot be empty");
-        Validators.notBlank(result, "commands.help.setspawnpointLine", commands.help.setspawnpointLine, "Help setspawnpoint line cannot be empty");
+        Validators.notBlank(result, "commands.help.spawnpointLine", commands.help.spawnpointLine, "Help spawnpoint line cannot be empty");
         Validators.notBlank(result, "commands.help.helpLine", commands.help.helpLine, "Help help line cannot be empty");
 
         // commands.reload
@@ -41,17 +41,54 @@ public class MessagesConfigValidator {
             result.addError("commands.reload.error", "Reload error message must contain <error> placeholder");
         }
 
-        var s = commands.setspawnpoint;
-        Validators.notBlank(result, "commands.setspawnpoint.consoleUsage", s.consoleUsage, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.selfSuccess", s.selfSuccess, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.otherSuccess", s.otherSuccess, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.targetNotification", s.targetNotification, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.failed", s.failed, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.invalidWorld", s.invalidWorld, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.invalidCoords", s.invalidCoords, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.playerNotFound", s.playerNotFound, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.consoleNeedsCoords", s.consoleNeedsCoords, "Cannot be empty");
-        Validators.notBlank(result, "commands.setspawnpoint.consoleNeedsPlayer", s.consoleNeedsPlayer, "Cannot be empty");
+        // commands.spawnpoint
+        var sp = commands.spawnpoint;
+
+        // help
+        Validators.notBlank(result, "commands.spawnpoint.help.header", sp.help.header, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.help.setLine", sp.help.setLine, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.help.clearLine", sp.help.clearLine, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.help.teleportLine", sp.help.teleportLine, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.help.showLine", sp.help.showLine, "Cannot be empty");
+
+        // set
+        Validators.notBlank(result, "commands.spawnpoint.set.consoleUsage", sp.set.consoleUsage, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.selfSuccess", sp.set.selfSuccess, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.otherSuccess", sp.set.otherSuccess, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.targetNotification", sp.set.targetNotification, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.failed", sp.set.failed, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.error", sp.set.error, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.invalidWorld", sp.set.invalidWorld, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.invalidCoords", sp.set.invalidCoords, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.playerNotFound", sp.set.playerNotFound, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.skippedIfHas", sp.set.skippedIfHas, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.skippedIfMissing", sp.set.skippedIfMissing, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.skippedIfCorrect", sp.set.skippedIfCorrect, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.skippedNoValidBed", sp.set.skippedNoValidBed, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.dryRun", sp.set.dryRun, "Cannot be empty");
+
+        // clear
+        Validators.notBlank(result, "commands.spawnpoint.clear.consoleNeedsPlayer", sp.clear.consoleNeedsPlayer, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.successSelf", sp.clear.successSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.successOther", sp.clear.successOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.targetNotified", sp.clear.targetNotified, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.noSpawn", sp.clear.noSpawn, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.failed", sp.clear.failed, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.dryRun", sp.clear.dryRun, "Cannot be empty");
+
+        // teleport
+        Validators.notBlank(result, "commands.spawnpoint.teleport.consoleNeedsPlayer", sp.teleport.consoleNeedsPlayer, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.successSelf", sp.teleport.successSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.successOther", sp.teleport.successOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.targetNotified", sp.teleport.targetNotified, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.noSpawn", sp.teleport.noSpawn, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.noSpawnOther", sp.teleport.noSpawnOther, "Cannot be empty");
+
+        // show
+        Validators.notBlank(result, "commands.spawnpoint.show.consoleNeedsPlayer", sp.show.consoleNeedsPlayer, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.show.noSpawn", sp.show.noSpawn, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.show.noSpawnOther", sp.show.noSpawnOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.show.line", sp.show.line, "Cannot be empty");
 
         var sim = commands.simulate;
         Validators.notBlank(result, "commands.simulate.helpHeader", sim.helpHeader, "Simulate help header cannot be empty");
@@ -210,6 +247,7 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.options.header", options.header, "Options header cannot be empty");
         Validators.notBlank(result, "party.options.respawnMode", options.respawnMode, "Options respawn mode cannot be empty");
         Validators.notBlank(result, "party.options.respawnTarget", options.respawnTarget, "Options respawn target cannot be empty");
+        Validators.notBlank(result, "party.options.respawnTargetNotFound", options.respawnTargetNotFound, "Options respawn target not found cannot be empty");
         Validators.notBlank(result, "party.options.separator", options.separator, "Options separator cannot be empty");
         Validators.notBlank(result, "party.options.modeHelp", options.modeHelp, "Options mode help cannot be empty");
         Validators.notBlank(result, "party.options.targetHelp", options.targetHelp, "Options target help cannot be empty");

@@ -9,6 +9,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.events.MSPPreTeleportEvent;
 
 public class PlayerJoinListener implements Listener {
     private final MMOSpawnPoint plugin;
@@ -30,9 +31,8 @@ public class PlayerJoinListener implements Listener {
 
             // Notify the player that join teleport is skipped because they are dead
             String skipped = plugin.getConfigManager().getMessagesConfig().join.skippedDead;
-            if (skipped != null && !skipped.isEmpty()) {
-                plugin.getMessageManager().sendMessageKeyed(player, "join.skippedDead", skipped);
-            }
+            plugin.getMessageManager().sendMessageKeyed(player, "join.skippedDead", skipped);
+
 
             return;
         }
@@ -44,13 +44,12 @@ public class PlayerJoinListener implements Listener {
             plugin.getLogger().info("Party system active for joins, processing party join spawn for " + player.getName());
         }
 
-
         // Handle resource pack waiting
         if (plugin.getConfigManager().getMainConfig().join.waitForResourcePack) {
             handleResourcePackWait(player);
         } else {
-            // Process join spawn immediately
-            plugin.getRunner().runGlobalLater(() -> {
+            // Process join spawn on entity thread next tick
+            plugin.getRunner().runAtEntityLater(player, () -> {
                 if (player.isOnline() && !player.isDead()) {
                     processJoinSpawn(player);
                 }
@@ -82,7 +81,7 @@ public class PlayerJoinListener implements Listener {
 
         // Set timeout
         int timeout = plugin.getConfigManager().getMainConfig().join.resourcePackTimeout;
-        plugin.getRunner().runGlobalLater(() -> {
+        plugin.getRunner().runAtEntityLater(player, () -> {
             if (player.isOnline() && resourcePackListener != null &&
                     resourcePackListener.isWaitingForResourcePack(player.getUniqueId())) {
 
@@ -90,7 +89,7 @@ public class PlayerJoinListener implements Listener {
                 resourcePackListener.removeWaitingPlayer(player.getUniqueId());
 
                 String timeoutMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.timeout;
-                if (!timeoutMessage.isEmpty()) {
+                if (timeoutMessage != null && !timeoutMessage.isEmpty()) {
                     plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.timeout", timeoutMessage);
                 }
 
@@ -99,7 +98,7 @@ public class PlayerJoinListener implements Listener {
                     processJoinSpawn(player);
                 }
             }
-        }, timeout * 20L); // Convert seconds to ticks
+        }, timeout * 20L);  // Convert seconds to ticks
     }
 
     private void moveToWaitingRoom(Player player) {
@@ -110,30 +109,54 @@ public class PlayerJoinListener implements Listener {
         // Get global waiting room location
         var waitingRoomConfig = plugin.getConfigManager().getMainConfig().settings.waitingRoom.location;
         World world = Bukkit.getWorld(waitingRoomConfig.world);
-
-        if (world != null) {
-            Location waitingRoom = new org.bukkit.Location(
-                    world,
-                    waitingRoomConfig.x,
-                    waitingRoomConfig.y,
-                    waitingRoomConfig.z,
-                    waitingRoomConfig.yaw,
-                    waitingRoomConfig.pitch
-            );
-
-            plugin.getRunner().teleportAsync(player, waitingRoom)
-                    .thenAccept(success -> {
-                        if (Boolean.TRUE.equals(success)) {
-                            String waitingMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.waitingInRoom;
-                            if (!waitingMessage.isEmpty()) {
-                                plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waitingInRoom", waitingMessage);
-                            }
-                            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                                plugin.getLogger().info("Moved " + player.getName() + " to waiting room for resource pack");
-                            }
-                        }
-                    });
+        if (world == null) {
+            return;
         }
+
+        Location target = new Location(
+                world,
+                waitingRoomConfig.x,
+                waitingRoomConfig.y,
+                waitingRoomConfig.z,
+                waitingRoomConfig.yaw,
+                waitingRoomConfig.pitch
+        );
+
+        plugin.getRunner().runAtEntity(player, () -> {
+            if (!player.isOnline()) return;
+
+            Location from = player.getLocation().clone();
+
+            // PRE
+            MSPPreTeleportEvent pre = new MSPPreTeleportEvent(
+                    player, "join", "WAITING_ROOM", from, target.clone()
+            );
+            Bukkit.getPluginManager().callEvent(pre);
+            if (pre.isCancelled()) return;
+
+            Location to = pre.getTo();
+
+            plugin.getRunner().teleportAsync(player, to).thenAccept(success -> {
+                if (!Boolean.TRUE.equals(success)) return;
+
+                // POST
+                plugin.getRunner().runAtEntity(player, () -> {
+                    uz.alex2276564.mmospawnpoint.events.MSPPostTeleportEvent post =
+                            new uz.alex2276564.mmospawnpoint.events.MSPPostTeleportEvent(
+                                    player, "join", "WAITING_ROOM", from, to
+                            );
+                    Bukkit.getPluginManager().callEvent(post);
+
+                    String waitingMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.waitingInRoom;
+                    if (!waitingMessage.isEmpty()) {
+                        plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waitingInRoom", waitingMessage);
+                    }
+                    if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                        plugin.getLogger().info("Moved " + player.getName() + " to waiting room for resource pack");
+                    }
+                });
+            });
+        });
     }
 
     private void processJoinSpawn(Player player) {

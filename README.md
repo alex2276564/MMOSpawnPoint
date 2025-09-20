@@ -10,7 +10,7 @@
 
 ## ✨ Features
 
-* **Advanced Spawn Types:** Configure fixed, random, weighted random, or safe location search spawn points
+* **Advanced Spawn Types:** Configure fixed, random, multiple random, or safe location search spawn points
 * **Region-Based Spawns:** Set different spawn points for different WorldGuard regions with regex pattern matching
 * **World-Based Spawns:** Configure unique spawn points for each world with pattern support
 * **Coordinate-Based Spawns:** Define precise trigger areas with flexible axis constraints
@@ -57,7 +57,6 @@ MMOSpawnPoint supports both the full command `/mmospawnpoint` and the shorter al
 - `/msp party options target <player>` - Set party respawn target (requires `mmospawnpoint.party.options.target`)
 
 ### Admin & Debug Commands
-- `/msp setspawnpoint [player] [world] [x] [y] [z] [yaw] [pitch]` - Set vanilla respawn point (requires `mmospawnpoint.setspawnpoint`)
 - `/msp simulate` - Show simulation help (requires `mmospawnpoint.simulate`)
 - `/msp simulate death [player]` - Simulate death respawn (requires `mmospawnpoint.simulate.death`)
 - `/msp simulate join [player]` - Simulate join teleport (requires `mmospawnpoint.simulate.join`)
@@ -65,16 +64,25 @@ MMOSpawnPoint supports both the full command `/mmospawnpoint` and the shorter al
 - `/msp cache` - Show cache help (requires `mmospawnpoint.cache`)
 - `/msp cache stats` - View cache statistics (requires `mmospawnpoint.cache.stats`)
 - `/msp cache clear [player]` - Clear cache (requires `mmospawnpoint.cache.clear`)
+- `/msp spawnpoint set [player] <world> <x> <y> <z> [yaw] [pitch] [--if-has|--if-missing] [--only-if-incorrect] [--require-valid-bed] [--dry-run]` — Set bed/anchor spawn (requires mmospawnpoint.spawnpoint.set)
+- `/msp spawnpoint clear [player] [--if-has] [--dry-run]` — Clear bed/anchor spawn (requires mmospawnpoint.spawnpoint.clear)
+- `/msp spawnpoint teleport [player]`— Teleport to bed/anchor spawn (requires mmospawnpoint.spawnpoint.teleport)
+- `/msp spawnpoint show [player]` — Show bed/anchor spawn; includes clickable teleport (requires mmospawnpoint.spawnpoint.show)
+
+- Differences from vanilla /spawnpoint and /msp spawnpoint commands:
+    - Works consistently on 1.16.5+ with conditional flags (--if-has, --if-missing, --only-if-incorrect, --require-valid-bed, --dry-run)
+    - Automatically loads destination chunk at async before teleport
+    - Pitch support: vanilla /spawnpoint gained per-dimension worldspawn pitch only in 1.21.9+; with MSP you can store and report yaw/pitch in legacy; however, note that vanilla bed/anchor respawn may ignore yaw/pitch — MSP can adjust orientation on final teleport (when MSP handles respawn), but not on pure vanilla respawn
 
 ### All Available Permissions
 
 ```text
 # Basic Access
-mmospawnpoint.command                   # Basic command access
+mmospawnpoint.command                    # Basic command access
 mmospawnpoint.reload                    # Reload configurations
 
 # Party System
-mmospawnpoint.party                     # Basic party commands
+mmospawnpoint.party                      # Basic party commands
 mmospawnpoint.party.invite              # Invite players to party
 mmospawnpoint.party.accept              # Accept party invitations
 mmospawnpoint.party.deny                # Decline party invitations
@@ -87,18 +95,22 @@ mmospawnpoint.party.options.mode        # Change party respawn mode
 mmospawnpoint.party.options.target      # Set party respawn target
 
 # Advanced Party Features
-mmospawnpoint.party.respawnatdeath      # Walking spawn point ability
+mmospawnpoint.party.deathLocationSpawn  # Walking spawn point ability
 
 # Admin Tools
-mmospawnpoint.setspawnpoint             # Set vanilla respawn points
-mmospawnpoint.simulate                  # Access simulation tools
+mmospawnpoint.simulate                   # Access simulation tools
 mmospawnpoint.simulate.death            # Simulate death respawn
 mmospawnpoint.simulate.join             # Simulate join teleport
 mmospawnpoint.simulate.back             # Return to pre-simulation location
 mmospawnpoint.simulate.others           # Simulate for other players
-mmospawnpoint.cache                     # Access cache tools
+mmospawnpoint.cache                      # Access cache tools
 mmospawnpoint.cache.stats               # View cache statistics
 mmospawnpoint.cache.clear               # Clear cache
+mmospawnpoint.spawnpoint                 # Base node for /msp spawnpoint
+mmospawnpoint.spawnpoint.set            # Set bed/anchor spawn
+mmospawnpoint.spawnpoint.clear          # Clear bed/anchor spawn
+mmospawnpoint.spawnpoint.teleport       # Teleport to bed/anchor spawn
+mmospawnpoint.spawnpoint.show           # Show bed/anchor spawn
 
 # Bypass Permissions
 mmospawnpoint.bypass.party.cooldown                    # Bypass party respawn cooldown
@@ -107,6 +119,21 @@ mmospawnpoint.bypass.party.restrictions.target         # Bypass target location 
 mmospawnpoint.bypass.party.restrictions.both           # Bypass both location restrictions
 mmospawnpoint.bypass.party.walking.restrictions        # Bypass walking spawn restrictions
 ```
+
+## 🤖 AI-assisted configuration (optional)
+If you plan to use an AI assistant (e.g., DeepSeek, Grok, etc.) to speed up and structure your spawn rules, we strongly recommend feeding it these three files first (as context):
+- Your config.yml
+- README (plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/README.md?plain=1
+- Examples (plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/src/main/resources/examples.txt
+
+Once the AI has this context, you can ask it to draft spawnpoints tailored to your worlds/regions:
+- Tell it your world names, region names, and event types (death/join/both).
+- Prefer explicit rules over regex unless truly necessary.
+- Ask it to include: priority, requireSafe, waitingRoom, rects/excludeRects, weightConditions (permission/placeholder), and actions with phases (BEFORE/WAITING_ROOM/AFTER).
+- Always validate the result:
+    - YAML: [yamllint.com](http://www.yamllint.com/)
+    - In-game: /msp simulate death and /msp simulate join
+- Keep a low-priority global fallback to catch edge cases.
 
 ## 🔄 How It Works
 
@@ -210,9 +237,9 @@ mmospawnpoint.bypass.party.cooldown
 #### Administrators
 ```text
 mmospawnpoint.reload
-mmospawnpoint.setspawnpoint
 mmospawnpoint.simulate.*
 mmospawnpoint.cache.*
+mmospawnpoint.spawnpoint.*
 ```
 
 ### 💰 Monetization & Player Progression
@@ -271,6 +298,73 @@ spawns:
 
 **Safe approach:** Only modify default values if you fully understand how they might affect installed maps. Consider creating separate configuration files for different map areas instead of changing global defaults.
 
+### Vanilla vs MMOSpawnPoint Respawn Mechanics
+
+**Vanilla Minecraft** follows a simple "last used spawn point" logic. The player has only one active spawn point at any time - either a bed or a respawn anchor, whichever was used most recently.
+
+**How Vanilla Respawn Works:**
+
+**Versions 1.16.5 - 1.21.8:**
+1. **Active spawn point priority**: The game uses whichever spawn point the player set most recently:
+    - If a **respawn anchor** is active (has charges and placed in the Nether), the player respawns there regardless of where they died (Overworld, Nether, or End). Each respawn consumes one charge.
+    - If a **bed** is active (placed in the Overworld), the player respawns there regardless of where they died.
+
+2. **Fallback to world spawn**: If the active spawn point is unavailable (anchor destroyed/uncharged/obstructed, or bed broken/obstructed), the player respawns at the **Overworld world spawn** (coordinates set by `/setworldspawn` or near 0,0).
+
+3. **End portal exception**: Exiting through an End portal teleports the player to their active spawn point without consuming anchor charges.
+
+**Versions 1.21.9 and above:**
+The logic remains the same, except for the fallback behavior:
+
+- **Fallback to world spawn**: If the active spawn point is unavailable, the player respawns at the **current dimension's world spawn** (if set via `/setworldspawn` in that dimension), otherwise falls back to the Overworld world spawn.
+- This means players can now respawn in the Nether, End, or custom dimensions if a world spawn is set there.
+
+**Important notes:**
+- Respawn anchors only function in the Nether dimension
+- Beds only function as spawn points in the Overworld dimension
+- Anchors explode if used in the Overworld or End (when trying to set spawn or charge them)
+- There's no "backup" system - if your active spawn point fails, you go to world spawn, not to an old bed/anchor
+
+---
+
+**MMOSpawnPoint** (priority-based logic) works completely differently:
+- 👥 Party first (if enabled)
+    - If the party system is enabled and conditions are met, the player can be teleported to a party member before any spawn rules are checked.
+
+- 🧠 Priority decides everything next
+    - The plugin collects all spawn entries that match the current event (death/join/both), the player’s location, and your conditions (permissions/placeholders).
+    - It then sorts those entries by priority (highest → lowest) and uses the first one that matches.
+    - There is no hard-coded “type order.” Only priority matters.
+
+- ⚙️ Default priorities (from config.yml → settings.defaultPriorities)
+    - coordinate: 100
+    - region: 50
+    - world: 10
+      By default this “feels like”: coordinate (100) → region (50) → world (10). You can change these values or set explicit priorities per entry.
+
+- 🎯 Destination selection (inside a matched entry)
+    - If there is only one destination, it’s used.
+    - If there are multiple, weights (and weightConditions) decide which one is picked.
+    - If requireSafe: true, a waiting room is used while the plugin searches for a safe spot partial asynchronously.
+
+- 🧭 Easy flow (at a glance)
+  Player dies/joins  
+  → 👥 Party (if enabled)  
+  → 🔍 Sort matching entries by priority (high → low)  
+  → ✅ First entry that matches event + location + conditions  
+  → 🎯 Pick destination (weights) → 🚀 Teleport (waiting room if requireSafe)  
+  → ❌ If nothing matched → Vanilla respawn
+
+- 🔧 Want “regions first” (or any other order)?
+    - Just give region entries higher priorities than coordinate/world.
+    - Example:
+        - region rules: 800+
+        - coordinate rules: 300–700
+        - world rules: 10–200
+
+- 🛟 Fallback
+    - If no MMOSpawnPoint entries match, the game falls back to Vanilla behavior (anchor/bed/world spawn).
+
 ### Triggering MSP without death/join events
 
 By design, MMOSpawnPoint does not implement arbitrary “teleport me now” entry points beyond death/join events. However, you can integrate MSP with portals or NPC scripts as a workaround:
@@ -288,19 +382,36 @@ The `requireSafe` option should be set to `false` for known safe locations to im
 
 **Y-Selection Strategy Configuration** (config.yml → settings.teleport.ySelection):
 
-- **mode: "mixed"** - Combines highest-block and random-Y searches (recommended for most servers)
-  - **first: "highest"** - Try surface spawns first, then underground (good for survival servers)
-  - **first: "random"** - Try random heights first, then surface (better for dungeon/vertical servers)
-  - **firstShare: 0.6** - Fraction of attempts for first strategy (0.6 = 60% first, 40% second)
+- Dimension-aware global policy (can be overridden per destination):
+    - Overworld:
+        - mode: mixed | highest_only | random_only
+        - first: highest | random (for mixed)
+        - firstShare: 0.0..1.0
+    - Nether:
+        - mode: scan | highest_only | random_only
+        - respectRange: true|false (for scan: whether to limit the scan to the destination Y-range)
+    - End:
+        - mode: mixed | highest_only | random_only (highest_only recommended)
 
-- **mode: "highest_only"** - Always spawn on surface (best for flat terrain, city servers)
-- **mode: "random_only"** - Always use random Y within bounds (best for underground/cave servers)
+Guidance:
+- Survival/Towny (Overworld): mixed with first=highest (surface-first)
+- Dungeon/RPG (Overworld): mixed with first=random (vertical variation)
+- Nether (generic): scan (deterministic "solid + 2 air" search) — recommended default
+- Nether (hand-made vertical content): per-destination ySelection override with random_only and an explicit Y range
+- End: highest_only or mixed(first=highest)
 
-**Choose based on your server style:**
-- **Survival/Towny servers:** Use "mixed" with first="highest" for surface-focused gameplay
-- **Dungeon/RPG servers:** Use "mixed" with first="random" for vertical exploration
-- **Skyblock/flat worlds:** Use "highest_only" for consistent surface spawning
-- **Mining/cave servers:** Use "random_only" for distributed underground spawning
+Per-destination override (spawnpoints/*.yml → destinations[].ySelection):
+- mode: mixed | highest_only | random_only | scan (Nether only)
+- first/firstShare: for mixed only
+- respectRange: for Nether scan; also useful for documentation with random_only when you rely on explicit ranges
+
+What you need to know (Near vs Range behavior in the Nether):
+- RespectRange applies to area searches (rects) in Nether when using scan. Fixed-point near searches do not carry a Y range; they always use world bounds for scan.
+- If you need to constrain Nether near spawns to a certain altitude, consider area-based destinations (rects with y range) or use groundWhitelist to exclude undesired surfaces (e.g., BEDROCK).
+
+About cache “near” searches:
+- For fixed-point requireSafe=true searches (near X/Z), the cache key does not include the radius and also ignores the base Y. This increases cache hit rate across repeated lookups around the same X/Z.
+- The effective Y-selection signature (dimension-aware policy) and groundWhitelist hash are still included in the cache key to prevent incorrect reuse across different spawn configurations.
 
 **Region Entry vs Respawn**: 
 - MMOSpawnPoint only handles player respawning after death, not entry into regions or worlds. For region entry commands, use WorldGuard flags like `entry-command` or `entry-deny`.
@@ -309,9 +420,6 @@ The `requireSafe` option should be set to `false` for known safe locations to im
 - Paper: N attempts per tick on the main thread within a configurable time budget. The search is spread across ticks (partial async feeling, no big stalls).
 - Folia: exactly one attempt per tick scheduled on the correct region thread (true region-aware parallelism).
 - Teleport to the waiting room happens immediately (if requireSafe=true), while the actual safe spot is being searched in the background.
-
-**About cache “near” searches**:
-- For fixed-point requireSafe=true searches (near X/Z), the cache key does not include the current radius. If radius expands over time, the cache still reuses the location found with the previous radius. This is a stability/performance optimization.
 
 ###  Party self-invite
 The plugin allows inviting yourself. This is intentional: it lets a single player form a party quickly (e.g., to use the walking spawn point feature) without logging a second account.
@@ -351,53 +459,158 @@ The waiting room feature is not just a temporary holding area - it's a fallback 
 
 This prevents party members from being teleported to death traps while still allowing the walking spawn point feature in safe areas.
 
-### Vanilla vs MMOSpawnPoint Respawn Mechanics
+### Rects vs legacy axes: when to use and how to keep configs sane
 
-Vanilla Minecraft (no plugins) follows a strict respawn priority:
-1. First checks for a valid respawn anchor in the Nether dimension (if properly charged with glowstone)
-    - Respawn anchors only work when placed in the Nether dimension
-2. Then checks for a valid bed in the Overworld dimension (if not broken or obstructed)
-    - Beds only function as spawn points when placed in the Overworld
-3. If neither exists or they're obstructed, sends player to the world spawn point (usually near coordinates 0,0 or wherever /setworldspawn was set)
-4. In the End dimension, players always return to the Overworld spawn regardless of beds or anchors
+- Prefer legacy axes for simple shapes:
+    - Use x/y/z axis specs whenever a single rectangle is enough. It keeps files shorter, easier to read, and easier to reason about.
+- Don’t glue far-apart areas into one entry:
+    - Two distant boss rooms? Don’t hack them into one entry via rects. Make one entry per room (using legacy axes), each with its own priority and actions.
+- The more rects, the harder the debugging:
+    - Complex rect lists increase mental load and the chance of mistakes. Keep rect counts low; split logic into multiple entries if needed.
+- Use single-line rects for readability:
+    - x: { min: 1000, max: 2000 } is much easier to scan in large YAMLs than expanded multi-line fields.
+- Keep rects close to each other:
+    - If rects are far apart (different wings/levels), it’s usually a sign you need separate entries.
+- ASCII diagrams help humans:
+    - For non-trivial shapes, include an ASCII map at the top of the file with a legend and coordinate ticks.
+    - If you iterate a lot, ask your AI assistant to redraw the diagram whenever rects change. Not mandatory for simple cases, but very helpful for complex layouts.
+- Test and iterate:
+    - Always include a low-priority fallback and validate with /msp simulate death/join.
+    - Keep a “boss room” entry with a higher priority than the surrounding area (or disable party respawn there).
 
-MMOSpawnPoint (priority-based logic)
-- 👥 Party first (if enabled)
-    - If the party system is enabled and conditions are met, the player can be teleported to a party member before any spawn rules are checked.
+Example pyramid.yml (diagram at the top and 2 entries)
 
-- 🧠 Priority decides everything next
-    - The plugin collects all spawn entries that match the current event (death/join/both), the player’s location, and your conditions (permissions/placeholders).
-    - It then sorts those entries by priority (highest → lowest) and uses the first one that matches.
-    - There is no hard-coded “type order.” Only priority matters.
+**Note:** For different types of locations, you can choose different ways of drawing the diagram (usually it is best to do it however you find most convenient). Below is an example of one such method, and there will be more in examples.txt and starter folder.
 
-- ⚙️ Default priorities (from config.yml → settings.defaultPriorities)
-    - coordinate: 100
-    - region: 50
-    - world: 10
-      By default this “feels like”: coordinate (100) → region (50) → world (10). You can change these values or set explicit priorities per entry.
+File: spawnpoints/world/dungeons/pyramid.yml
 
-- 🎯 Destination selection (inside a matched entry)
-    - If there is only one destination, it’s used.
-    - If there are multiple, weights (and weightConditions) decide which one is picked.
-    - If requireSafe: true, a waiting room is used while the plugin searches for a safe spot partial asynchronously.
+```yaml
+# ================================================================
+# Pyramid (top-down)
+# Legend:
+#   # = playable outer ring (hallways)
+#   B = boss room (center)
+#   . = outside / not part of this file
+#
+# Axes:
+#   X+ → right,  Z+ → down
+#
+# Coords (example):
+#   Whole pyramid: X=200..300, Z=200..300
+#   Boss room:     X=240..260, Z=240..260
+#
+#  Z=200     210      220      230      240      250      260      270      280      290      300
+#    ┌──────────────────────────────────────────────────────────────────────────────────────────┐
+# 200 │#############################    OUTER RING (PLAYABLE)    #############################│
+# 210 │############################# ################################ ########################│
+# 220 │############################# ############################ ###########################│
+# 230 │############################# ##############    ########## ###########################│
+# 240 │############################# ###########  BBBB  ######### ###########################│
+# 250 │############################# ###########  BBBB  ######### ###########################│
+# 260 │############################# ###########  BBBB  ######### ###########################│
+# 270 │############################# ##############    ########## ###########################│
+# 280 │############################# ############################ ###########################│
+# 290 │############################# ################################ ########################│
+# 300 │#############################    OUTER RING (PLAYABLE)    #############################│
+#    └──────────────────────────────────────────────────────────────────────────────────────────┘
+#                  X=200                       240      260                       300
+#
+# Notes:
+# - Entry #1 (boss room) has higher priority and can disable party respawns.
+# - Entry #2 (outer ring) covers everything else (four rects as a frame).
+# - Y-range is clamped (60..80) to work with vertical dungeons.
+# ================================================================
 
-- 🧭 Easy flow (at a glance)
-  Player dies/joins  
-  → 👥 Party (if enabled)  
-  → 🔍 Sort matching entries by priority (high → low)  
-  → ✅ First entry that matches event + location + conditions  
-  → 🎯 Pick destination (weights) → 🚀 Teleport (waiting room if requireSafe)  
-  → ❌ If nothing matched → Vanilla respawn
+spawns:
+  # ------------------------------------------------
+  # Entry #1: BOSS ROOM (center, high priority)
+  # ------------------------------------------------
+  - kind: coordinate
+    event: death
+    priority: 1800
+    triggerArea:
+      world: world
+      rects:
+        - x: { min: 240, max: 260 }
+          z: { min: 240, max: 260 }
+          y: { min: 60, max: 80 }  # vertical dungeon slice
+    destinations:
+      - world: world
+        requireSafe: true
+        rects:
+          - x: { min: 240, max: 260 }
+            z: { min: 240, max: 260 }
+            y: { min: 60, max: 80 }
+        groundWhitelist:
+          - STONE
+          - CHISELED_STONE_BRICKS
+          - POLISHED_ANDESITE
+        actions:
+          messages:
+            - text: "<gray>Boss room respawn (party respawn disabled)"
+              phases:
+                - BEFORE
+            - text: "<yellow>⏳ Searching a safe spot inside the boss room..."
+              phases:
+                - WAITING_ROOM
+    party:
+      respawnDisabled: true
 
-- 🔧 Want “regions first” (or any other order)?
-    - Just give region entries higher priorities than coordinate/world.
-    - Example:
-        - region rules: 800+
-        - coordinate rules: 300–700
-        - world rules: 10–200
+  # ------------------------------------------------
+  # Entry #2: OUTER RING (frame around the boss room)
+  # Four rects: top, bottom, left, right — form the ring
+  # ------------------------------------------------
+  - kind: coordinate
+    event: death
+    priority: 1600
+    triggerArea:
+      world: world
+      rects:
+        - x: { min: 200, max: 300 }
+          z: { min: 200, max: 300 }
+          # y omitted → any height triggers this entry
+    destinations:
+      - world: world
+        requireSafe: true
+        rects:
+          # top
+          - x: { min: 200, max: 300 }
+            z: { min: 200, max: 240 }
+            y: { min: 60, max: 80 }
+          # bottom
+          - x: { min: 200, max: 300 }
+            z: { min: 260, max: 300 }
+            y: { min: 60, max: 80 }
+          # left
+          - x: { min: 200, max: 240 }
+            z: { min: 240, max: 260 }
+            y: { min: 60, max: 80 }
+          # right
+          - x: { min: 260, max: 300 }
+            z: { min: 240, max: 260 }
+            y: { min: 60, max: 80 }
+        groundWhitelist:
+          - STONE
+          - STONE_BRICKS
+          - POLISHED_ANDESITE
+        actions:
+          messages:
+            - text: "<gray>Outer ring respawn"
+              phases:
+                - BEFORE
+            - text: "<yellow>⏳ Finding a safe spot inside the ring..."
+              phases:
+                - WAITING_ROOM
+```
 
-- 🛟 Fallback
-    - If no MMOSpawnPoint entries match, the game falls back to Vanilla behavior (anchor/bed/world spawn).
+### Placeholder expression case sensitivity
+- PlaceholderUtils compares strings case-sensitively.
+- Example: "%player_gamemode% == 'SURVIVAL'" works, while "%player_gamemode% == 'Survival'" will not.
+- Recommendation: normalize your placeholder values or use consistent upper-case in expressions.
+
+### OP and "*" bypass for permission conditions
+- For conditions.permissions, operators (server OP) or players with the wildcard permission "*" bypass permission checks by design.
+- This is intended for admins and map makers. If you need strict checks, do not give OP/"*" to players who must not bypass spawn conditions.
 
 ### Compatibility with Other Plugins
 
@@ -448,7 +661,8 @@ spawns:
     world: "MythicDungeonWorld_.*"
     worldMatchMode: regex
     destinations: []  # Actions only, no teleport
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 ```
 
 **For region-based dungeon plugins**, prefer coordinate-based matching with rects and excludeRects:
@@ -534,7 +748,8 @@ spawns:
         - text: "<red>Party respawn is disabled in this boss room."
           phases:
             - BEFORE
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 ```
 
 This pattern easily extends to any event arenas, minigame areas, temporary zones, etc.
@@ -587,7 +802,8 @@ spawns:
     regionMatchMode: regex
     regionWorld: spawn     # restrict regex-based entries to admin-managed worlds
     destinations: []       # Disable party spawns in all arenas
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 ```
 
 2. **Dynamic Dungeon Worlds:** Essential for plugins like MythicDungeons
@@ -597,7 +813,8 @@ spawns:
     world: "MythicDungeonWorld_.*"
     worldMatchMode: regex
     destinations: []
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 ```
 
 3. **Temporary Event Areas:** When you have many similar temporary regions
@@ -623,7 +840,8 @@ Instead of regex, use **YAML Anchors** for DRY (Don't Repeat Yourself) configura
 pvp_config: &pvp_settings
   regionWorld: spawn     # restrict entries to "spawn" world
   destinations: []
-  partyRespawnDisabled: true
+  party:
+      respawnDisabled: true
   actions:
     - command: "title %player% times 10 70 20"
     - command: "title %player% title \"<red>You Died!\""

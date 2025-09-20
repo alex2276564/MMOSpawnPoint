@@ -5,12 +5,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Data
 public class Party {
     private UUID id;
     private UUID leader;
-    private Set<UUID> members;
+    private LinkedHashSet<UUID> members; // Preserve join order for deterministic next-leader selection
     private Map<UUID, Long> invitations;
     private RespawnMode respawnMode;
     private UUID respawnTarget;
@@ -24,23 +25,23 @@ public class Party {
     public Party(UUID leaderId) {
         this.id = UUID.randomUUID();
         this.leader = leaderId;
-        this.members = new HashSet<>();
+        this.members = new LinkedHashSet<>();
         this.members.add(leaderId);
-        this.invitations = new HashMap<>();
+        this.invitations = new ConcurrentHashMap<>();
         this.respawnMode = RespawnMode.NORMAL;
-        this.respawnCooldowns = new HashMap<>();
+        this.respawnCooldowns = new ConcurrentHashMap<>();
     }
 
     public boolean isLeader(UUID playerId) {
         return leader.equals(playerId);
     }
 
-    public boolean isNotMember(UUID playerId) {
-        return !members.contains(playerId);
+    public boolean isMember(UUID playerId) {
+        return members.contains(playerId);
     }
 
-    public boolean hasNoInvitation(UUID playerId) {
-        return !invitations.containsKey(playerId);
+    public boolean hasInvitation(UUID playerId) {
+        return invitations.containsKey(playerId);
     }
 
     public void invite(UUID playerId, long expiryTimeSeconds) {
@@ -48,26 +49,35 @@ public class Party {
     }
 
     public void addMember(UUID playerId) {
-        members.add(playerId);
-        invitations.remove(playerId);
+        // LinkedHashSet preserves insertion order; adding existing does nothing
+        this.members.add(playerId);
+        this.invitations.remove(playerId);
     }
 
     public void removeMember(UUID playerId) {
-        members.remove(playerId);
-        if (playerId.equals(leader) && !members.isEmpty()) {
-            // Assign a new leader
-            leader = members.iterator().next();
+        boolean wasLeader = playerId.equals(this.leader);
+        this.members.remove(playerId);
+
+        // Reset target if it was this player
+        if (playerId.equals(this.respawnTarget)) {
+            this.respawnTarget = null;
         }
 
-        // If respawn target was this player, reset it
-        if (playerId.equals(respawnTarget)) {
-            respawnTarget = null;
+        if (wasLeader) {
+            pickNewLeaderAfterRemoval();
+        }
+    }
+
+    private void pickNewLeaderAfterRemoval() {
+        // Deterministic: the oldest remaining member becomes leader
+        if (!this.members.isEmpty()) {
+            this.leader = this.members.iterator().next();
         }
     }
 
     public void setLeader(UUID playerId) {
-        if (members.contains(playerId)) {
-            leader = playerId;
+        if (this.members.contains(playerId)) {
+            this.leader = playerId;
         }
     }
 

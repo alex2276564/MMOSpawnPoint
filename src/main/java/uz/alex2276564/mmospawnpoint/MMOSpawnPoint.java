@@ -6,10 +6,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import uz.alex2276564.mmospawnpoint.commands.MMOSpawnPointCommands;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.BuiltCommand;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.MultiCommandManager;
+import uz.alex2276564.mmospawnpoint.commands.subcommands.simulate.SimulateContext;
 import uz.alex2276564.mmospawnpoint.config.MMOSpawnPointConfigManager;
 import uz.alex2276564.mmospawnpoint.listener.*;
+import uz.alex2276564.mmospawnpoint.manager.SpawnEntry;
 import uz.alex2276564.mmospawnpoint.manager.SpawnManager;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
+import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
 import uz.alex2276564.mmospawnpoint.utils.UpdateChecker;
 import uz.alex2276564.mmospawnpoint.utils.adventure.AdventureMessageManager;
 import uz.alex2276564.mmospawnpoint.utils.adventure.LegacyMessageManager;
@@ -94,11 +97,9 @@ public final class MMOSpawnPoint extends JavaPlugin {
         }
 
         messageManager = new LegacyMessageManager();
-        getLogger().info("Using Legacy ChatColor formatting with MiniMessage syntax compatibility");
-        getLogger().info("You can continue using MiniMessage syntax in your config - basic tags will be converted automatically");
+        getLogger().info("Using Legacy ChatColor formatting with MiniMessage-like basic tags");
         getLogger().info("Supported: colors, bold, italic, underlined, strikethrough, obfuscated, reset");
-        getLogger().warning("Note: Legacy mode uses regex processing which may have slight performance overhead");
-        getLogger().info("Note: Complex features (gradients, hover, click events) are not available on older server versions");
+        getLogger().info("Note: Complex features (gradients, hover, click events) are not available on older versions");
     }
 
     private boolean isMiniMessageAvailable() {
@@ -205,6 +206,11 @@ public final class MMOSpawnPoint extends JavaPlugin {
         if (resourcePackListener != null) {
             resourcePackListener.cleanup();
         }
+
+        SafeLocationFinder.cleanup();
+        SafeLocationFinder.clearCache();
+        SpawnEntry.clearRegexCache();
+        SimulateContext.PREV.clear();
 
         if (runner != null) {
             runner.cancelAllTasks();

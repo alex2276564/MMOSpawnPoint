@@ -1,14 +1,26 @@
 # ================================================================
-# 📝 MMOSpawnPoint Configuration Examples
+# 📝 Configuration Examples
 #
-# 💬 All messages support MiniMessage formatting!
+# 🤖 AI-ASSISTED SETUP (optional):
+# If you want to use an AI assistant (e.g., DeepSeek, Grok) to generate spawn
+# rules faster and more consistently, feed it these three files first:
+# - Your config.yml
+# - README (plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/README.md?plain=1
+# - Examples (this file, plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/src/main/resources/examples.txt
+# Then ask it to draft exact spawn rules for your worlds/regions, including:
+# • priorities, requireSafe, waitingRoom, rects/excludeRects
+# • weightConditions (permission/placeholder), actions with phases
+# • explicit (non-regex) entries where possible
+# Always validate YAML (http://www.yamllint.com/) and test with /msp simulate death/join.
+#
+# 🎨 All messages support MiniMessage formatting!
 #     → Examples: <red>Error!</red>, <green>Success!</green>
 #     → Web editor: https://webui.advntr.dev/
 #
-# 🌍 LOCALIZATION NOTE:
-#     Direct localization is not supported in this plugin.
-#     If you need multi-language support, use Triton plugin:
-#     → https://www.spigotmc.org/resources/triton.30331/
+# 🌍 LOCALIZATION:
+# • This plugin doesn't include built-in multi-language support
+# • For multiple languages, use Triton plugin:
+#   → https://www.spigotmc.org/resources/triton.30331/
 # ================================================================
 
 
@@ -173,13 +185,25 @@
 #   Enable settings.debugMode=true in config.yml to see priority order and detailed logs
 #
 # - Party system:
-#   Use partyRespawnDisabled: true in PvP areas or other restricted zones
+#   Use party:
+      respawnDisabled: true in PvP areas or other restricted zones
 
 
 # ================================================================
-# ✅ Example 1: Simple world join spawn (hub)
+# ✅ Example 1: Simple world join spawn (hub) + Phases explanation
 # ================================================================
 # Players joining "world" get teleported to exact coordinates
+#
+# 📝 PHASES SYSTEM:
+# ┌─────────────┬──────────────────────────────────────────────────┐
+# │ Phase       │ When it executes                                 │
+# ├─────────────┼──────────────────────────────────────────────────┤
+# │ BEFORE      │ Before teleportation starts                     │
+# │ WAITING_ROOM│ When player is in waiting room (requireSafe=true)│
+# │ AFTER       │ After successful teleportation (DEFAULT)        │
+# └─────────────┴──────────────────────────────────────────────────┘
+#
+# 💡 If 'phases' is not specified → AFTER is used automatically
 # File: spawnpoints/world/hub.yml
 
 spawns:
@@ -196,9 +220,65 @@ spawns:
         pitch: 0
         actions:
           messages:
-            - text: "<green>Welcome to the hub!"
+            # BEFORE phase - shows before teleport starts
+            - text: "<yellow>⏳ Preparing teleportation to hub..."
+              phases:
+                - BEFORE
+
+            # AFTER phase (explicit) - shows after successful teleport
+            - text: "<green>✅ Welcome to the hub!"
               phases:
                 - AFTER
+
+            # AFTER phase (default) - same as above but phases omitted
+            - text: "<blue>ℹ️ This message also shows AFTER (default behavior)"
+              # No phases specified = AFTER automatically
+
+            # Multiple phases example
+            - text: "<gray>This shows both before AND after teleport"
+              phases:
+                - BEFORE
+                - AFTER
+
+          commands:
+            # BEFORE phase command
+            - command: "title %player% title \"<yellow>Teleporting...\""
+              phases:
+                - BEFORE
+
+            # AFTER phase command (default)
+            - command: "effect give %player% minecraft:speed 10 1"
+              # No phases = AFTER by default
+
+            # WAITING_ROOM phase (only works if requireSafe=true)
+            - command: "playsound minecraft:block.note_block.pling master %player%"
+              phases:
+                - WAITING_ROOM
+              # Note: This won't execute in this example because requireSafe=false
+
+# ================================================================
+# 📚 PHASES FLOW EXAMPLES:
+# ================================================================
+
+# Example A: requireSafe=false (immediate teleport)
+# Flow: BEFORE → teleport → AFTER
+# WAITING_ROOM phase is skipped
+
+# Example B: requireSafe=true (with safe location search)
+# Flow: BEFORE → move to waiting room → WAITING_ROOM → safe search → final teleport → AFTER
+# All three phases can be used
+
+# Example C: Actions-only (no destinations)
+# Flow: AFTER only (no teleportation happens)
+
+# ================================================================
+# 💡 PRACTICAL TIPS:
+# ================================================================
+# • Use BEFORE for: loading messages, preparation commands, titles
+# • Use WAITING_ROOM for: entertainment while searching, progress updates
+# • Use AFTER for: welcome messages, effects, rewards, completion sounds
+# • Most messages/commands should use AFTER (it's the default for a reason)
+# • WAITING_ROOM only makes sense when requireSafe=true
 
 
 # ================================================================
@@ -297,7 +377,8 @@ spawns:
         - text: "<gray>Region spawn activated"
           phases:
             - BEFORE
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 
 
 # ================================================================
@@ -421,7 +502,80 @@ spawns:
 
 
 # ================================================================
-# ✅ Example 7: Complex command conditions with multiple chances
+# ✅ Example 7: Partial "CMI /dback" demonstration (admin-oriented)
+# ================================================================
+# This is NOT a drop-in replacement for CMI /dback.
+# It demonstrates what you can do with MiniMessage (click/hover/run_command)
+# and MSP phases. Recommended for admins/map creators only:
+# - show death coordinates to the player;
+# - optionally show a clickable "return" button for staff (permission-gated).
+#
+# How it works:
+# - BEFORE phase sends a basic "death location" line to everyone.
+# - If the player has mmospawnpoint.dback.use:
+#   • 1.18+ (MiniMessage) displays a clickable line (run_command) to TP back;
+#   • 1.16–1.17 fallback uses tellraw with run_command.
+#
+# IMPORTANT (MiniMessage behavior):
+# - <click:run_command:'...'> executes the command AS THE PLAYER, not console.
+#   The player must have the needed permissions for /execute.
+#   Do NOT grant dangerous vanilla permissions (like /execute) to regular players.
+#
+# Requirements:
+# - PlaceholderAPI + Player expansion for %player_world%, %player_x%, etc.
+#
+# File: spawnpoints/in-your-spawnpoints.yml
+
+spawns:
+  - kind: coordinate
+    event: death
+    priority: 1450
+    triggerArea:
+      world: ".*"
+      worldMatchMode: regex
+
+    destinations: [...]
+
+    actions:
+      messages:
+        # 1) Always visible: show death location (everyone sees this)
+        - text: "<gray>You died at <yellow>%player_world%</yellow> <white>%player_x%</white> <white>%player_y%</white> <white>%player_z%</white>"
+          phases:
+            - BEFORE
+
+        # 2) 1.18+ (MiniMessage): "Back" button that runs a TP as the player
+        - text: "<gold>[Back] <click:run_command:'/execute in %player_world% run tp %player% %player_x% %player_y% %player_z% %player_yaw% %player_pitch%'><underlined>Click to return</underlined></click>"
+          chance: 0
+          phases:
+            - BEFORE
+          chanceConditions:
+            - type: permission
+              value: "mmospawnpoint.dback.use"
+              mode: set
+              weight: 100
+
+      commands:
+        # 3) 1.16–1.17 fallback: tellraw with run_command
+        #    NOTE: On 1.18+ you may want to disable this legacy block to avoid duplicate UI.
+        - command: "tellraw %player% {\"text\":\"[Back] Click to return\",\"color\":\"gold\",\"underlined\":true,\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/execute in %player_world% run tp %player% %player_x% %player_y% %player_z% %player_yaw% %player_pitch%\"},\"hoverEvent\":{\"action\":\"show_text\",\"contents\":[{\"text\":\"Click to teleport back\",\"color\":\"yellow\"}]}}"
+          chance: 0
+          phases:
+            - BEFORE
+          chanceConditions:
+            - type: permission
+              value: "mmospawnpoint.dback.use"
+              mode: set
+              weight: 100
+
+# Notes:
+# - Everyone sees the coordinates. Only players with mmospawnpoint.dback.use see and can click the “Back” button.
+# - Placeholders (%player_world%, %player_x%, etc.) are substituted when the message is sent (BEFORE/WAITING_ROOM/AFTER phase).
+#   For the death scenario in BEFORE, this happens even before teleportation, so %player_x%/%player_world% will indicate the place of death.
+#   For WAITING_ROOM, it will already be the coordinates of the waiting room (we delay sending this phase until the actual movement to the waiting room).
+
+
+# ================================================================
+# ✅ Example 8: Complex command conditions with multiple chances
 # ================================================================
 # Commands with different chances based on player conditions
 # File: spawnpoints/world/mining-rewards.yml
@@ -464,7 +618,7 @@ spawns:
 
 
 # ================================================================
-# ✅ Example 8: Low-priority world fallback (safety net)
+# ✅ Example 9: Low-priority world fallback (safety net)
 # ================================================================
 # Recommended safety net: always have one low-priority world spawn
 # Catches players who die "in the middle of nowhere"
@@ -492,7 +646,7 @@ spawns:
 
 
 # ================================================================
-# ✅ Example 9: Multiple match modes showcase
+# ✅ Example 10: Multiple match modes showcase
 # ================================================================
 # Shows different matching strategies in one file
 # File: spawnpoints/global/match-examples.yml
@@ -513,7 +667,7 @@ spawns:
 # Regex region pattern (matches boss_room_1, boss_room_2, etc.)
   - kind: region
     event: death
-    region: "boss_room_\\d+"
+    region: "boss_room_\\d+" # YAML requires escaping backslashes in regex: \\d+
     regionMatchMode: regex
     destinations:
       - world: world
@@ -533,7 +687,7 @@ spawns:
         z: 0
 
 # ================================================================
-# ✅ Example 10: VIP Tiers with Economy-Based Upgrades
+# ✅ Example 11: VIP Tiers with Economy-Based Upgrades
 # ================================================================
 # Demonstrates advanced command conditions and economy integration
 # VIP players get closer spawn, rich players get premium menu access
@@ -632,7 +786,7 @@ spawns:
 
 
 # ================================================================
-# ✅ Example 11: Rect-based Areas (Triangles and Legacy XYZ Mapping)
+# ✅ Example 12: Rect-based Areas (Triangles and Legacy XYZ Mapping)
 # ================================================================
 # This example demonstrates:
 # - How rects/excludeRects are used to shape complex zones
@@ -702,10 +856,10 @@ spawns:
 
 # Notes:
 # - Legacy x/y/z axes on destinations or triggerAreas are internally mapped to a single rect at runtime.
-# - If you use a lot of reacts, it is recommended to write them in a single line format like "x: { min: 1000, max: 1160 }" for easy reading of yml.
+# - If you use a lot of rects, it is recommended to write them in a single line format like "x: { min: 1000, max: 1160 }" for easy reading of yml.
 
 # ================================================================
-# ✅ Example 12: Chance Modes (set/add/mul) with Rects
+# ✅ Example 13: Chance Modes (set/add/mul) with Rects
 # ================================================================
 # Demonstrates how message/command chances can be composed via condition modes.
 # Default mode is 'set'.
@@ -821,6 +975,243 @@ spawns:
 
 # Notes:
 # - By default, mode=set; final values of chance are clamped to [0..100], weight — minimum 1.
+
+
+# ================================================================
+# ✅ Example 14: Per-destination cache overrides + Dimension-aware Y-selection
+# ================================================================
+# Demonstrates:
+# - Per-destination cache override (disable cache or force shared cache)
+# - Global dimension-aware Y-selection (config.yml → settings.teleport.ySelection)
+# - Per-destination Y-selection override for Nether
+#
+# Global defaults (suggested):
+# settings.teleport.ySelection:
+#   overworld: { mode: mixed, first: highest, firstShare: 0.6 }
+#   nether:    { mode: scan,  respectRange: false }  # scan = solid + 2 air column scan
+#   end:       { mode: highest_only }
+#
+# Destination A (Nether, default scan via global) — uses global nether scan:
+# - Good generic behavior, deterministic and fast.
+#
+# Destination B (Nether, random-only override) — for vertical dungeons / controlled ranges:
+# - Switch to random_only and respect given Y range (per-destination override).
+#
+# Also shows per-destination cache:
+# - Disable near-cache for a specific fixed-point requireSafe dest (A)
+# - Force shared cache (playerSpecific: false) for area dest (B)
+
+spawns:
+  - kind: world
+    event: death
+    priority: 1700
+    world: world_nether
+
+    destinations:
+      # A) Fixed point requireSafe (around x/z), using global nether scan; cache disabled for this dest
+      - world: world_nether
+        requireSafe: true
+        x: -95
+        z: -16
+        yaw: 135
+        pitch: 0
+        # Global nether.mode=scan will be used (no per-destination override here)
+        # TIP: use per-destination groundWhitelist to avoid BEDROCK roof
+        groundWhitelist:
+          - NETHERRACK
+          - CRIMSON_NYLIUM
+          - WARPED_NYLIUM
+        cache:
+          enabled: false        # do not cache the near-search result for this dest
+
+      # B) Area requireSafe with per-destination random-only in Nether
+      - world: world_nether
+        requireSafe: true
+        x:
+          min: -200
+          max: -100
+        z:
+          min: -50
+          max: 50
+        y: # vertical dungeon slice
+          min: 32
+          max: 60
+        ySelection:
+          mode: random_only     # override global 'scan' to pick a random Y within 32..60
+          respectRange: true    # ensure scan/range logic limits (for scan); here documented for clarity
+        groundWhitelist:
+          - BLACKSTONE
+          - POLISHED_BLACKSTONE
+          - BASALT
+        cache:
+          enabled: true
+          playerSpecific: false # shared cache across players (higher hit rate)
+
+# Notes:
+# - Global nether.mode=scan (config.yml) is used unless a destination overrides it.
+# - For A: cache disabled to keep the search "fresh" around the fixed point.
+# - For B: random_only override + explicit Y range makes sense for hand-crafted vertical content.
+# - For generic Nether spawns, 'scan' remains the recommended default.
+
+
+# ================================================================
+# ✅ Example 15: PvP Arena - Coordinate-Based Battle System
+# ================================================================
+# Simple PvP arena with team spawns and spectator area.
+# Demonstrates coordinate areas, weighted spawns, and basic actions.
+#
+# Map (top-down view; X→ right, Z→ down):
+#
+#     X: 0    50   100  150  200
+# Z:0 ┌─────┬─────┬─────┬─────┐
+#     │  S  │ Red │Arena│Blue │  S = spectator area
+#  50 ├─────┼─────┼─────┼─────┤  A = arena combat zone
+#     │  S  │  A  │  A  │  A  │  Red/Blue = team spawn areas
+# 100 ├─────┼─────┼─────┼─────┤
+#     │  S  │  A  │  A  │  A  │
+# 150 └─────┴─────┴─────┴─────┘
+#
+# Features:
+# - Arena deaths → team-based respawn with gear
+# - Spectator area → return to lobby
+# - Team areas → balanced spawn distribution
+# ================================================================
+
+spawns:
+  # 1) Arena combat zone - highest priority
+  - kind: coordinate
+    event: death
+    priority: 1400
+    triggerArea:
+      world: pvp_world
+      x: { min: 50, max: 200 }
+      z: { min: 50, max: 150 }
+    destinations:
+      # Red team spawn (west side)
+      - world: pvp_world
+        requireSafe: false
+        x: { min: 60, max: 80 }
+        z: { min: 70, max: 90 }
+        y: 64
+        weight: 50
+        weightConditions:
+          - type: permission
+            value: "arena.team.red"
+            weight: 100
+        actions:
+          messages:
+            - text: "<red>⚔️ Red team respawn!"
+              phases: [AFTER]
+          commands:
+            - command: "give %player% iron_sword 1"
+              chance: 100
+              phases: [AFTER]
+      # Blue team spawn (east side)
+      - world: pvp_world
+        requireSafe: false
+        x: { min: 170, max: 190 }
+        z: { min: 70, max: 90 }
+        y: 64
+        weight: 50
+        weightConditions:
+          - type: permission
+            value: "arena.team.blue"
+            weight: 100
+        actions:
+          messages:
+            - text: "<blue>⚔️ Blue team respawn!"
+              phases: [AFTER]
+          commands:
+            - command: "give %player% iron_sword 1"
+              chance: 100
+              phases: [AFTER]
+    conditions:
+      permissions:
+        - "arena.team.red || arena.team.blue"
+    actions:
+      messages:
+        - text: "<yellow>💀 Fallen in battle!"
+          phases: [BEFORE]
+
+  # 2) Spectator area - medium priority
+  - kind: coordinate
+    event: death
+    priority: 1200
+    triggerArea:
+      world: pvp_world
+      x: { min: 0, max: 50 }
+      z: { min: 0, max: 150 }
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 0
+        y: 64
+        z: 0
+        yaw: 90
+        pitch: 0
+    actions:
+      messages:
+        - text: "<gray>👀 Returned from spectator area"
+          phases: [AFTER]
+
+  # 3) Team spawn areas - join events
+  - kind: coordinate
+    event: join
+    priority: 1100
+    triggerArea:
+      world: pvp_world
+      x: { min: 50, max: 90 }
+      z: { min: 50, max: 100 }
+    destinations:
+      - world: pvp_world
+        requireSafe: true
+        x: { min: 70, max: 80 }
+        z: { min: 70, max: 80 }
+    conditions:
+      permissions:
+        - "arena.team.red"
+    actions:
+      messages:
+        - text: "<red>🏴 Red team area entered"
+          phases: [AFTER]
+      commands:
+        - command: "effect give %player% minecraft:strength 300 1"
+          chance: 100
+          phases: [AFTER]
+
+  - kind: coordinate
+    event: join
+    priority: 1100
+    triggerArea:
+      world: pvp_world
+      x: { min: 160, max: 200 }
+      z: { min: 50, max: 100 }
+    destinations:
+      - world: pvp_world
+        requireSafe: true
+        x: { min: 170, max: 180 }
+        z: { min: 70, max: 80 }
+    conditions:
+      permissions:
+        - "arena.team.blue"
+    actions:
+      messages:
+        - text: "<blue>🏴 Blue team area entered"
+          phases: [AFTER]
+      commands:
+        - command: "effect give %player% minecraft:strength 300 1"
+          chance: 100
+          phases: [AFTER]
+
+# ================================================================
+# 🎮 Setup Guide:
+# 1) Create PvP world: /mv create pvp_world normal
+# 2) Set permissions:
+#    - arena.team.red (red team players)
+#    - arena.team.blue (blue team players)
+# 3) Build arena structure at coordinates shown in map
+# 4) Test with: /msp simulate death (while standing in arena)
+# ================================================================
 
 
 # ================================================================
@@ -1005,6 +1396,7 @@ spawns:
             - text: "<green>Premium destination reached!"
               phases:
                 - AFTER
+                - WAITING_ROOM
           commands:
             - command: "effect give %player% minecraft:speed 30 1"
               chance: 100
@@ -1014,6 +1406,8 @@ spawns:
         groundWhitelist:
           - STONE
           - COBBLESTONE
+        cache:
+          enabled: false
       - world: world
         requireSafe: false
         x: 600
@@ -1042,7 +1436,6 @@ spawns:
             - WAITING_ROOM
       commands:
         - command: "title %player% subtitle \"<gray>Welcome to the area\""
-          mode: set
           chance: 100
           phases:
             - BEFORE

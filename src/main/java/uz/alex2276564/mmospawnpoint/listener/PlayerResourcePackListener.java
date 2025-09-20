@@ -51,7 +51,7 @@ public class PlayerResourcePackListener implements Listener {
             }
 
             // Process join spawn after resource pack is ready
-            plugin.getRunner().runGlobalLater(() -> {
+            plugin.getRunner().runAtEntityLater(player, () -> {
                 if (player.isOnline() && !player.isDead()) {
                     boolean success = plugin.getSpawnManager().processJoinSpawn(player);
                     if (!success && plugin.getConfigManager().getMainConfig().settings.debugMode) {

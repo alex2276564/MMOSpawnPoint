@@ -22,10 +22,23 @@ public class PlayerRespawnListener implements Listener {
             Player player = event.getPlayer();
             var tele = plugin.getConfigManager().getMainConfig().settings.teleport;
             if (!tele.useSetRespawnLocationForDeath) {
+                // Post-respawn flow (teleport after vanilla respawn)
                 if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                     plugin.getLogger().info("Respawn: using post-teleport flow for " + player.getName());
                 }
-                plugin.getSpawnManager().recordDeathLocation(player, player.getLocation());
+
+                // Schedule processing on next tick (SpawnManager will apply delayTicks by itself)
+                plugin.getRunner().runAtEntityLater(player, () -> {
+                    try {
+                        boolean ok = plugin.getSpawnManager().processDeathSpawn(player);
+                        if (!ok && plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                            plugin.getLogger().info("Post-respawn teleport not applied for " + player.getName());
+                        }
+                    } catch (Exception ex) {
+                        plugin.getLogger().severe("Error in post-respawn teleport for " + player.getName() + ": " + ex.getMessage());
+                        if (plugin.getConfigManager().getMainConfig().settings.debugMode) ex.printStackTrace();
+                    }
+                }, 1L);
                 return;
             }
 

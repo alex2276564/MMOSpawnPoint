@@ -7,7 +7,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class SimulateContext {
-    private static final Map<UUID, Location> PREV = new ConcurrentHashMap<>();
+    public static final Map<UUID, Location> PREV = new ConcurrentHashMap<>();
 
     private SimulateContext() {
     }

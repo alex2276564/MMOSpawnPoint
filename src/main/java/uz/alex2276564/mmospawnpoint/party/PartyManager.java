@@ -8,6 +8,7 @@ import uz.alex2276564.mmospawnpoint.manager.SpawnEntry;
 import uz.alex2276564.mmospawnpoint.utils.WorldGuardUtils;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PartyManager {
 
@@ -25,9 +26,9 @@ public class PartyManager {
     }
 
     private final MMOSpawnPoint plugin;
-    private final Map<UUID, Party> parties = new HashMap<>();
-    private final Map<UUID, UUID> playerPartyMap = new HashMap<>();
-    private final Map<UUID, UUID> pendingInvitations = new HashMap<>();
+    private final Map<UUID, Party> parties = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> playerPartyMap = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> pendingInvitations = new ConcurrentHashMap<>();
     private final Random random = new Random();
 
     @Getter
@@ -84,7 +85,7 @@ public class PartyManager {
         while (it.hasNext()) {
             Map.Entry<UUID, UUID> e = it.next();
             Party party = parties.get(e.getValue());
-            if (party == null || party.hasNoInvitation(e.getKey())) {
+            if (party == null || !party.hasInvitation(e.getKey())) {
                 it.remove();
                 if (party != null) {
                     Player leader = party.getLeaderPlayer();
@@ -158,7 +159,7 @@ public class PartyManager {
 
         // Already invited to THIS party
         UUID pending = pendingInvitations.get(invitedId);
-        if (pending != null && pending.equals(party.getId()) && !party.hasNoInvitation(invitedId)) {
+        if (pending != null && pending.equals(party.getId()) && party.hasInvitation(invitedId)) {
             // refresh/extend expiration
             party.invite(invitedId, invitationExpiryTime);
             return InviteResult.ALREADY_INVITED;
@@ -176,7 +177,7 @@ public class PartyManager {
 
         UUID partyId = pendingInvitations.get(playerId);
         Party party = getParty(partyId);
-        if (party == null || party.hasNoInvitation(playerId)) {
+        if (party == null || !party.hasInvitation(playerId)) {
             pendingInvitations.remove(playerId);
             return false;
         }
@@ -225,7 +226,7 @@ public class PartyManager {
         if (!isInParty(leaderId)) return false;
         Party party = getPlayerParty(leaderId);
         if (!party.isLeader(leaderId)) return false;
-        if (party.isNotMember(targetId)) return false;
+        if (!party.isMember(targetId)) return false;
 
         party.removeMember(targetId);
         playerPartyMap.remove(targetId);
@@ -247,7 +248,7 @@ public class PartyManager {
         if (!isInParty(currentLeaderId)) return false;
         Party party = getPlayerParty(currentLeaderId);
         if (!party.isLeader(currentLeaderId)) return false;
-        if (party.isNotMember(newLeaderId)) return false;
+        if (!party.isMember(newLeaderId)) return false;
 
         party.setLeader(newLeaderId);
         // Commands already broadcast newLeaderAssigned — avoid duplicate here
@@ -268,7 +269,7 @@ public class PartyManager {
         if (!isInParty(leaderId)) return false;
         Party party = getPlayerParty(leaderId);
         if (!party.isLeader(leaderId)) return false;
-        if (party.isNotMember(targetId)) return false;
+        if (!party.isMember(targetId)) return false;
         party.setRespawnTarget(targetId);
         return true;
     }
@@ -311,14 +312,20 @@ public class PartyManager {
             long remaining = party.getRemainingCooldown(playerId);
             String msg = plugin.getConfigManager().getMessagesConfig().party.respawnCooldown;
             if (msg != null && !msg.isEmpty()) {
-                plugin.getMessageManager().sendMessageKeyed(player, "party.respawnCooldown", msg.replace("{time}", String.valueOf(remaining)));
+                plugin.getMessageManager().sendMessageKeyed(
+                        player,
+                        "party.respawnCooldown",
+                        msg,
+                        "time",
+                        String.valueOf(remaining)
+                );
             }
             return null;
         }
 
         // Walking spawn point (death location)
-        if (plugin.getConfigManager().getMainConfig().party.respawnAtDeath.enabled &&
-                player.hasPermission(plugin.getConfigManager().getMainConfig().party.respawnAtDeath.permission)) {
+        if (plugin.getConfigManager().getMainConfig().party.deathLocationSpawn.enabled &&
+                player.hasPermission(plugin.getConfigManager().getMainConfig().party.deathLocationSpawn.permission)) {
             Location walk = handleWalkingSpawnPoint(player, deathLocation);
             if (walk != null) {
                 return (walk == FALLBACK_TO_NORMAL_SPAWN_MARKER) ? null : walk;
@@ -326,15 +333,15 @@ public class PartyManager {
         }
 
         RestrictionReason deathReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkDeathLocation
-                ? getRestrictionReason(deathLocation)
+                ? checkLocationRestrictions(deathLocation)
                 : RestrictionReason.NONE;
 
-        Player target = findBestTargetOverlayed(party, player, deathLocation, false);
+        Player target = findBestTarget(party, player, deathLocation, false);
         if (target == null) return null;
 
         Location targetLocation = target.getLocation();
         RestrictionReason targetReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkTargetLocation
-                ? getRestrictionReason(targetLocation)
+                ? checkLocationRestrictions(targetLocation)
                 : RestrictionReason.NONE;
 
         // Apply bypasses to restrictions
@@ -373,7 +380,7 @@ public class PartyManager {
 
         String respawnMsg = plugin.getConfigManager().getMessagesConfig().party.respawnedAtMember;
         if (respawnMsg != null && !respawnMsg.isEmpty()) {
-            plugin.getMessageManager().sendMessageKeyed(player, "party.respawnedAtMember", respawnMsg.replace("{player}", target.getName()));
+            plugin.getMessageManager().sendMessageKeyed(player, "party.respawnedAtMember", respawnMsg, "player", target.getName());
         }
 
         return targetLocation;
@@ -392,20 +399,20 @@ public class PartyManager {
         }
 
         // Walking spawn at join (current location)
-        if (plugin.getConfigManager().getMainConfig().party.respawnAtDeath.enabled &&
-                player.hasPermission(plugin.getConfigManager().getMainConfig().party.respawnAtDeath.permission)) {
+        if (plugin.getConfigManager().getMainConfig().party.deathLocationSpawn.enabled &&
+                player.hasPermission(plugin.getConfigManager().getMainConfig().party.deathLocationSpawn.permission)) {
             Location loc = handleWalkingSpawnPointForJoin(player);
             if (loc != null) {
                 return loc;
             }
         }
 
-        Player target = findBestTargetOverlayed(party, player, player.getLocation(), true);
+        Player target = findBestTarget(party, player, player.getLocation(), true);
         if (target == null) return null;
 
         Location targetLoc = target.getLocation();
         RestrictionReason targetReason = plugin.getConfigManager().getMainConfig().party.respawnBehavior.checkTargetLocation
-                ? getRestrictionReason(targetLoc)
+                ? checkLocationRestrictions(targetLoc)
                 : RestrictionReason.NONE;
 
         if (targetReason != RestrictionReason.NONE) {
@@ -426,7 +433,7 @@ public class PartyManager {
     // ============================= WALKING SPAWN POINT =============================
 
     private Location handleWalkingSpawnPoint(Player player, Location deathLocation) {
-        var cfg = plugin.getConfigManager().getMainConfig().party.respawnAtDeath.restrictionBehavior;
+        var cfg = plugin.getConfigManager().getMainConfig().party.deathLocationSpawn.restrictionBehavior;
 
         // Bypass walking restrictions (ignore all restrictions for walking spawn)
         var bypass = plugin.getConfigManager().getMainConfig().settings.permissions.bypass.party;
@@ -441,14 +448,14 @@ public class PartyManager {
             return deathLocation;
         }
 
-        boolean deathRestricted = cfg.checkDeathLocation && getRestrictionReason(deathLocation) != RestrictionReason.NONE;
+        boolean deathRestricted = cfg.checkDeathLocation && checkLocationRestrictions(deathLocation) != RestrictionReason.NONE;
         boolean targetRestricted = false;
         if (cfg.checkTargetLocation) {
             Party party = getPlayerParty(player.getUniqueId());
             if (party != null) {
-                Player target = findBestTargetOverlayed(party, player, deathLocation, false);
+                Player target = findBestTarget(party, player, deathLocation, false);
                 if (target != null) {
-                    targetRestricted = getRestrictionReason(target.getLocation()) != RestrictionReason.NONE;
+                    targetRestricted = checkLocationRestrictions(target.getLocation()) != RestrictionReason.NONE;
                 }
             }
         }
@@ -477,10 +484,10 @@ public class PartyManager {
 
     private Location handleWalkingSpawnPointForJoin(Player player) {
         Location current = player.getLocation();
-        var cfg = plugin.getConfigManager().getMainConfig().party.respawnAtDeath.restrictionBehavior;
+        var cfg = plugin.getConfigManager().getMainConfig().party.deathLocationSpawn.restrictionBehavior;
 
         if (cfg.respectRestrictions) {
-            boolean locationRestricted = cfg.checkTargetLocation && getRestrictionReason(current) != RestrictionReason.NONE;
+            boolean locationRestricted = cfg.checkTargetLocation && checkLocationRestrictions(current) != RestrictionReason.NONE;
             if (locationRestricted) {
                 String behavior = cfg.restrictedAreaBehavior.toLowerCase(Locale.ROOT);
                 switch (behavior) {
@@ -513,7 +520,7 @@ public class PartyManager {
 
     // ============================= TARGET SELECTION =============================
 
-    private Player findBestTargetOverlayed(Party party, Player exclude, Location ref, boolean joinMode) {
+    private Player findBestTarget(Party party, Player exclude, Location ref, boolean joinMode) {
         var sel = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetSelection;
 
         if (sel.considerWorldPopulation) {
@@ -554,8 +561,13 @@ public class PartyManager {
                 return candidates.get(this.random.nextInt(candidates.size()));
             case "leader_priority":
                 return findWithLeaderPriority(candidates);
-            case "specific_target_only":
-                return null;
+            case "specific_target_only": {
+                Player t = party.getRespawnTargetPlayer();
+                if (t != null && !t.equals(excludePlayer) && t.isOnline()) {
+                    return t;
+                }
+                return null; // strict - if the target is not there/offline, the strategy fails
+            }
             default:
                 return findClosestInSameWorld(candidates, deathLocation);
         }
@@ -580,8 +592,13 @@ public class PartyManager {
                 return candidates.get(this.random.nextInt(candidates.size()));
             case "leader_priority":
                 return findWithLeaderPriority(candidates);
-            case "specific_target_only":
-                return null;
+            case "specific_target_only": {
+                Player t = party.getRespawnTargetPlayer();
+                if (t != null && !t.equals(excludePlayer) && t.isOnline()) {
+                    return t;
+                }
+                return null; // strict - if the target is not there/offline, the strategy fails
+            }
             default:
                 return findClosestInSameWorldForJoin(candidates, ref);
         }
@@ -744,14 +761,14 @@ public class PartyManager {
 
     // ============================= RESTRICTIONS & REASONS =============================
 
-    private RestrictionReason getRestrictionReason(Location location) {
+    private RestrictionReason checkLocationRestrictions(Location location) {
         // Only consider 'death' entries for party respawn restrictions
         List<SpawnEntry> entries = plugin.getConfigManager().getSpawnEntriesForEvent("death");
         for (SpawnEntry e : entries) {
             if (!e.matchesLocation(location)) continue;
 
             var data = e.spawnData();
-            if (data != null && data.partyRespawnDisabled) {
+            if (data != null && data.party != null && data.party.respawnDisabled) {
                 return (e.type() == SpawnEntry.Type.WORLD)
                         ? RestrictionReason.WORLD
                         : RestrictionReason.REGION_OR_COORDINATE;
@@ -777,7 +794,7 @@ public class PartyManager {
         switch (behavior) {
             case "allow":
                 Party party = getPlayerParty(player.getUniqueId());
-                Player target = findBestTargetOverlayed(party, player, player.getLocation(), false);
+                Player target = findBestTarget(party, player, player.getLocation(), false);
                 return target != null ? target.getLocation() : null;
             case "fallback_to_normal_spawn":
                 return null;
@@ -803,7 +820,7 @@ public class PartyManager {
         String behavior = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetRestrictedBehavior.toLowerCase(Locale.ROOT);
         return switch (behavior) {
             case "allow" -> {
-                Player t = findBestTargetOverlayed(party, player, player.getLocation(), false);
+                Player t = findBestTarget(party, player, player.getLocation(), false);
                 yield t != null ? t.getLocation() : null;
             }
             case "find_other_member" -> {
@@ -823,7 +840,7 @@ public class PartyManager {
         String behavior = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetRestrictedBehavior.toLowerCase(Locale.ROOT);
         return switch (behavior) {
             case "allow" -> {
-                Player t = findBestTargetOverlayed(party, player, player.getLocation(), true);
+                Player t = findBestTarget(party, player, player.getLocation(), true);
                 yield t != null ? t.getLocation() : null;
             }
             case "find_other_member" -> {
@@ -846,7 +863,7 @@ public class PartyManager {
         int attempts = plugin.getConfigManager().getMainConfig().party.respawnBehavior.alternativeTargetAttempts;
         for (int i = 0; i < Math.min(attempts, list.size()); i++) {
             Player m = list.get(i);
-            if (getRestrictionReason(m.getLocation()) == RestrictionReason.NONE) {
+            if (checkLocationRestrictions(m.getLocation()) == RestrictionReason.NONE) {
                 if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                     plugin.getLogger().info("Found alternative party target: " + m.getName());
                 }
@@ -865,7 +882,7 @@ public class PartyManager {
         int attempts = plugin.getConfigManager().getMainConfig().party.respawnBehavior.alternativeTargetAttempts;
         for (int i = 0; i < Math.min(attempts, list.size()); i++) {
             Player m = list.get(i);
-            if (getRestrictionReason(m.getLocation()) == RestrictionReason.NONE) {
+            if (checkLocationRestrictions(m.getLocation()) == RestrictionReason.NONE) {
                 if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
                     plugin.getLogger().info("Found alternative party target for join: " + m.getName());
                 }

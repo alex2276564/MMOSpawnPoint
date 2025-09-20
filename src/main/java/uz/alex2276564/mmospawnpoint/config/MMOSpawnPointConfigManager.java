@@ -146,6 +146,8 @@ public class MMOSpawnPointConfigManager {
     private void loadSpawnPointConfigs() {
         allSpawnEntries.clear();
 
+        SpawnEntry.clearRegexCache();
+
         File spawnPointsDir = new File(plugin.getDataFolder(), "spawnpoints");
 
         if (!spawnPointsDir.exists()) {
@@ -181,7 +183,7 @@ public class MMOSpawnPointConfigManager {
         for (File file : files) {
             if (file.isDirectory()) {
                 loadAllSpawnConfigsRecursively(file, depth + 1);
-            } else if (file.getName().endsWith(".yml") && !file.getName().equalsIgnoreCase("examples.txt")) {
+            } else if (file.getName().endsWith(".yml")) {
                 loadSpawnConfigFile(file);
             }
         }
@@ -330,23 +332,33 @@ public class MMOSpawnPointConfigManager {
         SafeLocationFinder.configureGlobalGroundBlacklist(cfg.globalGroundBlacklist);
         SafeLocationFinder.configureGlobalPassableBlacklist(cfg.globalPassableBlacklist);
 
-        // Overworld Y selection
-        var ysel = cfg.teleport.ySelection;
+        // Dimension-aware Y selection
+        var ys = cfg.teleport.ySelection;
+        // Overworld
         SafeLocationFinder.configureOverworldYSelection(
-                ysel.mode,
-                ysel.first,
-                ysel.firstShare
+                ys.overworld.mode,
+                ys.overworld.first,
+                ys.overworld.firstShare
+        );
+        // End
+        SafeLocationFinder.configureEndYSelection(
+                ys.end.mode,
+                ys.end.first,
+                ys.end.firstShare
+        );
+        // Nether
+        SafeLocationFinder.configureNetherYSelection(
+                ys.nether.mode,
+                ys.nether.respectRange
         );
 
         if (cfg.debugMode) {
             plugin.getLogger().info(
-                    "Applied cache/safe-location settings: " +
-                            "enabled=" + cacheConfig.enabled +
-                            ", expiry=" + cacheConfig.expiryTime + "s" +
-                            ", maxSize=" + cacheConfig.maxCacheSize +
-                            ", ySelection={mode=" + ysel.mode +
-                            ", first=" + ysel.first +
-                            ", firstShare=" + ysel.firstShare + "}"
+                    "Applied cache/safe-location settings: enabled=" + cacheConfig.enabled +
+                            ", expiry=" + cacheConfig.expiryTime + "s, maxSize=" + cacheConfig.maxCacheSize +
+                            ", ySelection={overworld=" + ys.overworld.mode + "/" + ys.overworld.first + "/" + ys.overworld.firstShare +
+                            ", nether=" + ys.nether.mode + "/respectRange=" + ys.nether.respectRange +
+                            ", end=" + ys.end.mode + "/" + ys.end.first + "/" + ys.end.firstShare + "}"
             );
         }
     }

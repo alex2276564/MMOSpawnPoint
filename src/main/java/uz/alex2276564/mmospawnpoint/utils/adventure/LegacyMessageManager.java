@@ -66,14 +66,19 @@ public class LegacyMessageManager implements MessageManager {
     @Override
     public @NotNull Component parse(@NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
         String safe = escapeForLegacy(replacement);
-        return parse(message.replace(placeholder, safe));
+        // replace both "<placeholder>"
+        String processed = message
+                .replace("<" + placeholder + ">", safe);
+        return parse(processed);
     }
 
     @Override
     public @NotNull Component parse(@NotNull String message, @NotNull Map<String, String> placeholders) {
         String processed = message;
         for (Map.Entry<String, String> e : placeholders.entrySet()) {
-            processed = processed.replace(e.getKey(), escapeForLegacy(e.getValue()));
+            String safe = escapeForLegacy(e.getValue());
+            processed = processed
+                    .replace("<" + e.getKey() + ">", safe);
         }
         return parse(processed);
     }
@@ -130,7 +135,8 @@ public class LegacyMessageManager implements MessageManager {
         if (sender instanceof Player p) {
             p.sendMessage(parse(message, placeholder, replacement));
         } else {
-            String processed = message.replace(placeholder, escapeForLegacy(replacement));
+            String token = "<" + placeholder + ">";
+            String processed = message.replace(token, escapeForLegacy(replacement));
             sender.sendMessage(stripTags(processed));
         }
     }
@@ -164,7 +170,30 @@ public class LegacyMessageManager implements MessageManager {
         if (sender instanceof Player p) {
             p.sendMessage(parse(message, placeholder, replacement));
         } else {
-            String processed = message.replace(placeholder, escapeForLegacy(replacement));
+            String token = "<" + placeholder + ">";
+            String processed = message.replace(token, escapeForLegacy(replacement));
+            sender.sendMessage(stripTags(processed));
+        }
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message, @NotNull Map<String, String> placeholders) {
+        if (isDisabled(key)) return;
+        player.sendMessage(parse(message, placeholders));
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message, @NotNull Map<String, String> placeholders) {
+        if (isDisabled(key)) return;
+        if (sender instanceof Player p) {
+            p.sendMessage(parse(message, placeholders));
+        } else {
+            // For the console — plain text without tags
+            String processed = message;
+            for (Map.Entry<String, String> e : placeholders.entrySet()) {
+                String token = "<" + e.getKey() + ">";
+                processed = processed.replace(token, escapeForLegacy(e.getValue()));
+            }
             sender.sendMessage(stripTags(processed));
         }
     }

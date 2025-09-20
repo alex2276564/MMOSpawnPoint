@@ -36,7 +36,7 @@ spawns:
               chance: 100
               phases:
                 - AFTER
-                -
+
       # VIP lounge spawn (higher spawn point)
       - world: world
         requireSafe: false
@@ -69,13 +69,14 @@ spawns:
           phases:
             - AFTER
     # Disable party respawn for fair PvP
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 
   # Multiple PvP arenas with regex (pvp_arena1, pvp_arena2, etc.)
   - kind: region
     event: death
     priority: 1250
-    region: "pvp_arena\\d+"
+    region: "pvp_arena\\d+" # YAML requires escaping backslashes in regex: \\d+
     regionMatchMode: regex
     regionWorld: world
     destinations:
@@ -101,7 +102,8 @@ spawns:
           chance: 100
           phases:
             - AFTER
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 
   # === COORDINATE AREA APPROACH ===
   # Custom coordinate-based PvP area
@@ -175,7 +177,8 @@ spawns:
       z: 550
       yaw: 0
       pitch: 90
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 
   # Dueling area (smaller coordinate zone)
   - kind: coordinate
@@ -207,7 +210,8 @@ spawns:
           chance: 100
           phases:
             - AFTER
-    partyRespawnDisabled: true
+    party:
+      respawnDisabled: true
 
 # ================================================================
 # 🏗️ Setup Guide:
@@ -242,7 +246,8 @@ spawns:
 # - You can mix both approaches on the same server!
 #
 # 🎮 PvP Best Practices:
-# - Always set partyRespawnDisabled: true for fair competition
+# - Always set party:
+      respawnDisabled: true for fair competition
 # - Use clear/heal commands to reset player state
 # - Provide spectator areas for eliminated players
 # - Consider different spawns for different skill levels (VIP areas)

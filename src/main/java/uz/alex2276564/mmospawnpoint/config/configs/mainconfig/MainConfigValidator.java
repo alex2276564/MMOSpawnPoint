@@ -1,7 +1,7 @@
 package uz.alex2276564.mmospawnpoint.config.configs.mainconfig;
 
 import lombok.experimental.UtilityClass;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import org.bukkit.Material;
 import uz.alex2276564.mmospawnpoint.config.utils.validation.ValidationResult;
 import uz.alex2276564.mmospawnpoint.config.utils.validation.Validators;
 
@@ -32,14 +32,8 @@ public class MainConfigValidator {
         // Validate cache settings
         validateCacheSection(result, settings.safeLocationCache);
 
-        // Warn unknown Global Passable Blacklist materials, but do not fail
-        if (settings.globalPassableBlacklist != null) {
-            for (String m : settings.globalPassableBlacklist) {
-                if (org.bukkit.Material.matchMaterial(m) == null) {
-                    MMOSpawnPoint.getInstance().getLogger().warning("Warning: Unknown material in globalPassableBlacklist: " + m);
-                }
-            }
-        }
+        // Validate Global Passable Blacklist materials
+        validateMaterialListOrFail(result, settings.globalPassableBlacklist, "settings.globalPassableBlacklist");
 
         validateSafeSearchBatch(result, settings.safeSearchBatch);
 
@@ -51,15 +45,23 @@ public class MainConfigValidator {
         // Validate waiting room settings
         validateWaitingRoomSection(result, settings.waitingRoom);
 
-        // Validate Global Ground Blacklist (just warn about unknown materials)
-        if (settings.globalGroundBlacklist != null) {
-            for (String material : settings.globalGroundBlacklist) {
-                try {
-                    org.bukkit.Material.valueOf(material.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    // Just log warning, don't fail validation
-                    MMOSpawnPoint.getInstance().getLogger().warning("Warning: Unknown material in globalGroundBlacklist list: " + material);
-                }
+        // Validate Global Ground Blacklist materials
+        validateMaterialListOrFail(result, settings.globalGroundBlacklist, "settings.globalGroundBlacklist");
+    }
+
+    private static void validateMaterialListOrFail(ValidationResult result, java.util.List<String> list, String pathBase) {
+        if (list == null) return;
+        for (int i = 0; i < list.size(); i++) {
+            String raw = list.get(i);
+            Material mat = Material.matchMaterial(raw);
+            String path = pathBase + "[" + i + "]";
+            if (mat == null) {
+                result.addError(path, "Unknown material: " + raw);
+                continue;
+            }
+            // Avoid Material.isLegacy(); use name heuristic instead
+            if (mat.name().startsWith("LEGACY_")) {
+                result.addError(path, "Legacy material is not supported: " + raw);
             }
         }
     }
@@ -88,41 +90,86 @@ public class MainConfigValidator {
 
     private static void validateTeleportSection(ValidationResult result, MainConfig.TeleportSection teleport) {
         // delayTicks
-        Validators.min(result, "settings.teleport.delayTicks", teleport.delayTicks, 1, "Teleport delay must be at least 1 tick");
+        Validators.min(result, "settings.teleport.delayTicks", teleport.delayTicks, 0, "Teleport delay must be at least 0 tick");
         Validators.max(result, "settings.teleport.delayTicks", teleport.delayTicks, 200, "Teleport delay cannot exceed 200 ticks (10 seconds)");
 
-        // ySelection
         if (teleport.ySelection == null) {
             result.addError("settings.teleport.ySelection", "ySelection section cannot be null");
             return;
         }
 
-        // mode: mixed | highest_only | random_only
-        String mode = teleport.ySelection.mode == null ? "" : teleport.ySelection.mode.toLowerCase();
-        java.util.Set<String> allowedModes = java.util.Set.of("mixed", "highest_only", "random_only");
-        if (!allowedModes.contains(mode)) {
-            result.addError("settings.teleport.ySelection.mode",
-                    "Invalid mode. Valid: mixed, highest_only, random_only");
+        // Overworld
+        {
+            var ow = teleport.ySelection.overworld;
+            if (ow == null) {
+                result.addError("settings.teleport.ySelection.overworld", "Overworld ySelection cannot be null");
+            } else {
+                Set<String> modes = Set.of("mixed", "highest_only", "random_only");
+                String mode = ow.mode == null ? "" : ow.mode.toLowerCase();
+                if (!modes.contains(mode)) {
+                    result.addError("settings.teleport.ySelection.overworld.mode", "Invalid mode. Valid: mixed, highest_only, random_only");
+                }
+                if ("mixed".equals(mode)) {
+                    Set<String> firsts = Set.of("highest", "random");
+                    String first = ow.first == null ? "" : ow.first.toLowerCase();
+                    if (!firsts.contains(first)) {
+                        result.addError("settings.teleport.ySelection.overworld.first", "Invalid first group. Valid: highest, random");
+                    }
+                    double share = ow.firstShare;
+                    if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
+                        result.addError("settings.teleport.ySelection.overworld.firstShare", "firstShare must be within [0.0 .. 1.0]");
+                    }
+                }
+            }
         }
 
-        // first: highest | random (only relevant for mixed, but we always validate)
-        String first = teleport.ySelection.first == null ? "" : teleport.ySelection.first.toLowerCase();
-        java.util.Set<String> allowedFirst = java.util.Set.of("highest", "random");
-        if (!allowedFirst.contains(first)) {
-            result.addError("settings.teleport.ySelection.first",
-                    "Invalid first group. Valid: highest, random");
+        // End
+        {
+            var en = teleport.ySelection.end;
+            if (en == null) {
+                result.addError("settings.teleport.ySelection.end", "End ySelection cannot be null");
+            } else {
+                Set<String> modes = Set.of("mixed", "highest_only", "random_only");
+                String mode = en.mode == null ? "" : en.mode.toLowerCase();
+                if (!modes.contains(mode)) {
+                    result.addError("settings.teleport.ySelection.end.mode", "Invalid mode. Valid: mixed, highest_only, random_only");
+                }
+                if ("mixed".equals(mode)) {
+                    Set<String> firsts = Set.of("highest", "random");
+                    String first = en.first == null ? "" : en.first.toLowerCase();
+                    if (!firsts.contains(first)) {
+                        result.addError("settings.teleport.ySelection.end.first", "Invalid first group. Valid: highest, random");
+                    }
+                    double share = en.firstShare;
+                    if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
+                        result.addError("settings.teleport.ySelection.end.firstShare", "firstShare must be within [0.0 .. 1.0]");
+                    }
+                }
+            }
         }
-        // firstShare: [0..1]
-        double share = teleport.ySelection.firstShare;
-        if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
-            result.addError("settings.teleport.ySelection.firstShare",
-                    "firstShare must be within [0.0 .. 1.0]");
+
+        // Nether
+        {
+            var ne = teleport.ySelection.nether;
+            if (ne == null) {
+                result.addError("settings.teleport.ySelection.nether", "Nether ySelection cannot be null");
+            } else {
+                Set<String> modes = Set.of("scan", "highest_only", "random_only");
+                String mode = ne.mode == null ? "" : ne.mode.toLowerCase();
+                if (!modes.contains(mode)) {
+                    result.addError("settings.teleport.ySelection.nether.mode", "Invalid mode. Valid: scan, highest_only, random_only");
+                }
+                // respectRange is boolean, no numeric validation needed
+            }
         }
     }
 
     private static void validateWaitingRoomSection(ValidationResult result, MainConfig.WaitingRoomSection waitingRoom) {
         Validators.min(result, "settings.waitingRoom.asyncSearchTimeout", waitingRoom.asyncSearchTimeout, 1, "Async search timeout must be at least 1 second");
         Validators.max(result, "settings.waitingRoom.asyncSearchTimeout", waitingRoom.asyncSearchTimeout, 60, "Async search timeout cannot exceed 60 seconds");
+
+        Validators.min(result, "settings.waitingRoom.minStayTicks", waitingRoom.minStayTicks, 0, "minStayTicks must be >= 0");
+        Validators.max(result, "settings.waitingRoom.minStayTicks", waitingRoom.minStayTicks, 600, "minStayTicks too high");
 
         // Validate waiting room location
         if (waitingRoom.location != null) {
@@ -145,14 +192,14 @@ public class MainConfigValidator {
         Validators.min(result, "party.respawnCooldown", party.respawnCooldown, 0, "Party respawn cooldown cannot be negative");
         Validators.min(result, "party.invitationExpiry", party.invitationExpiry, 1, "Party invitation expiry must be at least 1 second");
 
-        // Validate respawn at death settings
-        if (party.respawnAtDeath != null) {
-            Validators.notBlank(result, "party.respawnAtDeath.permission", party.respawnAtDeath.permission, "Respawn at death permission cannot be empty");
+        // Validate death location spawn settings
+        if (party.deathLocationSpawn != null) {
+            Validators.notBlank(result, "party.deathLocationSpawn.permission", party.deathLocationSpawn.permission, "Death location spawn permission cannot be empty");
 
-            if (party.respawnAtDeath.restrictionBehavior != null) {
+            if (party.deathLocationSpawn.restrictionBehavior != null) {
                 Set<String> validBehaviors = Set.of("deny", "allow", "fallback_to_party", "fallback_to_normal_spawn");
-                if (!validBehaviors.contains(party.respawnAtDeath.restrictionBehavior.restrictedAreaBehavior)) {
-                    result.addError("party.respawnAtDeath.restrictionBehavior.restrictedAreaBehavior",
+                if (!validBehaviors.contains(party.deathLocationSpawn.restrictionBehavior.restrictedAreaBehavior)) {
+                    result.addError("party.deathLocationSpawn.restrictionBehavior.restrictedAreaBehavior",
                             "Invalid restricted area behavior. Valid options: deny, allow, fallback_to_party, fallback_to_normal_spawn");
                 }
             }

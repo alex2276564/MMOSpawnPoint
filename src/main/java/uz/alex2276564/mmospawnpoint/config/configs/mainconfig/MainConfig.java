@@ -9,186 +9,288 @@ import java.util.List;
 public class MainConfig extends OkaeriConfig {
 
     @Comment("# ================================================================")
-    @Comment("# 📝 MMOSpawnPoint Configuration")
+    @Comment("# 🎯 Main Configuration")
+    @Comment("# ================================================================")
+    @Comment("# 📖 Documentation: https://github.com/alex2276564/MMOSpawnPoint")
+    @Comment("# 💬 Support: https://github.com/alex2276564/MMOSpawnPoint/issues")
     @Comment("# ================================================================")
     @Comment("")
-    @Comment("General settings")
+    @Comment("⚙️ Core system settings and behavior")
     public SettingsSection settings = new SettingsSection();
 
     @Comment("")
-    @Comment("Party system settings")
+    @Comment("# ================================================================")
+    @Comment("# 👥 PARTY SYSTEM")
+    @Comment("# ================================================================")
+    @Comment("# Allows players to create parties and respawn near party members")
+    @Comment("# Scope controls when party system activates (death/join/both)")
+    @Comment("# ================================================================")
+    @Comment("")
     public PartySection party = new PartySection();
 
     @Comment("")
-    @Comment("Join handling settings")
+    @Comment("# ================================================================")
+    @Comment("# 🚪 JOIN HANDLING")
+    @Comment("# ================================================================")
+    @Comment("# Controls player join behavior and resource pack integration")
+    @Comment("# ================================================================")
+    @Comment("")
     public JoinSection join = new JoinSection();
 
     @Comment("")
-    @Comment("External hooks (enable/disable integrations)")
+    @Comment("# ================================================================")
+    @Comment("# 🔗 EXTERNAL INTEGRATIONS")
+    @Comment("# ================================================================")
+    @Comment("# Enable/disable hooks with other plugins")
+    @Comment("# WorldGuard: Required for region-based spawns (kind: region)")
+    @Comment("# PlaceholderAPI: Required for placeholder conditions/expressions")
+    @Comment("# ================================================================")
+    @Comment("")
     public HooksSection hooks = new HooksSection();
 
+    // ================================================================
+    // HOOKS SECTION
+    // ================================================================
+
     public static class HooksSection extends OkaeriConfig {
-        @Comment("Use WorldGuard integration if installed")
+        @Comment("🏛️ WorldGuard Integration")
+        @Comment("Enable this to use region-based spawns (kind: region)")
+        @Comment("⚠️ IMPORTANT: Required for region-based spawns - plugin will fail validation without it")
+        @Comment("Requires WorldGuard plugin to be installed")
         public boolean useWorldGuard = true;
 
-        @Comment("Use PlaceholderAPI integration if installed")
+        @Comment("")
+        @Comment("🏷️ PlaceholderAPI Integration")
+        @Comment("Enable this to use placeholders in conditions and expressions")
+        @Comment("Examples: %player_level% > 10, %vault_eco_balance% >= 1000")
+        @Comment("⚠️ IMPORTANT: Required for placeholder conditions - plugin will fail validation without it")
+        @Comment("Requires PlaceholderAPI plugin to be installed")
         public boolean usePlaceholderAPI = true;
     }
 
+    // ================================================================
+    // MAIN SETTINGS SECTION
+    // ================================================================
+
     public static class SettingsSection extends OkaeriConfig {
-        @Comment("Default priorities for spawn types (higher number = higher priority)")
-        @Comment("coordinate: exact area spawns, region: WorldGuard regions, world: entire worlds")
+
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🎯 SPAWN PRIORITIES")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Higher number = higher priority (0-9999)")
+        @Comment("# When multiple spawn rules match, highest priority wins")
+        @Comment("# coordinate: exact area spawns, region: WorldGuard regions, world: entire worlds")
+        @Comment("# ----------------------------------------------------------------")
         public DefaultPrioritiesSection defaultPriorities = new DefaultPrioritiesSection();
 
         @Comment("")
-        @Comment("Maximum attempts to find safe location for random spawns")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🔍 SAFE LOCATION SEARCH")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# These settings control how the plugin finds safe spawn locations")
+        @Comment("# when requireSafe: true is used in spawn configurations")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("")
+        @Comment("🔄 Maximum attempts to find safe location for random spawns")
+        @Comment("Higher values = more thorough search but potentially slower")
+        @Comment("Recommended: 40-100 for normal setups, 20-40 for performance-critical servers")
         public int maxSafeLocationAttempts = 40;
 
         @Comment("")
-        @Comment("Base radius to search for safe locations (used by SafeLocationFinder)")
-        public int safeLocationRadius = 5;
+        @Comment("📏 Base radius to search for safe locations (blocks)")
+        @Comment("Used when searching around a fixed point (x/z have 'value')")
+        @Comment("Radius expands automatically if no safe location found initially")
+        public int safeLocationRadius = 6;
 
         @Comment("")
-        @Comment("Safe location caching system")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 💾 SAFE LOCATION CACHING")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Caching dramatically improves performance for repeated safe searches")
+        @Comment("# Different cache profiles for different spawn types")
+        @Comment("# ----------------------------------------------------------------")
         public SafeLocationCacheSection safeLocationCache = new SafeLocationCacheSection();
 
         @Comment("")
-        @Comment("Teleport settings")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🌍 TELEPORTATION SYSTEM")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Core teleport behavior and Y-level selection for overworld")
+        @Comment("# ----------------------------------------------------------------")
         public TeleportSection teleport = new TeleportSection();
 
         @Comment("")
-        @Comment("Waiting room settings")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# ⏳ WAITING ROOM SYSTEM")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Used when requireSafe: true - players wait here during safe search")
+        @Comment("# PHASES: BEFORE → waiting room → WAITING_ROOM → final teleport → AFTER")
+        @Comment("# ----------------------------------------------------------------")
         public WaitingRoomSection waitingRoom = new WaitingRoomSection();
 
         @Comment("")
-        @Comment("Enable debug mode for detailed logs")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🐛 DEBUG & DEVELOPMENT")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("")
+        @Comment("🔍 Enable debug mode for detailed console logs")
+        @Comment("Shows priority order, spawn selection process, cache operations")
+        @Comment("⚠️ Can be verbose - disable on production servers")
         public boolean debugMode = false;
 
         @Comment("")
-        @Comment("Blocks that are disallowed as ground (block under feet) globally")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🚫 GLOBAL BLOCK BLACKLISTS")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# These blocks are globally considered unsafe for spawning")
+        @Comment("# Can be overridden per-destination with groundWhitelist")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("")
+        @Comment("🔥 Blocks disallowed as ground (block under player's feet)")
+        @Comment("These blocks are considered unsafe to stand on")
         public List<String> globalGroundBlacklist = List.of(
                 "LAVA", "FIRE", "CACTUS", "WATER", "AIR", "MAGMA_BLOCK",
                 "CAMPFIRE", "SOUL_CAMPFIRE", "WITHER_ROSE", "SWEET_BERRY_BUSH"
         );
 
         @Comment("")
-        @Comment("Passable blocks disallowed for feet/head (e.g., water, lava, cobweb, powder snow)")
+        @Comment("💧 Blocks disallowed for feet/head positions")
+        @Comment("These blocks cannot be at the player's feet or head level")
+        @Comment("Prevents spawning inside water, lava, etc.")
         public List<String> globalPassableBlacklist = List.of(
-                "WATER", "KELP", "KELP_PLANT", "SEAGRASS", "TALL_SEAGRASS", "BUBBLE_COLUMN", "LAVA", "POWDER_SNOW"
+                "WATER", "KELP", "KELP_PLANT", "SEAGRASS", "TALL_SEAGRASS",
+                "BUBBLE_COLUMN", "LAVA", "POWDER_SNOW"
         );
 
-        @Comment("Batched safe-location search settings")
+        @Comment("")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# ⚡ PERFORMANCE TUNING")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Batch processing for safe location search across all players")
+        @Comment("# ----------------------------------------------------------------")
         public SafeSearchBatchSection safeSearchBatch = new SafeSearchBatchSection();
 
         @Comment("")
-        @Comment("Permissions and bypass settings")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🔐 PERMISSIONS & BYPASSES")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Permission nodes for bypassing various restrictions")
+        @Comment("# ----------------------------------------------------------------")
         public PermissionsSection permissions = new PermissionsSection();
 
         @Comment("")
-        @Comment("Maintenance and scheduler parameters")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🧹 MAINTENANCE & CLEANUP")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Automatic cleanup and file system limits")
+        @Comment("# ----------------------------------------------------------------")
         public MaintenanceSection maintenance = new MaintenanceSection();
     }
 
-    public static class SafeSearchBatchSection extends OkaeriConfig {
-        @Comment("Total attempts across all players per tick")
-        public int attemptsPerTick = 200;
-
-        @Comment("Time budget per tick in milliseconds (2-8 recommended)")
-        public int timeBudgetMillis = 2;
-    }
-
-    public static class PermissionsSection extends OkaeriConfig {
-        public BypassSection bypass = new BypassSection();
-
-        public static class BypassSection extends OkaeriConfig {
-            public PartyBypassSection party = new PartyBypassSection();
-
-            public static class PartyBypassSection extends OkaeriConfig {
-                @Comment("Bypass party respawn cooldown")
-                public boolean cooldownEnabled = true;
-                public String cooldownNode = "mmospawnpoint.bypass.party.cooldown";
-
-                @Comment("Bypass party restrictions (areas with partyRespawnDisabled)")
-                public RestrictionsSection restrictions = new RestrictionsSection();
-
-                @Comment("Bypass walking spawn point restrictions")
-                public WalkingSection walking = new WalkingSection();
-
-                public static class RestrictionsSection extends OkaeriConfig {
-                    public boolean deathEnabled = false;
-                    public String deathNode = "mmospawnpoint.bypass.party.restrictions.death";
-
-                    public boolean targetEnabled = false;
-                    public String targetNode = "mmospawnpoint.bypass.party.restrictions.target";
-
-                    public boolean bothEnabled = false;
-                    public String bothNode = "mmospawnpoint.bypass.party.restrictions.both";
-                }
-
-                public static class WalkingSection extends OkaeriConfig {
-                    public boolean restrictionsEnabled = false;
-                    public String restrictionsNode = "mmospawnpoint.bypass.party.walking.restrictions";
-                }
-            }
-        }
-    }
+    // ================================================================
+    // SUB-SECTIONS
+    // ================================================================
 
     public static class DefaultPrioritiesSection extends OkaeriConfig {
-
-        @Comment("Coordinate-based spawns")
+        @Comment("🎯 Coordinate-based spawns (kind: coordinate)")
+        @Comment("Exact area triggers with x/z/y ranges or rects")
         public int coordinate = 100;
 
-        @Comment("Region-based spawns")
+        @Comment("")
+        @Comment("🏛️ Region-based spawns (kind: region)")
+        @Comment("WorldGuard region triggers - requires WorldGuard")
         public int region = 50;
 
-        @Comment("World-based spawns")
+        @Comment("")
+        @Comment("🌍 World-based spawns (kind: world)")
+        @Comment("Entire world triggers - lowest priority by default")
         public int world = 10;
     }
 
+    public static class SafeSearchBatchSection extends OkaeriConfig {
+        @Comment("⚡ Total safe location attempts across ALL players per server tick")
+        @Comment("Higher = faster search but more CPU load per tick")
+        @Comment("Paper: multiple attempts per tick, Folia: one attempt per tick per region")
+        public int attemptsPerTick = 200;
+
+        @Comment("")
+        @Comment("⏱️ Maximum time budget per tick for safe search (milliseconds)")
+        @Comment("Paper only - prevents lag spikes from expensive searches")
+        @Comment("Recommended: 2-4ms for busy servers, 4-8ms for smaller servers")
+        public int timeBudgetMillis = 2;
+    }
+
     public static class SafeLocationCacheSection extends OkaeriConfig {
-        @Comment("Enable caching system for performance")
+        @Comment("💾 Enable caching system for massive performance improvement")
+        @Comment("Caches successful safe location searches to avoid repeated calculations.")
+        @Comment("Global master switch:")
+        @Comment("- If 'enabled=false' here, ALL caching is disabled (per-destination overrides cannot re-enable it).")
+        @Comment("Use cases:")
+        @Comment("- Keep it enabled in production. Disable only for debugging or highly dynamic maps.")
         public boolean enabled = true;
 
-        @Comment("Cache expiry time in seconds")
+        @Comment("")
+        @Comment("⏰ Cache expiry time in seconds")
+        @Comment("How long cached locations remain valid.")
+        @Comment("Lower = more accurate but more searches; Higher = better performance but less uniqueness.")
         public int expiryTime = 300;
 
-        @Comment("Maximum number of cached locations before cleanup")
+        @Comment("")
+        @Comment("📊 Maximum cached locations before cleanup")
+        @Comment("Prevents memory growth on busy servers.")
+        @Comment("Higher = better hit rate but more memory usage.")
         public int maxCacheSize = 1000;
 
-        @Comment("Caching behavior for different spawn types")
+        @Comment("")
+        @Comment("# Per-spawn-type caching profiles")
+        @Comment("# Each type has different access patterns and performance needs.")
+        @Comment("# Notes on overrides:")
+        @Comment("# - spawnTypeCaching.* controls defaults per type (pointSafe/areaSafeSingle/areaSafeMultiple).")
+        @Comment("# - destinations[].cache (per-destination) can override 'enabled' and 'playerSpecific' for that destination only.")
+        @Comment("# - However, the global 'safeLocationCache.enabled=false' still disables ALL caching (per-destination cannot force-enable it).")
         public SpawnTypeCachingSection spawnTypeCaching = new SpawnTypeCachingSection();
 
         @Comment("")
-        @Comment("NOTE:")
-        @Comment("Cache keys are salted with Y-selection policy and groundWhitelist to avoid cross-policy reuse.")
-
-        @Comment("")
-        @Comment("Advanced cache options")
+        @Comment("ℹ️ TECHNICAL NOTE:")
+        @Comment("Cache keys include the effective Y-selection signature and groundWhitelist hash.")
+        @Comment("This prevents incorrect reuse between different spawn configurations.")
         public AdvancedCacheSection advanced = new AdvancedCacheSection();
     }
 
     public static class SpawnTypeCachingSection extends OkaeriConfig {
-        @Comment("Caching for requireSafe=true around a single fixed point (x/z have 'value').")
-        @Comment("Used when destination has fixed coordinates and we look for a safe spot near that point.")
-        public CacheTypeSection fixedSafe = new CacheTypeSection(true, false);
+        @Comment("🎯 Fixed Point Safe Search")
+        @Comment("Used when destination has exact coordinates (x: value, z: value) AND requireSafe=true.")
+        @Comment("Search pattern: around that specific point (near-search).")
+        @Comment("Hit rate: high (same coordinates → same cache result).")
+        public CacheTypeSection pointSafe = new CacheTypeSection(true, false);
 
-        @Comment("Caching for requireSafe=true when searching inside an area (x/z ranges) and the selection produced a single destination (no weights).")
-        @Comment("Used for region/area-based safe search when only one destination option is chosen.")
-        public CacheTypeSection regionSafeSingle = new CacheTypeSection(true, true);
+        @Comment("")
+        @Comment("📦 Area Safe Search - Single Destination")
+        @Comment("Used when requireSafe=true with x/z ranges (or rects) and only one destination option.")
+        @Comment("Hit rate: medium (same area + same player → same result more often).")
+        public CacheTypeSection areaSafeSingle = new CacheTypeSection(true, true);
 
-        @Comment("Caching for requireSafe=true when searching inside an area (x/z ranges) and the selection produced multiple destinations with weights.")
-        @Comment("Used for region/area-based safe search when there are several destination options (weighted).")
-        public CacheTypeSection regionSafeWeighted = new CacheTypeSection(true, true);
+        @Comment("")
+        @Comment("🎲 Area Safe Search - Multiple Destinations")
+        @Comment("Used when requireSafe=true with multiple destination options (weighted/random).")
+        @Comment("Hit rate: lower (randomness), but cache still provides benefit.")
+        public CacheTypeSection areaSafeMultiple = new CacheTypeSection(true, true);
     }
 
     public static class CacheTypeSection extends OkaeriConfig {
+        @Comment("Enable caching for this spawn type (default behavior).")
+        @Comment("Note:")
+        @Comment("- destinations[].cache.enabled can override this per-destination.")
         public boolean enabled;
 
-        @Comment("Whether to use player-specific cache (each player gets different cached location)")
+        @Comment("Use player-specific cache entries.")
+        @Comment("true  = each player gets different cached locations (more realistic).")
+        @Comment("false = all players may share cached locations (better hit rate/performance).")
+        @Comment("Note:")
+        @Comment("- destinations[].cache.playerSpecific can override this per-destination.")
         public boolean playerSpecific;
 
-        public CacheTypeSection() {
-        }
+        public CacheTypeSection() {}
 
         public CacheTypeSection(boolean enabled, boolean playerSpecific) {
             this.enabled = enabled;
@@ -197,190 +299,418 @@ public class MainConfig extends OkaeriConfig {
     }
 
     public static class AdvancedCacheSection extends OkaeriConfig {
-        @Comment("Clear entire cache when ANY player changes world.")
-        @Comment("Use only for highly specialized setups (event worlds, worlds with frequently changing terrain/regions).")
+        @Comment("🌍 Clear ENTIRE cache when ANY player changes world")
+        @Comment("⚠️ Very aggressive; use only for highly dynamic worlds or special events.")
+        @Comment("Affects performance significantly.")
         public boolean clearOnWorldChange = false;
 
-        @Comment("Clear specific player's cache when they change worlds")
+        @Comment("")
+        @Comment("👤 Clear a specific player's cache when they change worlds")
+        @Comment("Balanced approach; removes potentially stale player-specific entries.")
         public boolean clearPlayerCacheOnWorldChange = true;
 
-        @Comment("Clear specific player's cache when they quit.")
+        @Comment("")
+        @Comment("🚪 Clear player's cache when they quit the server")
+        @Comment("Saves memory at the cost of losing cache benefit if they rejoin soon.")
         public boolean clearPlayerCacheOnQuit = false;
 
-        @Comment("Debug cache operations")
+        @Comment("")
+        @Comment("🐛 Debug cache operations in console")
+        @Comment("Shows cache hits/misses and performance metrics.")
         public boolean debugCache = false;
     }
 
     public static class TeleportSection extends OkaeriConfig {
-        @Comment("Delay before teleport in ticks (20 ticks = 1 second, 1 = almost instant)")
-        public int delayTicks = 1;
+        @Comment("⏱️ Delay before teleport in ticks (20 ticks = 1 second)")
+        @Comment("0 = instant, 20+ = noticeable delay")
+        @Comment("Note:")
+        @Comment("- This is a global visual/UX delay before teleport executes.")
+        @Comment("- Death (useSetRespawnLocationForDeath=false) uses post-respawn flow;")
+        @Comment("  SpawnManager still respects delayTicks for the final teleport.")
+        public int delayTicks = 0;
 
+        @Comment("")
+        @Comment("💀 Use setRespawnLocation for death events (recommended)")
+        @Comment("true  = set the respawn location during the respawn event (smooth, no flicker)")
+        @Comment("false = perform teleport after vanilla respawn (may show a brief vanilla spawn glimpse)")
+        @Comment("Tip:")
+        @Comment("- If you integrate with complex respawn logic from other plugins,")
+        @Comment("  testing both modes is recommended.")
         public boolean useSetRespawnLocationForDeath = true;
 
         @Comment("")
-        @Comment("Overworld Y selection for region-safe search")
-        public YSelectionSection ySelection = new YSelectionSection();
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 📏 DIMENSION-AWARE Y-LEVEL SELECTION")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Global Y-selection policy per dimension. Can be overridden per destination (spawnpoints).")
+        @Comment("# Overworld/End support: mixed | highest_only | random_only")
+        @Comment("# Nether supports: scan | highest_only | random_only")
+        @Comment("#   - scan: deterministic column scan for 'solid + 2 air' (recommended for generic Nether)")
+        @Comment("#   - respectRange (Nether): if true, scan will be limited to the destination's Y-range (rects)")
+        @Comment("# Notes:")
+        @Comment("# - Per-destination override is designed for hand-crafted/vertical content.")
+        @Comment("# - Global defaults keep behavior predictable for generic worlds.")
+        public TeleportYSelection ySelection = new TeleportYSelection();
     }
 
-    public static class YSelectionSection extends OkaeriConfig {
-        @Comment("Mode for choosing Y in overworld region-safe search:")
-        @Comment(" - mixed: split attempts between two groups ('highest' and 'random') with ratio controlled by 'firstShare'")
-        @Comment(" - highest_only: all attempts use 'highest block Y + 1' (spawns on ground)")
-        @Comment(" - random_only: all attempts use random Y within [minY..maxY]")
-        public String mode = "mixed";
+    public static class TeleportYSelection extends OkaeriConfig {
+        @Comment("Overworld policy (applies when world.environment == NORMAL; can be overridden per destination)")
+        public OverworldSection overworld = new OverworldSection();
 
-        @Comment("For 'mixed' mode: which group runs FIRST — 'highest' or 'random'")
-        @Comment("Use 'random' first for vertical dungeon-like layouts where a random Y should be tried earlier")
-        public String first = "highest";
+        @Comment("Nether policy (applies when world.environment == NETHER; can be overridden per destination)")
+        public NetherSection nether = new NetherSection();
 
-        @Comment("For 'mixed' mode: share [0.0..1.0] of total attempts assigned to the FIRST group")
-        @Comment("Example: firstShare=0.6, first=highest -> 60% attempts 'highest', then 40% 'random'")
-        @Comment("Tip: for vertical dungeons consider first='random' and firstShare around 0.5..0.7")
-        public double firstShare = 0.6;
+        @Comment("End policy (applies when world.environment == THE_END; can be overridden per destination)")
+        public EndSection end = new EndSection();
+
+        public static class OverworldSection extends OkaeriConfig {
+            @Comment("Y-selection mode in Overworld:")
+            @Comment("- mixed: hybrid strategy combining 'highest' and 'random'")
+            @Comment("- highest_only: always use highest block (surface-first behavior)")
+            @Comment("- random_only: uniform random Y within allowed bounds")
+            @Comment("Recommendation:")
+            @Comment("- mixed is the best default for most servers.")
+            public String mode = "mixed";
+
+            @Comment("For mixed:")
+            @Comment("- highest: try 'highest' first, then 'random'")
+            @Comment("- random: try 'random' first, then 'highest'")
+            public String first = "highest";
+
+            @Comment("For mixed:")
+            @Comment("- firstShare ∈ [0..1], share of attempts allocated to the FIRST strategy")
+            @Comment("- Example: first=highest, firstShare=0.6 → 60% highest, 40% random")
+            public double firstShare = 0.6;
+        }
+
+        public static class EndSection extends OkaeriConfig {
+            @Comment("Y-selection mode in the End:")
+            @Comment("- mixed | highest_only | random_only")
+            @Comment("Recommendation:")
+            @Comment("- highest_only or mixed(first=highest) for a surface-focused behavior on islands.")
+            public String mode = "highest_only";
+
+            @Comment("For mixed only: highest | random")
+            public String first = "highest";
+
+            @Comment("For mixed only: [0..1] share for the FIRST strategy")
+            public double firstShare = 0.6;
+        }
+
+        public static class NetherSection extends OkaeriConfig {
+            @Comment("Y-selection mode in the Nether:")
+            @Comment("- scan: deterministic 'solid + 2 air' column scan (recommended default)")
+            @Comment("- highest_only: use highest block (may put you on the roof without whitelist)")
+            @Comment("- random_only: uniform random Y (use with explicit Y ranges and whitelists)")
+            @Comment("Tip:")
+            @Comment("- Prefer scan for typical usage; switch to random_only per destination for hand-crafted vertical content.")
+            public String mode = "scan";
+
+            @Comment("If true, the Nether 'scan' mode will be limited to the Y-range of the destination (if provided).")
+            @Comment("This is useful for vertical dungeons or constrained regions.")
+            public boolean respectRange = false;
+        }
     }
 
     public static class WaitingRoomSection extends OkaeriConfig {
-        @Comment("Enable the waiting room system - recommended if you use requireSafe: true anywhere")
+        @Comment("✅ Enable waiting room system")
+        @Comment("Required for requireSafe: true spawns - players wait here during search")
+        @Comment("Disable only if you never use requireSafe: true anywhere")
         public boolean enabled = true;
 
-        @Comment("Timeout for async safe location search (seconds)")
-        @Comment("If a safe location isn't found within this time, player stays in waiting room")
+        @Comment("")
+        @Comment("⏰ Timeout for safe location search (seconds)")
+        @Comment("If no safe location found within this time, search gives up")
+        @Comment("Player remains in waiting room - consider manual rescue commands")
         public int asyncSearchTimeout = 10;
 
-        @Comment("Minimal time a player must stay in waiting room before final teleport (ticks)")
+        @Comment("")
+        @Comment("⏳ Minimum time in waiting room before final teleport (ticks)")
+        @Comment("Prevents instant teleport if safe location found immediately")
+        @Comment("Gives time for WAITING_ROOM phase messages/commands to display")
+        @Comment("💡 Set to 40-60 ticks (2-3 seconds) for good user experience")
         public int minStayTicks = 40;
 
-        @Comment("Global waiting room location (used if no custom waiting room is specified)")
+        @Comment("")
+        @Comment("🏠 Global waiting room coordinates")
+        @Comment("Used when no custom waiting room specified in spawn configuration")
+        @Comment("Should be a safe, enclosed area with no fall damage risk")
         public SpawnPointsConfig.WaitingRoomConfig location = new SpawnPointsConfig.WaitingRoomConfig();
     }
 
+    public static class PermissionsSection extends OkaeriConfig {
+        @Comment("🔓 Permission nodes for bypassing various restrictions")
+        public BypassSection bypass = new BypassSection();
+
+        public static class BypassSection extends OkaeriConfig {
+            @Comment("👥 Party system bypasses")
+            public PartyBypassSection party = new PartyBypassSection();
+
+            public static class PartyBypassSection extends OkaeriConfig {
+                @Comment("⏰ Bypass party respawn cooldown")
+                @Comment("Players with this permission ignore respawn cooldown timers")
+                public boolean cooldownEnabled = true;
+                public String cooldownNode = "mmospawnpoint.bypass.party.cooldown";
+
+                @Comment("")
+                @Comment("🚫 Bypass party restrictions (areas with partyRespawnDisabled: true)")
+                public RestrictionsSection restrictions = new RestrictionsSection();
+
+                @Comment("")
+                @Comment("🛡️ Bypass walking spawn point restrictions")
+                public WalkingSection walking = new WalkingSection();
+
+                public static class RestrictionsSection extends OkaeriConfig {
+                    @Comment("Bypass restrictions at death location")
+                    public boolean deathEnabled = false;
+                    public String deathNode = "mmospawnpoint.bypass.party.restrictions.death";
+
+                    @Comment("")
+                    @Comment("Bypass restrictions at target player location")
+                    public boolean targetEnabled = false;
+                    public String targetNode = "mmospawnpoint.bypass.party.restrictions.target";
+
+                    @Comment("")
+                    @Comment("Bypass restrictions when both death and target are restricted")
+                    public boolean bothEnabled = false;
+                    public String bothNode = "mmospawnpoint.bypass.party.restrictions.both";
+                }
+
+                public static class WalkingSection extends OkaeriConfig {
+                    @Comment("Bypass walking spawn point area restrictions")
+                    @Comment("Allows respawning at death location even in restricted areas")
+                    public boolean restrictionsEnabled = false;
+                    public String restrictionsNode = "mmospawnpoint.bypass.party.walking.restrictions";
+                }
+            }
+        }
+    }
+
+    // ================================================================
+    // PARTY SYSTEM
+    // ================================================================
+
     public static class PartySection extends OkaeriConfig {
-        @Comment("Enable party system")
+        @Comment("🎭 Enable entire party system")
+        @Comment("Set to false to completely disable party features")
         public boolean enabled = true;
 
-        @Comment("Party system scope: death, join, both")
-        @Comment("death - only work on player death")
-        @Comment("join - only work on player join")
-        @Comment("both - work on both events")
+        @Comment("")
+        @Comment("🎯 Party system activation scope")
+        @Comment("• death: only activate on player death")
+        @Comment("• join: only activate on player join")
+        @Comment("• both: activate on both death and join events")
+        @Comment("💡 Most servers use 'death' for respawn-focused party system")
         public String scope = "death";
 
-        @Comment("Maximum number of players in a party (0 for unlimited)")
+        @Comment("")
+        @Comment("👥 Maximum players per party (0 = unlimited)")
+        @Comment("Large parties can impact performance with complex target selection")
         public int maxSize = 10;
 
-        @Comment("Maximum distance for party respawn in blocks (0 for unlimited)")
+        @Comment("")
+        @Comment("📏 Maximum respawn distance in blocks (0 = unlimited)")
+        @Comment("Prevents teleporting across entire world for party respawn")
+        @Comment("💡 Recommended: 1000-5000 for balanced gameplay")
         public int maxRespawnDistance = 0;
 
-        @Comment("Cooldown between party respawn for same player in seconds (0 for no cooldown)")
+        @Comment("")
+        @Comment("⏱️ Cooldown between party respawns per player (seconds, 0 = none)")
+        @Comment("Prevents spam respawning at party members")
+        @Comment("💡 Recommended: 30-120 seconds for PvP servers, 0 for PvE")
         public int respawnCooldown = 0;
 
-        @Comment("Invitation expiry time in seconds")
+        @Comment("")
+        @Comment("📨 Invitation expiry time (seconds)")
+        @Comment("How long party invitations remain valid")
         public int invitationExpiry = 120;
 
-        @Comment("Walking Spawn Point feature")
-        public RespawnAtDeathSection respawnAtDeath = new RespawnAtDeathSection();
+        @Comment("")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🚶 WALKING SPAWN POINT")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Special feature: respawn at exact death location (if allowed)")
+        @Comment("# Takes priority over party member locations when enabled")
+        @Comment("# ----------------------------------------------------------------")
+        public DeathLocationSpawnSection deathLocationSpawn = new DeathLocationSpawnSection();
 
-        @Comment("Party respawn behavior control")
+        @Comment("")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# 🎯 PARTY RESPAWN BEHAVIOR")
+        @Comment("# ----------------------------------------------------------------")
+        @Comment("# Fine control over how party respawning works with restrictions")
+        @Comment("# and target selection algorithms")
+        @Comment("# ----------------------------------------------------------------")
         public RespawnBehaviorSection respawnBehavior = new RespawnBehaviorSection();
     }
 
-    public static class RespawnAtDeathSection extends OkaeriConfig {
+    public static class DeathLocationSpawnSection extends OkaeriConfig {
+        @Comment("🚶 Enable walking spawn point feature")
+        @Comment("Allows players to respawn at their exact death location")
         public boolean enabled = true;
-        public String permission = "mmospawnpoint.party.respawnatdeath";
 
-        @Comment("How walking spawn point interacts with restrictions")
+        @Comment("")
+        @Comment("🔐 Permission required to use walking spawn point")
+        @Comment("Players need this permission to respawn at death location")
+        public String permission = "mmospawnpoint.party.deathLocationSpawn";
+
+        @Comment("")
+        @Comment("🚫 How walking spawn point handles restricted areas")
         public RestrictionBehaviorSection restrictionBehavior = new RestrictionBehaviorSection();
     }
 
     public static class RestrictionBehaviorSection extends OkaeriConfig {
-        @Comment("Whether walking spawn point should respect party-respawn-disabled areas")
+        @Comment("🔍 Whether walking spawn point respects partyRespawnDisabled areas")
+        @Comment("true = check restrictions, false = always allow death location respawn")
         public boolean respectRestrictions = true;
 
-        @Comment("What to do when walking spawn point player dies in restricted area")
-        @Comment("Options: deny, allow, fallback_to_party, fallback_to_normal_spawn")
+        @Comment("")
+        @Comment("⚖️ What to do when trying to use walking spawn in restricted area:")
+        @Comment("• deny: block the walking spawn, show restriction message")
+        @Comment("• allow: ignore restrictions, always allow death location")
+        @Comment("• fallback_to_party: use party member location instead")
+        @Comment("• fallback_to_normal_spawn: use normal spawn system")
         public String restrictedAreaBehavior = "deny";
 
-        @Comment("Whether to check both death location and target location restrictions")
+        @Comment("")
+        @Comment("📍 Which locations to check for restrictions")
+        @Comment("Death location = where player died")
+        @Comment("Target location = where party member is (if checkTargetLocation enabled)")
         public boolean checkDeathLocation = true;
         public boolean checkTargetLocation = false;
     }
 
     public static class RespawnBehaviorSection extends OkaeriConfig {
-        @Comment("Check dying player's location for restrictions")
+        @Comment("📍 Location restriction checking")
+        @Comment("Checks locations against spawn areas with partyRespawnDisabled: true")
         public boolean checkDeathLocation = true;
-
-        @Comment("Check target player's location for restrictions")
         public boolean checkTargetLocation = true;
 
-        @Comment("Behavior when only death location is restricted")
-        @Comment("Options: allow, deny, fallback_to_normal_spawn")
+        @Comment("")
+        @Comment("⚖️ Behavior when ONLY death location is restricted:")
+        @Comment("• allow: ignore restriction, proceed with party respawn")
+        @Comment("• deny: block party respawn, show restriction message")
+        @Comment("• fallback_to_normal_spawn: use normal spawn system instead")
         public String deathRestrictedBehavior = "deny";
 
-        @Comment("Behavior when only target location is restricted")
-        @Comment("Options: allow, deny, find_other_member")
+        @Comment("")
+        @Comment("⚖️ Behavior when ONLY target location is restricted:")
+        @Comment("• allow: ignore restriction, respawn at target anyway")
+        @Comment("• deny: block party respawn, show restriction message")
+        @Comment("• find_other_member: try to find unrestricted party member")
         public String targetRestrictedBehavior = "deny";
 
-        @Comment("Behavior when both locations are restricted")
+        @Comment("")
+        @Comment("⚖️ Behavior when BOTH locations are restricted:")
+        @Comment("• allow: ignore all restrictions")
+        @Comment("• deny: block party respawn")
+        @Comment("• fallback_to_normal_spawn: use normal spawn system")
         public String bothRestrictedBehavior = "deny";
 
-        @Comment("Try to find alternative party members if target is in restricted area")
+        @Comment("")
+        @Comment("🔍 Try to find alternative party members if target is restricted")
+        @Comment("When true, searches for other party members in unrestricted areas")
         public boolean findAlternativeTarget = true;
 
-        @Comment("Maximum attempts to find alternative party member")
+        @Comment("")
+        @Comment("🔢 Maximum attempts to find alternative party member")
+        @Comment("Higher = better chance to find valid target, but more processing")
         public int alternativeTargetAttempts = 3;
 
-        @Comment("Target selection strategy")
+        @Comment("")
+        @Comment("# Target selection AI - how to choose which party member to respawn at")
         public TargetSelectionSection targetSelection = new TargetSelectionSection();
     }
 
     public static class TargetSelectionSection extends OkaeriConfig {
-        @Comment("Primary strategy: closest_same_world, any_world, most_members_world,")
-        @Comment("most_members_region, random, leader_priority, specific_target_only")
+        @Comment("🎯 Primary target selection strategy:")
+        @Comment("• closest_same_world: nearest party member in same world")
+        @Comment("• any_world: nearest party member anywhere")
+        @Comment("• most_members_world: world with most party members")
+        @Comment("• most_members_region: region with most party members")
+        @Comment("• random: random party member")
+        @Comment("• leader_priority: prefer party leader")
+        @Comment("• specific_target_only: only use manually set target")
         public String primaryStrategy = "closest_same_world";
 
-        @Comment("Fallback strategy if primary fails")
+        @Comment("")
+        @Comment("🔄 Fallback strategy if primary fails")
+        @Comment("Same options as primaryStrategy")
         public String fallbackStrategy = "any_world";
 
-        @Comment("Whether to prefer players in same world")
+        @Comment("")
+        @Comment("🌍 Prefer players in same world over cross-world teleports")
         public boolean preferSameWorld = true;
 
-        @Comment("Whether to prefer party leader over other members")
+        @Comment("")
+        @Comment("👑 Prefer party leader over regular members")
+        @Comment("Useful for leader-focused party gameplay")
         public boolean preferLeader = false;
 
-        @Comment("Whether to consider world population when selecting target")
+        @Comment("")
+        @Comment("📊 Consider world population when selecting target")
+        @Comment("Favors worlds with more party members")
         public boolean considerWorldPopulation = false;
 
-        @Comment("Whether to consider region population when selecting target")
+        @Comment("")
+        @Comment("🏛️ Consider region population when selecting target")
+        @Comment("Favors regions with more party members (requires WorldGuard)")
         public boolean considerRegionPopulation = false;
 
-        @Comment("Minimum members required in a world/region to prefer it")
+        @Comment("")
+        @Comment("👥 Minimum members required in world/region to prefer it")
+        @Comment("Prevents selecting empty areas just because they have 1 member")
         public int minPopulationThreshold = 2;
 
-        @Comment("Maximum attempts to find alternative target")
+        @Comment("")
+        @Comment("🔄 Maximum attempts to find alternative target")
+        @Comment("Used when primary target selection fails")
         public int maxAlternativeAttempts = 3;
     }
 
+    // ================================================================
+    // JOIN SYSTEM
+    // ================================================================
+
     public static class JoinSection extends OkaeriConfig {
-        @Comment("Wait for resource pack to load before processing join spawns")
-        @Comment("Performance note: best practice is to load RP in hub/lobby.")
+        @Comment("📦 Wait for resource pack to load before processing join spawns")
+        @Comment("⚠️ PERFORMANCE NOTE: Best practice is to pre-load resource packs in hub/lobby")
+        @Comment("This feature adds complexity - consider hub-based RP loading instead")
         public boolean waitForResourcePack = false;
 
-        @Comment("Resource pack timeout in seconds")
-        @Comment("Player will be teleported after this time regardless of RP status")
+        @Comment("")
+        @Comment("⏰ Resource pack loading timeout (seconds)")
+        @Comment("Player gets teleported after this time regardless of RP status")
+        @Comment("💡 Balance between user experience and preventing stuck players")
         public int resourcePackTimeout = 120;
 
-        @Comment("Use waiting room while waiting for resource pack")
-        @Comment("If enabled, player will be moved to waiting room during RP download")
+        @Comment("")
+        @Comment("🏠 Move player to waiting room during resource pack download")
+        @Comment("Prevents players from wandering around during RP download")
+        @Comment("Only works if waitingRoom.enabled = true")
         public boolean useWaitingRoomForResourcePack = false;
     }
 
+    // ================================================================
+    // MAINTENANCE
+    // ================================================================
+
     public static class MaintenanceSection extends OkaeriConfig {
-        @Comment("Max folder depth when scanning spawnpoints directory")
+        @Comment("📁 Maximum folder depth when scanning spawnpoints/ directory")
+        @Comment("Prevents infinite recursion and excessive nesting")
+        @Comment("💡 Recommended: 5-9 levels for organized spawn configs")
         public int maxFolderDepth = 9;
 
-        @Comment("Party cleanup period in ticks")
+        @Comment("")
+        @Comment("🧹 Party cleanup frequency (ticks)")
+        @Comment("How often to remove empty parties and rebuild member maps")
+        @Comment("1200 ticks = 60 seconds")
         public int partyCleanupPeriodTicks = 1200;
 
-        @Comment("Invitation cleanup period in ticks")
+        @Comment("")
+        @Comment("📨 Invitation cleanup frequency (ticks)")
+        @Comment("How often to remove expired party invitations")
+        @Comment("1200 ticks = 60 seconds")
         public int invitationCleanupPeriodTicks = 1200;
     }
 }

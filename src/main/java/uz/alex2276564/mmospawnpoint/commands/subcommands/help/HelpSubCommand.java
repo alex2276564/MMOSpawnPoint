@@ -21,7 +21,7 @@ public class HelpSubCommand implements SubCommandProvider {
                     plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.partyLine", help.partyLine);
                     plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.simulateLine", help.simulateLine);
                     plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.cacheLine", help.cacheLine);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.setspawnpointLine", help.setspawnpointLine);
+                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.spawnpointLine", help.spawnpointLine);
                     plugin.getMessageManager().sendMessageKeyed(sender, "commands.help.helpLine", help.helpLine);
                 });
     }

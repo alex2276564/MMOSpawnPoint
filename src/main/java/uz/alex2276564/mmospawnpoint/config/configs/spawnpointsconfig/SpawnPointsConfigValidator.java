@@ -198,7 +198,7 @@ public class SpawnPointsConfigValidator {
                 // common: destinations
                 if (e.destinations != null) {
                     for (int j = 0; j < e.destinations.size(); j++) {
-                        validateLocationOption(result, e.destinations.get(j), p + ".destinations[" + j + "]");
+                        validateDestination(result, e.destinations.get(j), p + ".destinations[" + j + "]");
                     }
                 }
 
@@ -211,20 +211,43 @@ public class SpawnPointsConfigValidator {
         result.throwIfInvalid("SpawnPoints configuration (" + fileName + ")");
     }
 
+    /**
+     * Returns true if actions section uses PlaceholderAPI in any chanceConditions
+     * (either in commands or messages).
+     */
     private static boolean entryUsesPlaceholderInActions(SpawnPointsConfig.ActionsConfig actions) {
-        if (actions == null || actions.commands == null) return false;
-        for (SpawnPointsConfig.CommandActionEntry cmd : actions.commands) {
-            if (cmd.chanceConditions == null) continue;
-            for (SpawnPointsConfig.ChanceConditionEntry cc : cmd.chanceConditions) {
-                if ("placeholder".equalsIgnoreCase(cc.type)) return true;
+        if (actions == null) return false;
+
+        // Commands: check chanceConditions for 'placeholder' type
+        if (actions.commands != null) {
+            for (SpawnPointsConfig.CommandActionEntry cmd : actions.commands) {
+                if (cmd == null || cmd.chanceConditions == null) continue;
+                for (SpawnPointsConfig.ChanceConditionEntry cc : cmd.chanceConditions) {
+                    if (cc != null && "placeholder".equalsIgnoreCase(cc.type)) {
+                        return true;
+                    }
+                }
             }
         }
+
+        // Messages: check chanceConditions for 'placeholder' type
+        if (actions.messages != null) {
+            for (SpawnPointsConfig.MessageEntry msg : actions.messages) {
+                if (msg == null || msg.chanceConditions == null) continue;
+                for (SpawnPointsConfig.ChanceConditionEntry cc : msg.chanceConditions) {
+                    if (cc != null && "placeholder".equalsIgnoreCase(cc.type)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
         return false;
     }
 
-    private static boolean entryUsesPlaceholderInDestinations(List<SpawnPointsConfig.LocationOption> list) {
+    private static boolean entryUsesPlaceholderInDestinations(List<SpawnPointsConfig.Destination> list) {
         if (list == null) return false;
-        for (SpawnPointsConfig.LocationOption loc : list) {
+        for (SpawnPointsConfig.Destination loc : list) {
             if (loc.weightConditions != null) {
                 for (SpawnPointsConfig.WeightConditionEntry wc : loc.weightConditions) {
                     if ("placeholder".equalsIgnoreCase(wc.type)) return true;
@@ -399,7 +422,7 @@ public class SpawnPointsConfigValidator {
         }
     }
 
-    private static void validateLocationOption(ValidationResult result, SpawnPointsConfig.LocationOption loc, String prefix) {
+    private static void validateDestination(ValidationResult result, SpawnPointsConfig.Destination loc, String prefix) {
         if (loc == null) {
             result.addError(prefix, "Destination cannot be null");
             return;
@@ -410,14 +433,17 @@ public class SpawnPointsConfigValidator {
         boolean hasRects = loc.rects != null && !loc.rects.isEmpty();
         boolean hasAxis = (loc.x != null || loc.y != null || loc.z != null);
         if (hasRects && hasAxis) {
-            result.addError(prefix, "LocationOption: use either rects or x/y/z, not both");
+            result.addError(prefix, "Destination: use either rects or x/y/z, not both");
         }
 
         if (hasRects) {
             for (int i = 0; i < loc.rects.size(); i++) {
                 var r = loc.rects.get(i);
                 String rp = prefix + ".rects[" + i + "]";
-                if (r == null) { result.addError(rp, "Rect cannot be null"); continue; }
+                if (r == null) {
+                    result.addError(rp, "Rect cannot be null");
+                    continue;
+                }
                 if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
                 else validateAxisSpec(result, r.x, rp + ".x");
                 if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
@@ -428,7 +454,10 @@ public class SpawnPointsConfigValidator {
                 for (int i = 0; i < loc.excludeRects.size(); i++) {
                     var r = loc.excludeRects.get(i);
                     String rp = prefix + ".excludeRects[" + i + "]";
-                    if (r == null) { result.addError(rp, "Exclude rect cannot be null"); continue; }
+                    if (r == null) {
+                        result.addError(rp, "Exclude rect cannot be null");
+                        continue;
+                    }
                     if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
                     else validateAxisSpec(result, r.x, rp + ".x");
                     if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
@@ -483,7 +512,8 @@ public class SpawnPointsConfigValidator {
                 // bounds for weight:
                 // set: >=1; add: allow [-10000..10000]; mul: >=0 and <=10
                 switch (mode) {
-                    case "set" -> Validators.min(result, wcp + ".weight", wc.weight, 1, "For mode=set, weight must be >= 1");
+                    case "set" ->
+                            Validators.min(result, wcp + ".weight", wc.weight, 1, "For mode=set, weight must be >= 1");
                     case "add" -> {
                         // allow a wide range; final weight clamped in runtime to >=1
                         Validators.min(result, wcp + ".weight", wc.weight, -10000, "For mode=add, weight too small");
@@ -513,13 +543,34 @@ public class SpawnPointsConfigValidator {
             Validators.notBlank(result, prefix + ".waitingRoom.world", loc.waitingRoom.world, "Waiting room world cannot be empty");
         }
 
+        if (loc.ySelection != null) {
+            String mode = (loc.ySelection.mode == null) ? "" : loc.ySelection.mode.toLowerCase(Locale.ROOT);
+            Set<String> allowed = Set.of("mixed", "highest_only", "random_only", "scan");
+            if (!allowed.contains(mode)) {
+                result.addError(prefix + ".ySelection.mode", "Invalid mode. Valid: mixed, highest_only, random_only, scan (Nether only)");
+            }
+            if ("mixed".equals(mode)) {
+                String first = (loc.ySelection.first == null) ? "" : loc.ySelection.first.toLowerCase(Locale.ROOT);
+                if (!Set.of("highest", "random").contains(first)) {
+                    result.addError(prefix + ".ySelection.first", "Invalid first group. Valid: highest, random");
+                }
+                double share = loc.ySelection.firstShare;
+                if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
+                    result.addError(prefix + ".ySelection.firstShare", "firstShare must be within [0.0 .. 1.0]");
+                }
+            }
+            // respectRange: optional, no numeric validation (boolean)
+        }
+
         if (loc.groundWhitelist != null) {
             for (int i = 0; i < loc.groundWhitelist.size(); i++) {
                 String name = loc.groundWhitelist.get(i);
-                try {
-                    Material.valueOf(name.toUpperCase(Locale.ROOT));
-                } catch (IllegalArgumentException ex) {
-                    result.addError(prefix + ".groundWhitelist[" + i + "]", "Unknown material: " + name);
+                Material mat = Material.matchMaterial(name);
+                String path = prefix + ".groundWhitelist[" + i + "]";
+                if (mat == null) {
+                    result.addError(path, "Unknown material: " + name);
+                } else if (mat.name().startsWith("LEGACY_")) {
+                    result.addError(path, "Legacy material is not supported: " + name);
                 }
             }
         }
@@ -531,8 +582,8 @@ public class SpawnPointsConfigValidator {
             return;
         }
 
-        boolean isValue = axis.isValue();
-        boolean isRange = axis.isRange();
+        boolean isValue = axis.Value();
+        boolean isRange = axis.Range();
 
         if (!isValue && !isRange) {
             result.addError(prefix, "Axis must define either 'value' or BOTH 'min' and 'max'.");

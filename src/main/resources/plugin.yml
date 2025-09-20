@@ -10,7 +10,7 @@ website: https://github.com/alex2276564/MMOSpawnPoint
 commands:
   mmospawnpoint:
     description: Main command for MMOSpawnPoint plugin
-    usage: /mmospawnpoint <reload|setspawnpoint|party|help> [args]
+    usage: /mmospawnpoint <reload|spawnpoint|party|help> [args]
     aliases: [ msp ]
     permission: mmospawnpoint.command
 permissions:
@@ -20,8 +20,20 @@ permissions:
   mmospawnpoint.reload:
     description: Allows reloading the MMOSpawnPoint configuration
     default: op
-  mmospawnpoint.setspawnpoint:
-    description: Allows setting vanilla respawn point for players
+  mmospawnpoint.spawnpoint:
+    description: Base permission for /msp spawnpoint
+    default: op
+  mmospawnpoint.spawnpoint.set:
+    description: Set bed/anchor spawn
+    default: op
+  mmospawnpoint.spawnpoint.clear:
+    description: Clear bed/anchor spawn
+    default: op
+  mmospawnpoint.spawnpoint.teleport:
+    description: Teleport to bed/anchor spawn
+    default: op
+  mmospawnpoint.spawnpoint.show:
+    description: Show bed/anchor spawn
     default: op
   mmospawnpoint.simulate:
     description: Root permission for simulate command

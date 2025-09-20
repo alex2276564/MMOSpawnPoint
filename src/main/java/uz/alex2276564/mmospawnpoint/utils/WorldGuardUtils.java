@@ -6,11 +6,13 @@ import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
+import lombok.experimental.UtilityClass;
 import org.bukkit.Location;
 
 import java.util.HashSet;
 import java.util.Set;
 
+@UtilityClass
 public class WorldGuardUtils {
 
     public static Set<String> getRegionsAt(Location location) {

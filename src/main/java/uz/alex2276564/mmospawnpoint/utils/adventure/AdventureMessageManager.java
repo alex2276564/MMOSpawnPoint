@@ -148,4 +148,23 @@ public class AdventureMessageManager implements MessageManager {
             sender.sendMessage(plainText);
         }
     }
+
+    @Override
+    public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message, @NotNull Map<String, String> placeholders) {
+        if (isDisabled(key)) return;
+        player.sendMessage(parse(message, placeholders));
+    }
+
+    @Override
+    public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message, @NotNull Map<String, String> placeholders) {
+        if (isDisabled(key)) return;
+        if (sender instanceof Player player) {
+            player.sendMessage(parse(message, placeholders));
+        } else {
+            // For console — plain text
+            Component parsed = parse(message, placeholders);
+            String plainText = PlainTextComponentSerializer.plainText().serialize(parsed);
+            sender.sendMessage(plainText);
+        }
+    }
 }

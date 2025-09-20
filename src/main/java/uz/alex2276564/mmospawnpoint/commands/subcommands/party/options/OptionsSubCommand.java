@@ -67,6 +67,6 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
             return "None";
         }
         Player targetPlayer = party.getRespawnTargetPlayer();
-        return targetPlayer != null ? targetPlayer.getName() : "<gray>(Wandering in the void)";
+        return targetPlayer != null ? targetPlayer.getName() : MMOSpawnPoint.getInstance().getConfigManager().getMessagesConfig().party.options.respawnTargetNotFound;
     }
 }

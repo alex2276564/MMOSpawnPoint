@@ -1,6 +1,7 @@
 package uz.alex2276564.mmospawnpoint.manager;
 
 import io.papermc.lib.PaperLib;
+import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -9,6 +10,8 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.SpawnPointsConfig;
+import uz.alex2276564.mmospawnpoint.events.MSPPostTeleportEvent;
+import uz.alex2276564.mmospawnpoint.events.MSPPreTeleportEvent;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
 import uz.alex2276564.mmospawnpoint.utils.PlaceholderUtils;
 import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
@@ -19,6 +22,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
+
+import static uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder.resolveMinY;
 
 /**
  * SpawnManager (Runner + Folia-safe)
@@ -38,17 +43,17 @@ public class SpawnManager {
     private final Map<UUID, Location> deathLocations = new ConcurrentHashMap<>();
 
     // AFTER-phase execution state for non-waiting-room flows
-    private record PendingAfter(SpawnPointsConfig.LocationOption loc, SpawnPointsConfig.ActionsConfig global) {}
+    private record PendingAfter(SpawnPointsConfig.Destination loc, SpawnPointsConfig.ActionsConfig global) {}
     private final Map<UUID, PendingAfter> pendingAfterActions = new ConcurrentHashMap<>();
 
     // WAITING_ROOM-phase pending state
-    private record PendingWR(SpawnPointsConfig.LocationOption loc, SpawnPointsConfig.ActionsConfig global) {}
-    private final Map<UUID, PendingWR> pendingWaitingRoomActions = new ConcurrentHashMap<>();
+    private record PendingWaitingRoom(SpawnPointsConfig.Destination loc, SpawnPointsConfig.ActionsConfig global) {}
+    private final Map<UUID, PendingWaitingRoom> pendingWaitingRoomActions = new ConcurrentHashMap<>();
 
-    // Track active batch jobs per player (waiting-room async search)
-    private final Map<UUID, BatchJob> activeBatchJobs = new ConcurrentHashMap<>();
+    // Track active Safe Search jobs per player (waiting-room async search)
+    private final Map<UUID, SafeSearchJob> activeSafeSearchJobs = new ConcurrentHashMap<>();
 
-    // Batch safe-search parameters (from config)
+    // Safe Search parameters (from config)
     private final int attemptsPerTick;
     private final long timeBudgetNs;
 
@@ -65,12 +70,13 @@ public class SpawnManager {
     // ========== Lifecycle / housekeeping ==========
 
     public void cleanup() {
-        for (BatchJob job : activeBatchJobs.values()) {
+        for (SafeSearchJob job : activeSafeSearchJobs.values()) {
             try {
                 job.cancel();
             } catch (Exception ignored) {}
         }
-        activeBatchJobs.clear();
+        activeSafeSearchJobs.clear();
+        pendingWaitingRoomActions.clear();
         pendingAfterActions.clear();
         deathLocations.clear();
     }
@@ -78,7 +84,8 @@ public class SpawnManager {
     public void cleanupPlayerData(UUID playerId) {
         try {
             deathLocations.remove(playerId);
-            cancelBatchJob(playerId);
+            cancelSafeSearchJob(playerId);
+            pendingWaitingRoomActions.remove(playerId);
             pendingAfterActions.remove(playerId);
             if (isDebug()) {
                 plugin.getLogger().info("Cleaned up spawn manager data for player: " + playerId);
@@ -127,7 +134,7 @@ public class SpawnManager {
             if (isDebug()) {
                 plugin.getLogger().info("No join spawn location found for " + player.getName());
             }
-            plugin.getMessageManager().sendMessage(player, plugin.getConfigManager().getMessagesConfig().general.noSpawnFound);
+            plugin.getMessageManager().sendMessageKeyed(player, "general.noSpawnFound", plugin.getConfigManager().getMessagesConfig().general.noSpawnFound);
             return false;
 
         } catch (Exception e) {
@@ -179,7 +186,7 @@ public class SpawnManager {
             if (isDebug()) {
                 plugin.getLogger().warning("No death spawn location found for " + player.getName());
             }
-            plugin.getMessageManager().sendMessage(player, plugin.getConfigManager().getMessagesConfig().general.noSpawnFound);
+            plugin.getMessageManager().sendMessageKeyed(player, "general.noSpawnFound", plugin.getConfigManager().getMessagesConfig().general.noSpawnFound);
             return false;
 
         } catch (Exception e) {
@@ -235,7 +242,7 @@ public class SpawnManager {
     private Location processEntry(
             Player player,
             SpawnPointsConfig.ConditionsConfig conditions,
-            List<SpawnPointsConfig.LocationOption> destinations,
+            List<SpawnPointsConfig.Destination> destinations,
             SpawnPointsConfig.ActionsConfig globalActions,
             SpawnPointsConfig.WaitingRoomConfig entryWaitingRoom,
             String eventType
@@ -254,25 +261,25 @@ public class SpawnManager {
             return null;
         }
 
-        SpawnPointsConfig.LocationOption selected = selectDestination(player, destinations);
+        SpawnPointsConfig.Destination selected = selectDestination(player, destinations);
         if (selected == null) return null;
 
         boolean requireSafe = selected.requireSafe;
         boolean useWaitingRoom = plugin.getConfigManager().getMainConfig().settings.waitingRoom.enabled && requireSafe;
 
-        // NEW: is this a weighted region scenario? (more than one destination option)
-        boolean regionWeighted = destinations.size() > 1;
+        // Is this a weighted region scenario? (more than one destination option)
+        boolean hasMultipleDestinations = destinations.size() > 1;
 
         if (useWaitingRoom) {
             // BEFORE strictly before any teleport
             runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
 
             // Defer WAITING_ROOM phase until the player is actually in the waiting room
-            pendingWaitingRoomActions.put(player.getUniqueId(), new PendingWR(selected, globalActions));
+            pendingWaitingRoomActions.put(player.getUniqueId(), new PendingWaitingRoom(selected, globalActions));
 
-            // Start async safe search (now with regionWeighted flag)
+            // Start async safe search (now with hasMultipleDestinations flag)
             long enteredMs = System.currentTimeMillis();
-            startBatchedLocationSearchForSelected(player, selected, globalActions, enteredMs, regionWeighted);
+            startBatchedLocationSearchForSelected(player, selected, globalActions, enteredMs, hasMultipleDestinations, eventType);
 
             // If death + useSetRespawn, schedule WAITING_ROOM one tick later (server will teleport after event)
             boolean useSetRespawn = plugin.getConfigManager().getMainConfig().settings.teleport.useSetRespawnLocationForDeath;
@@ -299,7 +306,7 @@ public class SpawnManager {
      * Run WAITING_ROOM phase once (if pending). Returns true if executed.
      */
     private boolean runWaitingRoomPhaseIfPending(Player player) {
-        PendingWR wr = pendingWaitingRoomActions.remove(player.getUniqueId());
+        PendingWaitingRoom wr = pendingWaitingRoomActions.remove(player.getUniqueId());
         if (wr == null) return false;
         // Safety: ensure player is still online
         if (player.isOnline()) {
@@ -310,25 +317,51 @@ public class SpawnManager {
 
     // ========== Destination selection / conditions ==========
 
-    private SpawnPointsConfig.LocationOption selectDestination(Player player, List<SpawnPointsConfig.LocationOption> options) {
+    private SpawnPointsConfig.Destination selectDestination(Player player, List<SpawnPointsConfig.Destination> options) {
         if (options.size() == 1) return options.get(0);
 
+        // 1) Compute effective weights once
+        List<Integer> weights = new ArrayList<>(options.size());
         int total = 0;
-        for (SpawnPointsConfig.LocationOption opt : options) {
-            total += getEffectiveWeight(player, opt);
+        for (SpawnPointsConfig.Destination opt : options) {
+            int w = getEffectiveWeight(player, opt);
+            weights.add(w);
+            total += w;
         }
+
+        // 2) Debug log of weights (after conditions)
+        if (isDebug()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[MMOSpawnPoint] Destination weights (after conditions): ");
+            for (int i = 0; i < options.size(); i++) {
+                SpawnPointsConfig.Destination opt = options.get(i);
+                int w = weights.get(i);
+                sb.append("#").append(i + 1)
+                        .append("{world=").append(opt.world)
+                        .append(", requireSafe=").append(opt.requireSafe)
+                        .append(", weight=").append(w)
+                        .append("}");
+                if (i < options.size() - 1) sb.append(", ");
+            }
+            plugin.getLogger().info(sb.toString());
+        }
+
         if (total <= 0) return null;
 
+        // 3) Weighted pick using precomputed weights
         int rnd = ThreadLocalRandom.current().nextInt(total);
         int acc = 0;
-        for (SpawnPointsConfig.LocationOption opt : options) {
-            acc += getEffectiveWeight(player, opt);
-            if (rnd < acc) return opt;
+        for (int i = 0; i < options.size(); i++) {
+            acc += weights.get(i);
+            if (rnd < acc) {
+                return options.get(i);
+            }
         }
+        // Fallback
         return options.get(0);
     }
 
-    private int getEffectiveWeight(Player player, SpawnPointsConfig.LocationOption option) {
+    private int getEffectiveWeight(Player player, SpawnPointsConfig.Destination option) {
         int weight = option.weight;
         if (option.weightConditions != null) {
             for (SpawnPointsConfig.WeightConditionEntry cond : option.weightConditions) {
@@ -341,7 +374,7 @@ public class SpawnManager {
                 };
                 if (!match) continue;
 
-                String mode = normMode(cond.mode);
+                String mode = normalizeMode(cond.mode);
                 switch (mode) {
                     case "set" -> weight = cond.weight;
                     case "add" -> weight = weight + cond.weight;
@@ -379,24 +412,25 @@ public class SpawnManager {
 
     // ========== Waiting-room: async safe-location search job ==========
 
-    private void startBatchedLocationSearchForSelected(Player player,
-                                                       SpawnPointsConfig.LocationOption selected,
-                                                       SpawnPointsConfig.ActionsConfig globalActions,
-                                                       long enteredWaitingMs,
-                                                       boolean regionWeighted) {
-        UUID playerId = player.getUniqueId();
-        cancelBatchJob(playerId);
+    private void startBatchedLocationSearchForSelected(Player player, SpawnPointsConfig.Destination selected, SpawnPointsConfig.ActionsConfig global, long entered, boolean hasMultiple, String event) {
+        UUID pid = player.getUniqueId();
+        SafeSearchJob newJob = new SafeSearchJob(player, selected, global, entered, hasMultiple, event);
 
-        BatchJob job = new BatchJob(player, selected, globalActions, enteredWaitingMs, regionWeighted);
-        activeBatchJobs.put(playerId, job);
-        job.start();
+        activeSafeSearchJobs.compute(pid, (id, old) -> {
+            if (old != null) {
+                try { old.cancel(); } catch (Exception ignored) {}
+            }
+            return newJob;
+        });
+
+        newJob.start();
     }
 
-    private void cancelBatchJob(UUID playerId) {
-        BatchJob prev = activeBatchJobs.remove(playerId);
-        if (prev != null) {
-            prev.cancel();
-        }
+    private void cancelSafeSearchJob(UUID playerId) {
+        activeSafeSearchJobs.computeIfPresent(playerId, (id, old) -> {
+            try { old.cancel(); } catch (Exception ignored) {}
+            return null;
+        });
     }
 
     /**
@@ -407,13 +441,14 @@ public class SpawnManager {
      * Folia:
      *  - Exactly one attempt per tick; we schedule that attempt on the region owning the candidate location (runAtLocation)
      */
-    private final class BatchJob {
+    private final class SafeSearchJob {
 
         final Player player;
         final UUID playerId;
-        final SpawnPointsConfig.LocationOption option;
+        final SpawnPointsConfig.Destination option;
         final SpawnPointsConfig.ActionsConfig globalActions;
         final long waitingEnteredAtMs;
+        final String eventType;
 
         // Chunk-loading state (used by attemptInRect)
         int pendingChunkX = Integer.MIN_VALUE;
@@ -421,13 +456,14 @@ public class SpawnManager {
         boolean waitingChunkLoad = false;
 
         final World world;
-        final boolean isFixedPoint;
+        final boolean isPoint;
         int currentRadius;
-        int attemptsDone;
+        int attemptCount;
 
         // cache profile
         final boolean cacheEnabled;
         final boolean cachePlayerSpecific;
+        @Getter
         final String cacheTypeTag;
 
         // Debug counters (optional)
@@ -445,24 +481,32 @@ public class SpawnManager {
         final List<Rect> includeRects;
         final List<Rect> excludeRects;
 
-        BatchJob(Player p,
-                 SpawnPointsConfig.LocationOption option,
-                 SpawnPointsConfig.ActionsConfig globalActions,
-                 long waitingEnteredAtMs,
-                 boolean regionWeighted) {
+        SafeSearchJob(Player p,
+                      SpawnPointsConfig.Destination option,
+                      SpawnPointsConfig.ActionsConfig globalActions,
+                      long waitingEnteredAtMs,
+                      boolean areaMultiple,
+                      String eventType) {
             this.player = p;
             this.playerId = p.getUniqueId();
             this.option = option;
             this.globalActions = globalActions;
             this.waitingEnteredAtMs = waitingEnteredAtMs;
+            this.eventType = (eventType == null || eventType.isEmpty()) ? "death" : eventType.toLowerCase();
 
             this.world = Bukkit.getWorld(option.world);
-            this.isFixedPoint = isFixedPointOption(option);
+            this.isPoint = isPointOption(option);
             this.currentRadius = plugin.getConfigManager().getMainConfig().settings.safeLocationRadius;
-            this.attemptsDone = 0;
+            this.attemptCount = 0;
 
-            this.includeRects = buildRectsForOption(option, world);
-            this.excludeRects = toRects(option.excludeRects, world);
+            // Build rects only if world is present
+            if (this.world != null) {
+                this.includeRects = buildRectsForOption(option, world);
+                this.excludeRects = toRects(option.excludeRects, world);
+            } else {
+                this.includeRects = Collections.emptyList();
+                this.excludeRects = Collections.emptyList();
+            }
 
             // Determine cache profile from main config
             var cacheCfg = plugin.getConfigManager().getMainConfig().settings.safeLocationCache.spawnTypeCaching;
@@ -471,20 +515,26 @@ public class SpawnManager {
             boolean cPlayerSpecific;
             String cTag;
 
-            if (isFixedPoint) {
-                cEnabled = cacheCfg.fixedSafe.enabled;
-                cPlayerSpecific = cacheCfg.fixedSafe.playerSpecific;
-                cTag = "FIXED_SAFE";
+            if (isPoint) {
+                cEnabled = cacheCfg.pointSafe.enabled;
+                cPlayerSpecific = cacheCfg.pointSafe.playerSpecific;
+                cTag = "POINT_SAFE";
             } else {
-                if (regionWeighted) {
-                    cEnabled = cacheCfg.regionSafeWeighted.enabled;
-                    cPlayerSpecific = cacheCfg.regionSafeWeighted.playerSpecific;
-                    cTag = "REGION_SAFE_WEIGHTED";
+                if (areaMultiple) {
+                    cEnabled = cacheCfg.areaSafeMultiple.enabled;
+                    cPlayerSpecific = cacheCfg.areaSafeMultiple.playerSpecific;
+                    cTag = "AREA_SAFE_MULTIPLE";
                 } else {
-                    cEnabled = cacheCfg.regionSafeSingle.enabled;
-                    cPlayerSpecific = cacheCfg.regionSafeSingle.playerSpecific;
-                    cTag = "REGION_SAFE_SINGLE";
+                    cEnabled = cacheCfg.areaSafeSingle.enabled;
+                    cPlayerSpecific = cacheCfg.areaSafeSingle.playerSpecific;
+                    cTag = "AREA_SAFE_SINGLE";
                 }
+            }
+
+            // Per-destination cache override (optional)
+            if (option.cache != null) {
+                if (option.cache.enabled != null) cEnabled = option.cache.enabled;
+                if (option.cache.playerSpecific != null) cPlayerSpecific = option.cache.playerSpecific;
             }
 
             this.cacheEnabled = cEnabled;
@@ -501,6 +551,7 @@ public class SpawnManager {
         }
 
         private void tick() {
+            try {
             if (!player.isOnline()) { finish(null, false); return; }
             if (world == null)     { finish(null, false); return; }
 
@@ -510,7 +561,7 @@ public class SpawnManager {
                 if (isDebug()) {
                     plugin.getLogger().warning("[MMOSpawnPoint] Safe search TIMEOUT for "
                             + player.getName() + " in world=" + world.getName()
-                            + " attempts=" + attemptsDone
+                            + " attempts=" + attemptCount
                             + " fail{feet=" + failFeet
                             + ", head=" + failHead
                             + ", groundNotSolid=" + failGroundNotSolid
@@ -526,6 +577,7 @@ public class SpawnManager {
                 // Folia: do one attempt per tick on the proper region thread
                 if (attemptInProgress) return;
                 attemptInProgress = true;
+                attemptCount++;
 
                 // Choose candidate location (no world access on global thread)
                 final Location candidateRegionLoc = chooseCandidateRegionLocation();
@@ -548,7 +600,7 @@ public class SpawnManager {
 
                 while (attemptsThisTick < attemptsPerTick && System.nanoTime() < endBy) {
                     attemptsThisTick++;
-                    attemptsDone++;
+                    attemptCount++;
 
                     Location found = singleAttemptLocal();
                     if (found != null) {
@@ -556,6 +608,10 @@ public class SpawnManager {
                         return;
                     }
                 }
+            }
+            } catch (Throwable t) {
+                plugin.getLogger().severe("BatchJob tick fatal: " + t.getMessage());
+                try { finish(null, false); } catch (Exception ignored) {}
             }
         }
 
@@ -565,10 +621,10 @@ public class SpawnManager {
          * - For area: choose a random chunk center inside one of include rects (or axes-derived rect)
          */
         private Location chooseCandidateRegionLocation() {
-            if (isFixedPoint) {
+            if (isPoint) {
                 double x = option.x.value;
                 double z = option.z.value;
-                double y = (option.y != null && option.y.isValue()) ? option.y.value : 100.0;
+                double y = (option.y != null && option.y.Value()) ? option.y.value : 100.0;
                 return new Location(world, x, y, z);
             }
 
@@ -596,10 +652,12 @@ public class SpawnManager {
          * Paper attempt: safe to read world on main thread.
          */
         private Location singleAttemptLocal() {
-            if (isFixedPoint) {
+            SafeLocationFinder.YSelectionOverride yov = buildYOverride(option);
+
+            if (isPoint) {
                 double x = option.x.value;
                 double z = option.z.value;
-                double y = (option.y != null && option.y.isValue())
+                double y = (option.y != null && option.y.Value())
                         ? option.y.value
                         : world.getHighestBlockYAt((int) Math.floor(x), (int) Math.floor(z)) + 1.0;
                 Location base = new Location(world, x, y, z);
@@ -611,14 +669,16 @@ public class SpawnManager {
                 }
 
                 Set<Material> wl = toMaterialSet(option.groundWhitelist);
-                String tag = buildCacheTag(wl);
-                Location found = cacheEnabled
-                        ? SafeLocationFinder.cachedFindSafeNear(base, currentRadius, wl, playerId, cachePlayerSpecific, true, tag)
-                        : SafeLocationFinder.attemptFindSafeNearSingle(base, currentRadius, wl);
+                String tag = getCacheTypeTag();
+                Location found = SafeLocationFinder.withYSelectionOverride(yov, () ->
+                        cacheEnabled
+                                ? SafeLocationFinder.cachedFindSafeNear(base, currentRadius, wl, playerId, cachePlayerSpecific, true, tag, null)
+                                : SafeLocationFinder.attemptSafeNearOnce(base, currentRadius, wl)
+                );
 
                 if (found == null) {
                     bumpFailCounters();
-                    adaptRadiusIfNeeded();
+                    maybeExpandRadiusForNearSearch();
                     return null;
                 }
                 applyYawPitch(option, found);
@@ -627,7 +687,9 @@ public class SpawnManager {
             } else {
                 // Area path
                 Rect rect = includeRects.isEmpty() ? rectFromAxesOption(option, world) : pickRect(includeRects);
-                Location found = attemptInRectLocal(rect, excludeRects, toMaterialSet(option.groundWhitelist));
+                Location found = SafeLocationFinder.withYSelectionOverride(yov, () ->
+                        attemptInRectLocal(rect, excludeRects, toMaterialSet(option.groundWhitelist))
+                );
                 if (found == null) {
                     bumpFailCounters();
                     return null;
@@ -637,13 +699,16 @@ public class SpawnManager {
             }
         }
 
+
         /**
          * Folia attempt on the correct region thread.
          * The parameter regionLoc is where this task is scheduled (must be in the same chunk as sampling).
          */
-        // BatchJob method
+        // SafeSearchJob method
         private Location singleAttemptInRegion(Location regionLoc) {
-            if (isFixedPoint) {
+            SafeLocationFinder.YSelectionOverride yov = buildYOverride(option);
+
+            if (isPoint) {
                 double x = option.x.value;
                 double z = option.z.value;
 
@@ -658,20 +723,22 @@ public class SpawnManager {
                     return null;
                 }
 
-                double y = (option.y != null && option.y.isValue())
+                double y = (option.y != null && option.y.Value())
                         ? option.y.value
                         : world.getHighestBlockYAt((int) Math.floor(x), (int) Math.floor(z)) + 1.0;
 
                 Location base = new Location(world, x, y, z);
 
                 Set<Material> wl = toMaterialSet(option.groundWhitelist);
-                String tag = buildCacheTag(wl);
-                Location found = cacheEnabled
-                        ? SafeLocationFinder.cachedFindSafeNear(base, currentRadius, wl, playerId, cachePlayerSpecific, true, tag)
-                        : SafeLocationFinder.attemptFindSafeNearSingle(base, currentRadius, wl);
+                String tag = getCacheTypeTag();
+                Location found = SafeLocationFinder.withYSelectionOverride(yov, () ->
+                        cacheEnabled
+                                ? SafeLocationFinder.cachedFindSafeNear(base, currentRadius, wl, playerId, cachePlayerSpecific, true, tag, null)
+                                : SafeLocationFinder.attemptSafeNearOnce(base, currentRadius, wl)
+                );
                 if (found == null) {
                     bumpFailCounters();
-                    adaptRadiusIfNeeded();
+                    maybeExpandRadiusForNearSearch();
                     return null;
                 }
 
@@ -691,7 +758,7 @@ public class SpawnManager {
 
                 Rect rect = includeRects.isEmpty()
                         ? rectFromAxesOption(option, world)
-                        : closestRectToChunkCenter(regionLoc, includeRects);
+                        : pickRectClosestToChunkCenter(regionLoc, includeRects);
 
                 double chunkMinX = (cx << 4);
                 double chunkMaxX = chunkMinX + 15.0;
@@ -713,13 +780,16 @@ public class SpawnManager {
                 }
 
                 Set<Material> wl = toMaterialSet(option.groundWhitelist);
-                String tag = buildCacheTag(wl);
+                String tag = getCacheTypeTag();
                 Predicate<Location> notExcluded = l -> isOutsideAny(l, excludeRects);
-                Location found = cacheEnabled
-                        ? SafeLocationFinder.cachedFindSafeInRegionValidated(
-                        world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
-                        wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
-                        : SafeLocationFinder.attemptFindSafeInRegionSingle(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl);
+
+                Location found = SafeLocationFinder.withYSelectionOverride(yov, () ->
+                        cacheEnabled
+                                ? SafeLocationFinder.cachedFindSafeInAreaValidated(
+                                world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
+                                wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
+                                : SafeLocationFinder.attemptSafeInAreaOnce(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl)
+                );
 
                 if (found == null) return null;
 
@@ -738,6 +808,8 @@ public class SpawnManager {
          * Paper-only area attempt with chunk awareness.
          */
         private Location attemptInRectLocal(Rect rect, List<Rect> exclude, Set<Material> wl) {
+            SafeLocationFinder.YSelectionOverride yov = buildYOverride(option);
+
             double rxMinX = Math.min(rect.minX(), rect.maxX());
             double rxMaxX = Math.max(rect.minX(), rect.maxX());
             double rzMinZ = Math.min(rect.minZ(), rect.maxZ());
@@ -767,14 +839,17 @@ public class SpawnManager {
                     return null;
                 }
 
-                String tag = buildCacheTag(wl);
+                String tag = getCacheTypeTag();
                 Predicate<Location> notExcluded = l -> isOutsideAny(l, exclude);
+
                 // no need to re-check exclude here because validated() already enforced it
-                return cacheEnabled
-                        ? SafeLocationFinder.cachedFindSafeInRegionValidated(
-                        world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
-                        wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
-                        : SafeLocationFinder.attemptFindSafeInRegionSingle(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl);
+                return SafeLocationFinder.withYSelectionOverride(yov, () ->
+                        cacheEnabled
+                                ? SafeLocationFinder.cachedFindSafeInAreaValidated(
+                                world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
+                                wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
+                                : SafeLocationFinder.attemptSafeInAreaOnce(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl)
+                );
             }
 
             // 2) Pick random chunk inside rect
@@ -809,19 +884,21 @@ public class SpawnManager {
                 return null;
             }
 
-            String tag = buildCacheTag(wl);
+            String tag = getCacheTypeTag();
             Predicate<Location> notExcluded = l -> isOutsideAny(l, exclude);
 
-            return cacheEnabled
-                    ? SafeLocationFinder.cachedFindSafeInRegionValidated(
-                    world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
-                    wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
-                    : SafeLocationFinder.attemptFindSafeInRegionSingle(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl);
+            return SafeLocationFinder.withYSelectionOverride(yov, () ->
+                    cacheEnabled
+                            ? SafeLocationFinder.cachedFindSafeInAreaValidated(
+                            world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
+                            wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
+                            : SafeLocationFinder.attemptSafeInAreaOnce(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl)
+            );
         }
 
         private void bumpFailCounters() {
             if (!isDebug()) return;
-            var tag = SafeLocationFinder.pollLastFailTag();
+            var tag = SafeLocationFinder.getAndClearLastFailReason();
             if (tag == null) return;
             switch (tag) {
                 case FEET_NOT_PASSABLE -> failFeet++;
@@ -832,10 +909,10 @@ public class SpawnManager {
             }
         }
 
-        private void adaptRadiusIfNeeded() {
+        private void maybeExpandRadiusForNearSearch() {
             // Expand radius occasionally if we keep failing at fixed-point safe search
             int step = Math.max(2, plugin.getConfigManager().getMainConfig().settings.maxSafeLocationAttempts / 3);
-            if ((attemptsDone % step) == 0) {
+            if ((attemptCount % step) == 0) {
                 currentRadius = Math.min(
                         currentRadius * 2,
                         Math.max(currentRadius, plugin.getConfigManager().getMainConfig().settings.safeLocationRadius * 4)
@@ -843,7 +920,7 @@ public class SpawnManager {
             }
         }
 
-        private Rect closestRectToChunkCenter(Location chunkCenter, List<Rect> rects) {
+        private Rect pickRectClosestToChunkCenter(Location chunkCenter, List<Rect> rects) {
             if (rects.isEmpty()) return rectFromAxesOption(option, world);
             Rect best = rects.get(0);
             double bx = chunkCenter.getX();
@@ -867,7 +944,7 @@ public class SpawnManager {
          */
         private void finish(Location found, boolean success) {
             try { cancel(); } catch (Exception ignored) {}
-            activeBatchJobs.remove(playerId);
+            activeSafeSearchJobs.remove(playerId);
 
             if (!success || found == null) return;
 
@@ -878,46 +955,49 @@ public class SpawnManager {
             int requiredTicks = (int) Math.ceil(requiredMs / 50.0);
             int finalDelay = Math.max(1, Math.max(delayConfig, requiredTicks));
 
-            plugin.getRunner().runGlobalLater(() -> {
+            plugin.getRunner().runAtEntityLater(player, () -> {
                 if (!player.isOnline()) return;
-                plugin.getRunner().teleportAsync(player, found).thenAccept(successTp -> {
-                    if (Boolean.TRUE.equals(successTp)) {
+
+                Location from = player.getLocation().clone();
+
+                // PRE (FINAL)
+                MSPPreTeleportEvent pre = new MSPPreTeleportEvent(
+                                player, eventType, "FINAL", from, found.clone()
+                        );
+                Bukkit.getPluginManager().callEvent(pre);
+                if (pre.isCancelled()) return;
+
+                Location to = pre.getTo();
+
+                plugin.getRunner().teleportAsync(player, to).thenAccept(successTp -> {
+                    if (!Boolean.TRUE.equals(successTp)) return;
+
+                        // POST (FINAL)
+                    plugin.getRunner().runAtEntity(player, () -> {
+                        MSPPostTeleportEvent post = new MSPPostTeleportEvent(
+                                        player, eventType, "FINAL", from, to
+                                );
+                        Bukkit.getPluginManager().callEvent(post);
+
                         runPhaseForEntry(player, option, globalActions, SpawnPointsConfig.Phase.AFTER);
-                    }
+                    });
                 });
             }, finalDelay);
         }
 
-        private List<Rect> buildRectsForOption(SpawnPointsConfig.LocationOption option, World world) {
+        private List<Rect> buildRectsForOption(SpawnPointsConfig.Destination option, World world) {
             // If rects are explicitly provided — use them
             List<Rect> rects = toRects(option.rects, world);
             if (!rects.isEmpty()) return rects;
 
             // If it's a fixed point — no rects (use fixed-point behavior)
-            if (isFixedPointOption(option)) {
+            if (isPointOption(option)) {
                 return Collections.emptyList();
             }
 
             // Otherwise build a single rect from axis (xyz)
             RegionSpec area = resolveAreaFromOption(option, world);
             return List.of(new Rect(area.minX(), area.maxX(), area.minY(), area.maxY(), area.minZ(), area.maxZ()));
-        }
-
-        private String buildCacheTag(Set<Material> wl) {
-            var ysel = plugin.getConfigManager().getMainConfig().settings.teleport.ySelection;
-            String yMode = (ysel.mode == null) ? "mixed" : ysel.mode.toLowerCase(Locale.ROOT);
-            String yFirst = (ysel.first == null) ? "highest" : ysel.first.toLowerCase(Locale.ROOT);
-            double yShare = ysel.firstShare;
-
-            // Stable hash of whitelist names (sorted)
-            String wlHash;
-            if (wl == null || wl.isEmpty()) {
-                wlHash = "0";
-            } else {
-                String[] arr = wl.stream().map(Enum::name).sorted().toArray(String[]::new);
-                wlHash = Integer.toHexString(Arrays.hashCode(arr));
-            }
-            return cacheTypeTag + "|ys=" + yMode + ":" + yFirst + ":" + yShare + "|wl=" + wlHash;
         }
 
         private boolean isOutsideAny(Location loc, List<Rect> rects) {
@@ -931,17 +1011,17 @@ public class SpawnManager {
 
     // ========== Helpers (outer scope) ==========
 
-    private Rect rectFromAxesOption(SpawnPointsConfig.LocationOption option, World world) {
+    private Rect rectFromAxesOption(SpawnPointsConfig.Destination option, World world) {
         RegionSpec area = resolveAreaFromOption(option, world);
         return new Rect(area.minX(), area.maxX(), area.minY(), area.maxY(), area.minZ(), area.maxZ());
     }
 
-    private void applyYawPitch(SpawnPointsConfig.LocationOption option, Location loc) {
+    private void applyYawPitch(SpawnPointsConfig.Destination option, Location loc) {
         float yaw = (option.yaw == null) ? loc.getYaw()
-                : option.yaw.isValue() ? option.yaw.value.floatValue()
+                : option.yaw.Value() ? option.yaw.value.floatValue()
                 : (float) (option.yaw.min + ThreadLocalRandom.current().nextDouble() * (option.yaw.max - option.yaw.min));
         float pitch = (option.pitch == null) ? loc.getPitch()
-                : option.pitch.isValue() ? option.pitch.value.floatValue()
+                : option.pitch.Value() ? option.pitch.value.floatValue()
                 : (float) (option.pitch.min + ThreadLocalRandom.current().nextDouble() * (option.pitch.max - option.pitch.min));
         pitch = (float) clampPitch(pitch);
 
@@ -958,17 +1038,17 @@ public class SpawnManager {
         for (SpawnPointsConfig.RectSpec r : list) {
             if (r == null || r.x == null || r.z == null) continue;
 
-            double minX = r.x.isValue() ? r.x.value : r.x.min;
-            double maxX = r.x.isValue() ? r.x.value : r.x.max;
-            double minZ = r.z.isValue() ? r.z.value : r.z.min;
-            double maxZ = r.z.isValue() ? r.z.value : r.z.max;
+            double minX = r.x.Value() ? r.x.value : r.x.min;
+            double maxX = r.x.Value() ? r.x.value : r.x.max;
+            double minZ = r.z.Value() ? r.z.value : r.z.min;
+            double maxZ = r.z.Value() ? r.z.value : r.z.max;
 
             double minY;
             double maxY;
             if (r.y == null) {
-                minY = resolveWorldMinY(world);
+                minY = resolveMinY(world);
                 maxY = world.getMaxHeight();
-            } else if (r.y.isValue()) {
+            } else if (r.y.Value()) {
                 minY = r.y.value;
                 maxY = r.y.value;
             } else {
@@ -979,14 +1059,6 @@ public class SpawnManager {
             out.add(new Rect(minX, maxX, minY, maxY, minZ, maxZ));
         }
         return out;
-    }
-
-    private int resolveWorldMinY(World world) {
-        try {
-            return (int) World.class.getMethod("getMinHeight").invoke(world);
-        } catch (Throwable ignored) {
-            return 0; // 1.16.5 and older
-        }
     }
 
     private Rect pickRect(List<Rect> rects) {
@@ -1009,7 +1081,7 @@ public class SpawnManager {
                 && z >= minZ && z <= maxZ;
     }
 
-    private RegionSpec resolveAreaFromOption(SpawnPointsConfig.LocationOption option, World world) {
+    private RegionSpec resolveAreaFromOption(SpawnPointsConfig.Destination option, World world) {
         double centerX = world.getWorldBorder().getCenter().getX();
         double centerZ = world.getWorldBorder().getCenter().getZ();
 
@@ -1020,7 +1092,7 @@ public class SpawnManager {
 
         if (option.x == null) {
             minX = centerX - 32.0; maxX = centerX + 32.0;
-        } else if (option.x.isValue()) {
+        } else if (option.x.Value()) {
             minX = option.x.value; maxX = option.x.value;
         } else {
             minX = option.x.min; maxX = option.x.max;
@@ -1028,16 +1100,16 @@ public class SpawnManager {
 
         if (option.z == null) {
             minZ = centerZ - 32.0; maxZ = centerZ + 32.0;
-        } else if (option.z.isValue()) {
+        } else if (option.z.Value()) {
             minZ = option.z.value; maxZ = option.z.value;
         } else {
             minZ = option.z.min; maxZ = option.z.max;
         }
 
-        double minY = resolveWorldMinY(world);
+        double minY = resolveMinY(world);
         double maxY = world.getMaxHeight();
         if (option.y != null) {
-            if (option.y.isValue()) {
+            if (option.y.Value()) {
                 minY = option.y.value; maxY = option.y.value;
             } else {
                 minY = option.y.min; maxY = option.y.max;
@@ -1047,7 +1119,7 @@ public class SpawnManager {
         return new RegionSpec(minX, maxX, minY, maxY, minZ, maxZ);
     }
 
-    private Location resolveNonSafeLocation(SpawnPointsConfig.LocationOption option) {
+    private Location resolveNonSafeLocation(SpawnPointsConfig.Destination option) {
         World world = Bukkit.getWorld(option.world);
         if (world == null) return null;
 
@@ -1086,7 +1158,9 @@ public class SpawnManager {
             if (!exclude.isEmpty()) {
                 boolean insideEx = false;
                 for (Rect ex : exclude) {
-                    if (isInsideRect(loc, ex)) { insideEx = true; break; }
+                    if (isInsideRect(loc, ex)) {
+                        insideEx = true;
+                        break; }
                 }
                 if (insideEx) continue;
             }
@@ -1100,33 +1174,34 @@ public class SpawnManager {
         Set<Material> set = new HashSet<>();
         for (String n : names) {
             Material m = Material.matchMaterial(n);
-            if (m != null) set.add(m);
-            else plugin.getLogger().warning("Unknown material in groundWhitelist: " + n);
+            if (m != null) {
+                set.add(m);
+            }
         }
         return set;
     }
 
-    private float computeYaw(SpawnPointsConfig.LocationOption option) {
+    private float computeYaw(SpawnPointsConfig.Destination option) {
         if (option.yaw == null) return 0.0f;
-        if (option.yaw.isValue()) return option.yaw.value.floatValue();
+        if (option.yaw.Value()) return option.yaw.value.floatValue();
         double d = option.yaw.min + ThreadLocalRandom.current().nextDouble() * (option.yaw.max - option.yaw.min);
         return (float) d;
     }
 
-    private float computePitch(SpawnPointsConfig.LocationOption option) {
+    private float computePitch(SpawnPointsConfig.Destination option) {
         if (option.pitch == null) return 0.0f;
-        if (option.pitch.isValue()) return option.pitch.value.floatValue();
+        if (option.pitch.Value()) return option.pitch.value.floatValue();
         double d = option.pitch.min + ThreadLocalRandom.current().nextDouble() * (option.pitch.max - option.pitch.min);
         return (float) d;
     }
 
-    private boolean isFixedPointOption(SpawnPointsConfig.LocationOption option) {
+    private boolean isPointOption(SpawnPointsConfig.Destination option) {
         return option.x != null && option.z != null
-                && option.x.isValue() && option.z.isValue()
-                && (option.y == null || option.y.isValue());
+                && option.x.Value() && option.z.Value()
+                && (option.y == null || option.y.Value());
     }
 
-    private static String normMode(String mode) {
+    private static String normalizeMode(String mode) {
         if (mode == null) return "set";
         return switch (mode.toLowerCase(Locale.ROOT)) {
             case "set", "add", "mul" -> mode.toLowerCase(Locale.ROOT);
@@ -1148,13 +1223,20 @@ public class SpawnManager {
         return pitch;
     }
 
+    private SafeLocationFinder.YSelectionOverride buildYOverride(SpawnPointsConfig.Destination opt) {
+        if (opt == null || opt.ySelection == null) return null;
+        return new SafeLocationFinder.YSelectionOverride(
+                opt.ySelection.mode, opt.ySelection.first, opt.ySelection.firstShare, opt.ySelection.respectRange
+        );
+    }
+
     // ========== Actions / commands / messaging ==========
 
     /**
      * Run actions with phase ordering relative to globalActions as per actionExecutionMode.
      */
     private void runPhaseForEntry(Player player,
-                                  SpawnPointsConfig.LocationOption selected,
+                                  SpawnPointsConfig.Destination selected,
                                   SpawnPointsConfig.ActionsConfig globalActions,
                                   SpawnPointsConfig.Phase phase) {
         String mode = selected.actionExecutionMode == null ? "before" : selected.actionExecutionMode.toLowerCase(Locale.ROOT);
@@ -1227,7 +1309,7 @@ public class SpawnManager {
                 };
                 if (!match) continue;
 
-                String mode = normMode(condition.mode);
+                String mode = normalizeMode(condition.mode);
                 switch (mode) {
                     case "set" -> chance = clampChance(condition.weight);
                     case "add" -> chance = clampChance(chance + condition.weight);
@@ -1251,7 +1333,7 @@ public class SpawnManager {
                 };
                 if (!match) continue;
 
-                String mode = normMode(condition.mode);
+                String mode = normalizeMode(condition.mode);
                 switch (mode) {
                     case "set" -> chance = clampChance(condition.weight);
                     case "add" -> chance = clampChance(chance + condition.weight);
@@ -1288,24 +1370,68 @@ public class SpawnManager {
                 PendingAfter pending = pendingAfterActions.remove(player.getUniqueId());
                 if (pending != null) {
                     runPhaseForEntry(player, pending.loc, pending.global, SpawnPointsConfig.Phase.AFTER);
+                    sendTeleportMessage(player, eventType);
                 }
             }
-
-            // Message per event
-            sendTeleportMessage(player, eventType);
         };
 
-        if (delayTicks <= 1) {
-            plugin.getRunner().teleportAsync(player, location).thenAccept(success -> {
-                if (Boolean.TRUE.equals(success)) afterTeleport.run();
+        if (delayTicks == 0) {
+            plugin.getRunner().runAtEntity(player, () -> {
+                if (!player.isOnline()) return;
+
+                Location from = player.getLocation().clone();
+
+                // PRE
+                MSPPreTeleportEvent pre = new MSPPreTeleportEvent(
+                                player, eventType, "FINAL", from, location.clone()
+                        );
+                Bukkit.getPluginManager().callEvent(pre);
+                if (pre.isCancelled()) return;
+
+                Location to = pre.getTo();
+
+                plugin.getRunner().teleportAsync(player, to).thenAccept(success -> {
+                    if (!Boolean.TRUE.equals(success)) return;
+
+                    plugin.getRunner().runAtEntity(player, () -> {
+                        // POST
+                        MSPPostTeleportEvent post = new MSPPostTeleportEvent(
+                                        player, eventType, "FINAL", from, to
+                                );
+                        Bukkit.getPluginManager().callEvent(post);
+
+                        afterTeleport.run();
+                    });
+                });
             });
         } else {
-            plugin.getRunner().runGlobalLater(() -> {
-                if (player.isOnline()) {
-                    plugin.getRunner().teleportAsync(player, location).thenAccept(success -> {
-                        if (Boolean.TRUE.equals(success)) afterTeleport.run();
+            plugin.getRunner().runAtEntityLater(player, () -> {
+                if (!player.isOnline()) return;
+
+                Location from = player.getLocation().clone();
+
+                // PRE
+                MSPPreTeleportEvent pre = new MSPPreTeleportEvent(
+                                player, eventType, "FINAL", from, location.clone()
+                        );
+                Bukkit.getPluginManager().callEvent(pre);
+                if (pre.isCancelled()) return;
+
+                Location to = pre.getTo();
+
+                plugin.getRunner().teleportAsync(player, to).thenAccept(success -> {
+                    if (!Boolean.TRUE.equals(success)) return;
+
+                    plugin.getRunner().runAtEntity(player, () -> {
+                        // POST
+                        MSPPostTeleportEvent post = new MSPPostTeleportEvent(
+                                        player, eventType, "FINAL", from, to
+                                );
+                        Bukkit.getPluginManager().callEvent(post);
+
+                        afterTeleport.run();
                     });
-                }
+                });
             }, delayTicks);
         }
     }
