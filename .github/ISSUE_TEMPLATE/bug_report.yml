@@ -1,7 +1,7 @@
 name: Bug Report
-description: Report a bug in SmartSpawnPoint
+description: Report a bug in MMOSpawnPoint
 title: "[Bug]: "
-labels: ["bug"]
+labels: [ "bug" ]
 body:
   - type: markdown
     attributes:
@@ -30,8 +30,8 @@ body:
   - type: input
     id: plugin-version
     attributes:
-      label: SmartSpawnPoint Version
-      description: What version of SmartSpawnPoint are you using?
+      label: MMOSpawnPoint Version
+      description: What version of MMOSpawnPoint are you using?
       placeholder: "e.g., 1.0"
     validations:
       required: true
@@ -60,7 +60,7 @@ body:
     id: config
     attributes:
       label: Configuration
-      description: Please provide your config.yml content
+      description: Please provide your config content
       render: yaml
 
   - type: textarea
@@ -74,7 +74,7 @@ body:
     id: worldguard
     attributes:
       label: WorldGuard
-      description: Are you using WorldGuard alongside SmartSpawnPoint?
+      description: Are you using WorldGuard alongside MMOSpawnPoint?
       options:
         - "Yes"
         - "No"
@@ -85,7 +85,7 @@ body:
     id: placeholderapi
     attributes:
       label: PlaceholderAPI
-      description: Are you using PlaceholderAPI alongside SmartSpawnPoint?
+      description: Are you using PlaceholderAPI alongside MMOSpawnPoint?
       options:
         - "Yes"
         - "No"

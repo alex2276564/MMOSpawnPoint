@@ -1,0 +1,1490 @@
+# ================================================================
+# 📝 Configuration Examples
+#
+# 🤖 AI-ASSISTED SETUP (optional):
+# If you want to use an AI assistant (e.g., DeepSeek, Grok) to generate spawn
+# rules faster and more consistently, feed it these three files first:
+# - Your config.yml
+# - README (plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/README.md?plain=1
+# - Examples (this file, plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/src/main/resources/examples.txt
+# Then ask it to draft exact spawn rules for your worlds/regions, including:
+# • priorities, requireSafe, waitingRoom, rects/excludeRects
+# • weightConditions (permission/placeholder), actions with phases
+# • explicit (non-regex) entries where possible
+# Always validate YAML (http://www.yamllint.com/) and test with /msp simulate death/join.
+#
+# 🎨 All messages support MiniMessage formatting!
+#     → Examples: <red>Error!</red>, <green>Success!</green>
+#     → Web editor: https://webui.advntr.dev/
+#
+# 🌍 LOCALIZATION:
+# • This plugin doesn't include built-in multi-language support
+# • For multiple languages, use Triton plugin:
+#   → https://www.spigotmc.org/resources/triton.30331/
+# ================================================================
+
+
+# ================================================================
+# 📁 PROFESSIONAL FOLDER STRUCTURE (Recommended Organization)
+# ================================================================
+# Place your configs in: plugins/MMOSpawnPoint/spawnpoints/
+#
+# ORGANIZATION STRATEGY: WORLD → FEATURE → SPECIFIC AREA
+# Maximum depth: 9 nested folders (config.yml: settings.maintenance.maxFolderDepth)
+# Each .yml file MUST contain a top-level key: "spawns"
+#
+# spawnpoints/
+# ├── world/                    # 🌍 Overworld spawns
+# │   ├── cities/              # 🏙️ Urban areas
+# │   │   ├── spawn-city.yml         # Main spawn city
+# │   │   ├── trade-district.yml     # Commercial area
+# │   │   └── residential.yml       # Housing districts
+# │   ├── dungeons/            # ⚔️ PvE content
+# │   │   ├── forest/
+# │   │   │   ├── entrance-checkpoint.yml
+# │   │   │   ├── boss-arena.yml
+# │   │   │   └── treasure-room.yml
+# │   │   ├── desert/
+# │   │   │   ├── temple-spawns.yml
+# │   │   │   └── pyramid-levels.yml
+# │   │   └── underwater/
+# │   │       ├── atlantis-gates.yml
+# │   │       └── deep-caverns.yml
+# │   ├── pvp/                 # ⚔️ Player vs Player
+# │   │   ├── arena-coordinates.yml  # Coordinate-based triggers
+# │   │   ├── battlegrounds-regions.yml # WorldGuard regions
+# │   │   ├── factions-war.yml      # Faction territories
+# │   │   └── tournaments.yml       # Event areas
+# │   ├── villages/            # 🏘️ NPC settlements
+# │   │   ├── starter-village.yml   # Newbie area
+# │   │   ├── merchant-town.yml     # Trading hub
+# │   │   └── quest-outpost.yml     # Adventure starting point
+# │   ├── wilderness/          # 🌲 Open world
+# │   │   ├── random-spawn.yml      # Survival spawns
+# │   │   ├── resource-areas.yml    # Mining/farming zones
+# │   │   └── exploration.yml       # Discovery locations
+# │   └── transport/           # 🚂 Travel systems
+# │       ├── waypoints.yml         # Fast travel points
+# │       ├── portals.yml           # Dimension gates
+# │       └── airships.yml          # Flying transport
+# ├── world_nether/             # 🔥 Nether dimension
+# │   ├── fortresses/          # 🏰 Nether structures
+# │   │   ├── blaze-farm.yml        # Mob farming areas
+# │   │   └── wither-arena.yml      # Boss fights
+# │   ├── emergency/           # 🚨 Safety systems
+# │   │   ├── safety-exits.yml      # Emergency teleports
+# │   │   └── rescue-points.yml     # Recovery areas
+# │   └── highways/            # 🛤️ Nether transportation
+# │       ├── main-hub.yml          # Central station
+# │       └── tunnel-exits.yml      # Highway endpoints
+# ├── world_the_end/            # 🌌 End dimension
+# │   ├── dragon-fight/        # 🐲 Boss encounter
+# │   │   ├── platform-spawns.yml   # Fighting arena
+# │   │   └── spectator-area.yml    # Observation deck
+# │   ├── end-cities/          # 🏙️ End structures
+# │   │   ├── exploration.yml       # City exploration
+# │   │   └── elytra-course.yml     # Flying challenges
+# │   └── void-safety/         # 🕳️ Void protection
+# │       └── emergency-platforms.yml
+# ├── custom_dimensions/        # 🌈 Modded/Custom worlds
+# │   ├── skyblock/
+# │   │   ├── island-spawns.yml     # Island management
+# │   │   └── void-protection.yml   # Fall safety
+# │   ├── creative/
+# │   │   ├── plot-spawns.yml       # Creative plots
+# │   │   └── showcase-areas.yml    # Build displays
+# │   └── minigames/
+# │       ├── parkour.yml           # Jumping courses
+# │       ├── spleef.yml            # Digging games
+# │       └── races.yml             # Speed competitions
+# ├── global/                   # 🌐 Cross-world configurations
+# │   ├── ranks/               # 👑 Permission-based spawns
+# │   │   ├── vip-access.yml        # Premium player areas
+# │   │   ├── staff-areas.yml       # Admin/mod zones
+# │   │   └── donor-rewards.yml     # Supporter benefits
+# │   ├── events/              # 🎉 Special occasions
+# │   │   ├── seasonal/
+# │   │   │   ├── christmas.yml     # Holiday events
+# │   │   │   ├── halloween.yml     # Spooky season
+# │   │   │   └── summer-fest.yml   # Seasonal celebrations
+# │   │   ├── competitions/
+# │   │   │   ├── build-contest.yml # Building competitions
+# │   │   │   └── pvp-tournament.yml # Combat events
+# │   │   └── server-anniversary.yml # Special milestones
+# │   ├── maintenance/         # 🔧 Server management
+# │   │   ├── fallback-spawns.yml   # Emergency spawns
+# │   │   ├── testing-area.yml      # Admin testing zone
+# │   │   └── quarantine.yml        # Problem isolation
+# │   └── integration/         # 🔗 Plugin compatibility
+# │       ├── mythicdungeons.yml    # Dungeon plugin support
+# │       ├── factions-bypass.yml   # Faction integration
+# │       └── jobs-areas.yml        # Economy plugin zones
+# └── examples.txt              # 📖 This documentation file
+#
+# Each .yml file must contain a top-level key: spawns
+#
+# ================================================================
+# 💡 PROFESSIONAL TIPS
+# ================================================================
+#
+# 🎯 NAMING CONVENTIONS:
+# - Use descriptive, lowercase names with hyphens
+# - Group related spawns in folders by functionality
+# - Prefix temporary configs with "temp-" for easy cleanup
+
+
+# ================================================================
+# 🔌 Hooks and strict validation
+# ================================================================
+# - WorldGuard integration (kind: region):
+#     Requires main-config.hooks.useWorldGuard=true AND WorldGuard plugin installed.
+#     The validator will FAIL if you define region spawns without WG enabled & present.
+#
+# - PlaceholderAPI (placeholders in conditions/actions):
+#     Requires main-config.hooks.usePlaceholderAPI=true AND PlaceholderAPI installed.
+#     The validator will FAIL if placeholders are used without PAPI enabled & present.
+
+
+# ================================================================
+# 🔢 Priorities (how entries are ordered)
+# ================================================================
+# - Priority is OPTIONAL in spawn entries. If not specified, defaults from main config are used:
+#     • coordinate: config.yml → settings.defaultPriorities.coordinate (default: 100)
+#     • region: config.yml → settings.defaultPriorities.region (default: 50)
+#     • world: config.yml → settings.defaultPriorities.world (default: 10)
+#
+# - Higher number = higher priority (0..9999)
+# - First matching spawn with highest priority is used
+#
+# Strategy tips:
+# - For simple setups: rely on main config defaults, adjust only when needed
+# - For map packs: use very high priorities (1500+) to override client's defaults
+# - Always include a low-priority world fallback for safety
+
+
+# ================================================================
+# 🧭 General tips
+# ================================================================
+# - Omit Y axis in triggerArea if height doesn't matter:
+#   This ensures the area triggers regardless of player altitude (useful for multi-floor dungeons)
+#
+# - groundWhitelist behavior:
+#   When specified, it REPLACES globalGroundBlacklist from main config for that destination
+#   You explicitly control which blocks are safe to stand on
+#
+# - Waiting rooms:
+#   Automatically used when destination.requireSafe=true and safe location search is needed
+#   You can define per-entry waitingRoom or rely on global one from main config
+#
+# - Performance tips:
+#   • Use requireSafe=false for guaranteed safe locations
+#   • Prefer smaller coordinate ranges over huge areas
+#   • Keep weighted destinations count reasonable (5-10 max per entry)
+#
+# - Debugging:
+#   Enable settings.debugMode=true in config.yml to see priority order and detailed logs
+#
+# - Party system:
+#   Use party:
+      respawnDisabled: true in PvP areas or other restricted zones
+
+
+# ================================================================
+# ✅ Example 1: Simple world join spawn (hub) + Phases explanation
+# ================================================================
+# Players joining "world" get teleported to exact coordinates
+#
+# 📝 PHASES SYSTEM:
+# ┌─────────────┬──────────────────────────────────────────────────┐
+# │ Phase       │ When it executes                                 │
+# ├─────────────┼──────────────────────────────────────────────────┤
+# │ BEFORE      │ Before teleportation starts                     │
+# │ WAITING_ROOM│ When player is in waiting room (requireSafe=true)│
+# │ AFTER       │ After successful teleportation (DEFAULT)        │
+# └─────────────┴──────────────────────────────────────────────────┘
+#
+# 💡 If 'phases' is not specified → AFTER is used automatically
+# File: spawnpoints/world/hub.yml
+
+spawns:
+  - kind: world
+    event: join
+    world: world
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 0
+        y: 64
+        z: 0
+        yaw: 180
+        pitch: 0
+        actions:
+          messages:
+            # BEFORE phase - shows before teleport starts
+            - text: "<yellow>⏳ Preparing teleportation to hub..."
+              phases:
+                - BEFORE
+
+            # AFTER phase (explicit) - shows after successful teleport
+            - text: "<green>✅ Welcome to the hub!"
+              phases:
+                - AFTER
+
+            # AFTER phase (default) - same as above but phases omitted
+            - text: "<blue>ℹ️ This message also shows AFTER (default behavior)"
+              # No phases specified = AFTER automatically
+
+            # Multiple phases example
+            - text: "<gray>This shows both before AND after teleport"
+              phases:
+                - BEFORE
+                - AFTER
+
+          commands:
+            # BEFORE phase command
+            - command: "title %player% title \"<yellow>Teleporting...\""
+              phases:
+                - BEFORE
+
+            # AFTER phase command (default)
+            - command: "effect give %player% minecraft:speed 10 1"
+              # No phases = AFTER by default
+
+            # WAITING_ROOM phase (only works if requireSafe=true)
+            - command: "playsound minecraft:block.note_block.pling master %player%"
+              phases:
+                - WAITING_ROOM
+              # Note: This won't execute in this example because requireSafe=false
+
+# ================================================================
+# 📚 PHASES FLOW EXAMPLES:
+# ================================================================
+
+# Example A: requireSafe=false (immediate teleport)
+# Flow: BEFORE → teleport → AFTER
+# WAITING_ROOM phase is skipped
+
+# Example B: requireSafe=true (with safe location search)
+# Flow: BEFORE → move to waiting room → WAITING_ROOM → safe search → final teleport → AFTER
+# All three phases can be used
+
+# Example C: Actions-only (no destinations)
+# Flow: AFTER only (no teleportation happens)
+
+# ================================================================
+# 💡 PRACTICAL TIPS:
+# ================================================================
+# • Use BEFORE for: loading messages, preparation commands, titles
+# • Use WAITING_ROOM for: entertainment while searching, progress updates
+# • Use AFTER for: welcome messages, effects, rewards, completion sounds
+# • Most messages/commands should use AFTER (it's the default for a reason)
+# • WAITING_ROOM only makes sense when requireSafe=true
+
+
+# ================================================================
+# ✅ Example 2: Coordinate area with safe search
+# ================================================================
+# Deaths in area [-100..100, any Y, -100..100] → search for safe spot in smaller area
+# Note: triggerArea.y is omitted = works at any height
+# File: spawnpoints/world/death-area.yml
+
+spawns:
+  - kind: coordinate
+    event: death
+    triggerArea:
+      world: world
+      x:
+        min: -100
+        max: 100
+      z:
+        min: -100
+        max: 100
+    destinations:
+      - world: world
+        requireSafe: true
+        x:
+          min: -50
+          max: 50
+        z:
+          min: -50
+          max: 50
+        groundWhitelist:
+          - STONE
+          - GRASS_BLOCK
+          - DIRT
+        actions:
+          messages:
+            - text: "<green>Found a safe spot nearby!"
+              phases:
+                - AFTER
+    actions:
+      messages:
+        - text: "<yellow>Searching for safe location..."
+          phases:
+            - WAITING_ROOM
+    waitingRoom:
+      world: world
+      x: 0
+      y: 120
+      z: 0
+
+# Notes on groundWhitelist (how safe search works):
+# - groundWhitelist only has effect when requireSafe: true.
+# - It REPLACES globalGroundBlacklist, but ONLY for the ground block under the player’s feet (y-1).
+# - globalPassableBlacklist still applies to feet/head (water, lava, cobweb, powder snow, etc.).
+# - Fixed-point search: if x/z are fixed values and requireSafe is true, the plugin searches around that point within settings.safeLocationRadius (expands radius mid-way if needed).
+# - Area search: if x/z are ranges and requireSafe is true, the plugin searches INSIDE the specified rectangle.
+# - Y selection:
+#  - Overworld uses the strategy from settings.teleport.ySelection (mixed/highest/random).
+#  - Nether uses a solid-ground-with-2-air check within configured bounds.
+# - Fallback behavior:
+#   - If no whitelisted ground is found within settings.maxSafeLocationAttempts, the current implementation falls back (e.g., world spawn or area center). If you need “strict” behavior (no fallback), return null from the finder and handle it via waiting room timeout.
+# - Tips:
+#   - Keep search areas reasonable in size.
+#   - Increase safeLocationRadius and/or maxSafeLocationAttempts if your whitelist is rare.
+#   - Prefer requireSafe: false for known-safe, prebuilt spawn pads.
+
+
+# ================================================================
+# ✅ Example 3: WorldGuard region spawn (requires WorldGuard)
+# ================================================================
+# Players dying/joining in region "spawn" → two weighted destinations
+# File: spawnpoints/world/region-spawn.yml
+
+spawns:
+  - kind: region
+    event: both
+    priority: 800
+    region: spawn
+    regionWorld: world
+    destinations:
+      - world: world
+        requireSafe: true
+        x:
+          min: -10
+          max: 10
+        z:
+          min: -10
+          max: 10
+        weight: 70
+      - world: world
+        requireSafe: true
+        x: 20
+        z: 20
+        weight: 30
+    actions:
+      messages:
+        - text: "<gray>Region spawn activated"
+          phases:
+            - BEFORE
+    party:
+      respawnDisabled: true
+
+
+# ================================================================
+# ✅ Example 4: Advanced weighted spawns with conditions
+# ================================================================
+# VIP players get higher chance for better spawn point
+# File: spawnpoints/world/vip-spawn.yml
+
+# Expressions syntax (for permissions/placeholders):
+# - Operators: ! (not), && (and), || (or)
+# - Comparisons (placeholders): ==, !=, >, >=, <, <=
+# - Parentheses: ( ... )
+# - Tokens:
+#   • permission: mmospawnpoint.vip, my.perm.node (bare tokens)
+#   • negation: !mmospawnpoint.vip
+#   • combined: (mmospawnpoint.join && !mmospawnpoint.ban) || mmospawnpoint.staff
+#   • placeholders: "%vault_eco_balance% >= 1000", "%player_gamemode% == 'SURVIVAL'"
+
+spawns:
+  - kind: world
+    event: join
+    world: world
+    destinations:
+      - world: world
+        requireSafe: false
+        x: -10
+        y: 64
+        z: -10
+        weight: 100
+        actionExecutionMode: instead
+        actions:
+          messages:
+            - text: "<gold>Local greeting! (Overrides global BEFORE messages)"
+              phases:
+                - BEFORE
+      - world: world
+        requireSafe: false
+        x: 10
+        y: 64
+        z: 10
+        weight: 50
+        weightConditions:
+          - type: permission
+            value: "mmospawnpoint.vip"
+            weight: 200
+    conditions:
+      permissions:
+        - mmospawnpoint.join
+      placeholders:
+        - "%player_gamemode% == 'SURVIVAL'"
+    actions:
+      messages:
+        - text: "<green>Conditions passed, teleporting..."
+          phases:
+            - BEFORE
+
+# Notes:
+# - Placeholder expressions require: hooks.usePlaceholderAPI=true and PlaceholderAPI installed
+# - YAML: strings with expressions must be quoted: "!mmospawnpoint.vip"
+# - With actionExecutionMode: instead, only the local actions (destination.actions) will run for the specified phase (AFTER), and global actions are skipped.
+
+# ================================================================
+# ✅ Example 5: Regex patterns for flexible matching
+# ================================================================
+# Match multiple worlds with regex pattern
+# File: spawnpoints/global/dungeon-worlds.yml
+
+spawns:
+  - kind: world
+    event: death
+    world: "dungeon_.*"
+    worldMatchMode: regex
+    destinations:
+      - world: world
+        requireSafe: true
+        x: 0
+        y: 64
+        z: 0
+    actions:
+      messages:
+        - text: "<red>Escaped from dungeon!"
+          phases:
+            - AFTER
+
+
+# ================================================================
+# ⚠️ Example 6: "Void Trap" using spawnpoint set command
+# ================================================================
+# Actions-only spawn that sets player's bed spawn to current location
+# Creates a "trap" where player will respawn here on future deaths
+#
+# IMPORTANT: Requires PlaceholderAPI + Player expansion for %player_world%, %player_x% etc.
+#
+# How it works:
+# - Uses plugin command "msp spawnpoint set" to forcibly set player's vanilla respawn point
+# - On future deaths, if no higher-priority MMOSpawnPoint rules match,
+#   server will respawn player at this bed location (the "trap")
+# - Works across dimensions (overworld/nether/end)
+#
+# File: spawnpoints/global/void-trap.yml
+
+spawns:
+  - kind: world
+    event: death
+    priority: 1900
+    world: cursed_world
+    destinations: []
+    actions:
+      messages:
+        - text: "<dark_gray>[<red>Curse</red>] <gray>Your soul is now bound to this realm..."
+          phases:
+            - BEFORE
+      commands:
+        - command: "msp spawnpoint set %player% %player_world% %player_x% %player_y% %player_z% %player_yaw% %player_pitch%"
+          chance: 100
+          phases:
+            - BEFORE
+
+# Warning: Ensure target world exists and no higher-priority death spawns override this trap
+
+
+# ================================================================
+# ✅ Example 7: Partial "CMI /dback" demonstration (admin-oriented)
+# ================================================================
+# This is NOT a drop-in replacement for CMI /dback.
+# It demonstrates what you can do with MiniMessage (click/hover/run_command)
+# and MSP phases. Recommended for admins/map creators only:
+# - show death coordinates to the player;
+# - optionally show a clickable "return" button for staff (permission-gated).
+#
+# How it works:
+# - BEFORE phase sends a basic "death location" line to everyone.
+# - If the player has mmospawnpoint.dback.use:
+#   • 1.18+ (MiniMessage) displays a clickable line (run_command) to TP back;
+#   • 1.16–1.17 fallback uses tellraw with run_command.
+#
+# IMPORTANT (MiniMessage behavior):
+# - <click:run_command:'...'> executes the command AS THE PLAYER, not console.
+#   The player must have the needed permissions for /execute.
+#   Do NOT grant dangerous vanilla permissions (like /execute) to regular players.
+#
+# Requirements:
+# - PlaceholderAPI + Player expansion for %player_world%, %player_x%, etc.
+#
+# File: spawnpoints/in-your-spawnpoints.yml
+
+spawns:
+  - kind: coordinate
+    event: death
+    priority: 1450
+    triggerArea:
+      world: ".*"
+      worldMatchMode: regex
+
+    destinations: [...]
+
+    actions:
+      messages:
+        # 1) Always visible: show death location (everyone sees this)
+        - text: "<gray>You died at <yellow>%player_world%</yellow> <white>%player_x%</white> <white>%player_y%</white> <white>%player_z%</white>"
+          phases:
+            - BEFORE
+
+        # 2) 1.18+ (MiniMessage): "Back" button that runs a TP as the player
+        - text: "<gold>[Back] <click:run_command:'/execute in %player_world% run tp %player% %player_x% %player_y% %player_z% %player_yaw% %player_pitch%'><underlined>Click to return</underlined></click>"
+          chance: 0
+          phases:
+            - BEFORE
+          chanceConditions:
+            - type: permission
+              value: "mmospawnpoint.dback.use"
+              mode: set
+              weight: 100
+
+      commands:
+        # 3) 1.16–1.17 fallback: tellraw with run_command
+        #    NOTE: On 1.18+ you may want to disable this legacy block to avoid duplicate UI.
+        - command: "tellraw %player% {\"text\":\"[Back] Click to return\",\"color\":\"gold\",\"underlined\":true,\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/execute in %player_world% run tp %player% %player_x% %player_y% %player_z% %player_yaw% %player_pitch%\"},\"hoverEvent\":{\"action\":\"show_text\",\"contents\":[{\"text\":\"Click to teleport back\",\"color\":\"yellow\"}]}}"
+          chance: 0
+          phases:
+            - BEFORE
+          chanceConditions:
+            - type: permission
+              value: "mmospawnpoint.dback.use"
+              mode: set
+              weight: 100
+
+# Notes:
+# - Everyone sees the coordinates. Only players with mmospawnpoint.dback.use see and can click the “Back” button.
+# - Placeholders (%player_world%, %player_x%, etc.) are substituted when the message is sent (BEFORE/WAITING_ROOM/AFTER phase).
+#   For the death scenario in BEFORE, this happens even before teleportation, so %player_x%/%player_world% will indicate the place of death.
+#   For WAITING_ROOM, it will already be the coordinates of the waiting room (we delay sending this phase until the actual movement to the waiting room).
+
+
+# ================================================================
+# ✅ Example 8: Complex command conditions with multiple chances
+# ================================================================
+# Commands with different chances based on player conditions
+# File: spawnpoints/world/mining-rewards.yml
+
+spawns:
+  - kind: coordinate
+    event: death
+    triggerArea:
+      world: world
+      x:
+        min: 1000
+        max: 2000
+      z:
+        min: 1000
+        max: 2000
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 1500
+        y: 64
+        z: 1500
+    actions:
+      commands:
+        - command: "give %player% diamond 1"
+          chance: 10
+          chanceConditions:
+            - type: permission
+              value: "mmospawnpoint.vip"
+              weight: 25
+        - command: "give %player% emerald 5"
+          chance: 0
+          chanceConditions:
+            - type: placeholder
+              value: "%player_level% > 50"
+              weight: 100
+        - command: "give %player% iron_ingot 3"
+          chance: 30
+          phases:
+            - AFTER
+
+
+# ================================================================
+# ✅ Example 9: Low-priority world fallback (safety net)
+# ================================================================
+# Recommended safety net: always have one low-priority world spawn
+# Catches players who die "in the middle of nowhere"
+# File: spawnpoints/global/fallback.yml
+
+spawns:
+  - kind: world
+    event: death
+    priority: 50
+    world: world
+    destinations:
+      - world: world
+        requireSafe: true
+        x:
+          min: -100
+          max: 100
+        z:
+          min: -100
+          max: 100
+    actions:
+      messages:
+        - text: "<yellow>Fallback spawn - searching for safe location..."
+          phases:
+            - WAITING_ROOM
+
+
+# ================================================================
+# ✅ Example 10: Multiple match modes showcase
+# ================================================================
+# Shows different matching strategies in one file
+# File: spawnpoints/global/match-examples.yml
+
+spawns:
+  # Exact region match
+  - kind: region
+    event: death
+    region: boss_room
+    regionMatchMode: exact
+    regionWorld: dungeon_world
+    destinations:
+      - world: world
+        x: 0
+        y: 64
+        z: 0
+
+# Regex region pattern (matches boss_room_1, boss_room_2, etc.)
+  - kind: region
+    event: death
+    region: "boss_room_\\d+" # YAML requires escaping backslashes in regex: \\d+
+    regionMatchMode: regex
+    destinations:
+      - world: world
+        x: 100
+        y: 64
+        z: 100
+
+# Multiple world pattern
+  - kind: world
+    event: join
+    world: "(creative|building)_world"
+    worldMatchMode: regex
+    destinations:
+      - world: world
+        x: 0
+        y: 64
+        z: 0
+
+# ================================================================
+# ✅ Example 11: VIP Tiers with Economy-Based Upgrades
+# ================================================================
+# Demonstrates advanced command conditions and economy integration
+# VIP players get closer spawn, rich players get premium menu access
+# File: spawnpoints/world/vip-economy-spawn.yml
+
+spawns:
+  - kind: world
+    event: death
+    priority: 1500
+    world: world
+    conditions:
+      permissions:
+        - "mmospawnpoint.vip"
+    destinations:
+      # VIP Destination 1: Close premium spawn for VIP players
+      - world: world
+        requireSafe: true
+        x:
+          min: 0
+          max: 20
+        z:
+          min: 0
+          max: 20
+        weight: 80
+        actions:
+          messages:
+            - text: "<gold>🌟 VIP spawn activated - premium location!"
+              phases:
+                - AFTER
+          commands:
+            # Economy-conditional premium menu access
+            - command: "dm open premium_spawn_menu %player%"
+              chance: 0
+              phases:
+                - AFTER
+              chanceConditions:
+                - type: permission
+                  value: "mmospawnpoint.vip"
+                  weight: 100
+            # VIP-only healing boost
+            - command: "effect give %player% minecraft:regeneration 30 2"
+              chance: 100
+              phases:
+                - AFTER
+      # VIP Destination 2: Fallback spawn for VIP (further away)
+      - world: world
+        requireSafe: true
+        x:
+          min: 50
+          max: 100
+        z:
+          min: 50
+          max: 100
+        weight: 20
+        actions:
+          messages:
+            - text: "<yellow>🥉 VIP fallback spawn - standard location"
+              phases:
+                - AFTER
+            # Different upgrade offer for rich players at fallback spawn (New minimessage formatting, only for 1.18+)
+            - text: "<gold>💰 You have enough money! <click:run_command:'/upgrade premium_spawn'><underlined>Click to upgrade to premium spawn</underlined></click>"
+              chance: 0
+              phases:
+                - AFTER
+              chanceConditions:
+                - type: placeholder
+                  value: "%vault_eco_balance_fixed% >= 500"
+                  weight: 100
+          commands:
+            # Rich players still get menu even at fallback spawn
+            - command: "dm open standard_spawn_menu %player%"
+              chance: 0
+              phases:
+                - AFTER
+              chanceConditions:
+                - type: placeholder
+                  value: "%vault_eco_balance_fixed% < 500"
+                  weight: 100
+            # Different upgrade offer for rich players at fallback spawn (Legacy JSON formatting, example for 1.16-1.17)
+            - command: "tellraw %player% {\"text\":\"💰 You have enough money! Click to upgrade to premium spawn\",\"color\":\"gold\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/upgrade premium_spawn\"}}"
+              chance: 0
+              phases:
+                - AFTER
+              chanceConditions:
+                - type: placeholder
+                  value: "%vault_eco_balance_fixed% >= 500"
+                  weight: 100
+    actions:
+      messages:
+        - text: "<blue>🔍 Searching for VIP spawn location..."
+          phases:
+            - WAITING_ROOM
+        - text: "<green>✨ VIP processing complete!"
+          phases:
+            - BEFORE
+
+
+# ================================================================
+# ✅ Example 12: Rect-based Areas (Triangles and Legacy XYZ Mapping)
+# ================================================================
+# This example demonstrates:
+# - How rects/excludeRects are used to shape complex zones
+# - That legacy x/y/z axes are internally mapped to a single rect under the hood
+# File: spawnpoints/world/rects-triangle.yml
+
+spawns:
+  - kind: coordinate
+    event: death
+    priority: 1600
+    triggerArea:
+      world: world
+      # Legacy axes: internally converted to a single rect (x/z range, optional y)
+      x:
+        min: 1000
+        max: 1200
+      z:
+        min: 1000
+        max: 1200
+      # y omitted => any height
+    destinations:
+      - world: world
+        requireSafe: true
+        # Triangle-like area using few rects + one exclude rect to carve a corner
+        rects:
+          # Base rectangle
+          - x: { min: 1000, max: 1160 }
+            z: { min: 1000, max: 1160 }
+            y: { min: 60, max: 90 }
+          # Second rectangle to extend diagonal
+          - x: { min: 1080, max: 1200 }
+            z: { min: 1040, max: 1160 }
+            y: { min: 60, max: 90 }
+        excludeRects:
+          # Carve out a corner to approximate a triangle
+          - x: { min: 1160, max: 1200 }
+            z: { min: 1160, max: 1200 }
+            y: { min: 60, max: 90 }
+
+          # Legend:
+          # - # = included by rects
+          # - X = excluded by excludeRects
+          # - . = outside
+          #
+          # Grid (coarse, top-down):
+          # ........................
+          # ....##########..........
+          # ....##########..........
+          # ....##########..........
+          # ......##########........
+          # ......##########........
+          # .........#########......
+          # .........#########......
+          # ............#####XX.....
+          # ............#####XX.....
+          # ........................
+
+        weight: 100
+        actions:
+          messages:
+            - text: "<gray>Rect-based safe search (triangle-like area)"
+              phases:
+                - BEFORE
+            - text: "<yellow>⏳ Please wait while we search a safe spot within the shaped area..."
+              phases:
+                - WAITING_ROOM
+
+# Notes:
+# - Legacy x/y/z axes on destinations or triggerAreas are internally mapped to a single rect at runtime.
+# - If you use a lot of rects, it is recommended to write them in a single line format like "x: { min: 1000, max: 1160 }" for easy reading of yml.
+
+# ================================================================
+# ✅ Example 13: Chance Modes (set/add/mul) with Rects
+# ================================================================
+# Demonstrates how message/command chances can be composed via condition modes.
+# Default mode is 'set'.
+# File: spawnpoints/world/chance-modes-rects.yml
+
+spawns:
+  - kind: coordinate
+    event: join
+    priority: 1700
+    triggerArea:
+      world: world
+      rects:
+        - x:
+            min: -500
+            max: -300
+          z:
+            min: 200
+            max: 400
+    destinations:
+      # Destination A (nearer area)
+      - world: world
+        requireSafe: false
+        rects:
+          - x:
+              min: -480
+              max: -320
+            z:
+              min: 220
+              max: 380
+            y: 70
+        weight: 80
+        weightConditions:
+          # VIPs prefer Destination A: base 80 → +40 = 120
+          - type: permission
+            value: "mmospawnpoint.vip"
+            mode: add
+            weight: 40
+          # Rich players (>=1000) multiply A again: 120 * 2 = 240
+          - type: placeholder
+            value: "%vault_eco_balance_fixed% >= 1000"
+            mode: mul
+            weight: 2
+        actions:
+          messages:
+            # Base chance 10%; +40 if member; *2 if rich
+            - text: "<green>Welcome to the bonus area A!"
+              chance: 10
+              phases:
+                - AFTER
+              chanceConditions:
+                - type: permission
+                  value: "mmospawnpoint.member"
+                  mode: add
+                  weight: 40
+                - type: placeholder
+                  value: "%vault_eco_balance_fixed% >= 1000"
+                  mode: mul
+                  weight: 2
+            # Strict override to 100% for VIPs at A
+            - text: "<gold>Exclusive perks unlocked at A!"
+              chance: 0
+              phases:
+                - AFTER
+              chanceConditions:
+                - type: permission
+                  value: "mmospawnpoint.vip"
+                  mode: set
+                  weight: 100
+          commands:
+            # Command chance composition: base 30%, -10 if balance <100, *2 if VIP
+            - command: "effect give %player% minecraft:speed 15 1"
+              chance: 30
+              phases:
+                - AFTER
+              chanceConditions:
+                - type: placeholder
+                  value: "%vault_eco_balance_fixed% < 100"
+                  mode: add
+                  weight: -10
+                - type: permission
+                  value: "mmospawnpoint.vip"
+                  mode: mul
+                  weight: 2
+      # Destination B (further area)
+      - world: world
+        requireSafe: false
+        rects:
+          - x:
+              min: -600
+              max: -520
+            z:
+              min: 300
+              max: 460
+            y: 70
+        weight: 60
+        weightConditions:
+          # If not VIP → +20 (makes B slightly more likely for non-VIP: 60 → 80)
+          - type: permission
+            value: "!mmospawnpoint.vip"
+            mode: add
+            weight: 20
+          # If the balance is < 100 → multiply the weight by 2: 80 * 2 = 160 (for homeless people, it tends towards B)
+          - type: placeholder
+            value: "%vault_eco_balance_fixed% < 100"
+            mode: mul
+            weight: 2
+        actions:
+          messages:
+            - text: "<yellow>Arrived to area B"
+              chance: 100
+              phases:
+                - AFTER
+
+# Notes:
+# - By default, mode=set; final values of chance are clamped to [0..100], weight — minimum 1.
+
+
+# ================================================================
+# ✅ Example 14: Per-destination cache overrides + Dimension-aware Y-selection
+# ================================================================
+# Demonstrates:
+# - Per-destination cache override (disable cache or force shared cache)
+# - Global dimension-aware Y-selection (config.yml → settings.teleport.ySelection)
+# - Per-destination Y-selection override for Nether
+#
+# Global defaults (suggested):
+# settings.teleport.ySelection:
+#   overworld: { mode: mixed, first: highest, firstShare: 0.6 }
+#   nether:    { mode: scan,  respectRange: false }  # scan = solid + 2 air column scan
+#   end:       { mode: highest_only }
+#
+# Destination A (Nether, default scan via global) — uses global nether scan:
+# - Good generic behavior, deterministic and fast.
+#
+# Destination B (Nether, random-only override) — for vertical dungeons / controlled ranges:
+# - Switch to random_only and respect given Y range (per-destination override).
+#
+# Also shows per-destination cache:
+# - Disable near-cache for a specific fixed-point requireSafe dest (A)
+# - Force shared cache (playerSpecific: false) for area dest (B)
+
+spawns:
+  - kind: world
+    event: death
+    priority: 1700
+    world: world_nether
+
+    destinations:
+      # A) Fixed point requireSafe (around x/z), using global nether scan; cache disabled for this dest
+      - world: world_nether
+        requireSafe: true
+        x: -95
+        z: -16
+        yaw: 135
+        pitch: 0
+        # Global nether.mode=scan will be used (no per-destination override here)
+        # TIP: use per-destination groundWhitelist to avoid BEDROCK roof
+        groundWhitelist:
+          - NETHERRACK
+          - CRIMSON_NYLIUM
+          - WARPED_NYLIUM
+        cache:
+          enabled: false        # do not cache the near-search result for this dest
+
+      # B) Area requireSafe with per-destination random-only in Nether
+      - world: world_nether
+        requireSafe: true
+        x:
+          min: -200
+          max: -100
+        z:
+          min: -50
+          max: 50
+        y: # vertical dungeon slice
+          min: 32
+          max: 60
+        ySelection:
+          mode: random_only     # override global 'scan' to pick a random Y within 32..60
+          respectRange: true    # ensure scan/range logic limits (for scan); here documented for clarity
+        groundWhitelist:
+          - BLACKSTONE
+          - POLISHED_BLACKSTONE
+          - BASALT
+        cache:
+          enabled: true
+          playerSpecific: false # shared cache across players (higher hit rate)
+
+# Notes:
+# - Global nether.mode=scan (config.yml) is used unless a destination overrides it.
+# - For A: cache disabled to keep the search "fresh" around the fixed point.
+# - For B: random_only override + explicit Y range makes sense for hand-crafted vertical content.
+# - For generic Nether spawns, 'scan' remains the recommended default.
+
+
+# ================================================================
+# ✅ Example 15: PvP Arena - Coordinate-Based Battle System
+# ================================================================
+# Simple PvP arena with team spawns and spectator area.
+# Demonstrates coordinate areas, weighted spawns, and basic actions.
+#
+# Map (top-down view; X→ right, Z→ down):
+#
+#     X: 0    50   100  150  200
+# Z:0 ┌─────┬─────┬─────┬─────┐
+#     │  S  │ Red │Arena│Blue │  S = spectator area
+#  50 ├─────┼─────┼─────┼─────┤  A = arena combat zone
+#     │  S  │  A  │  A  │  A  │  Red/Blue = team spawn areas
+# 100 ├─────┼─────┼─────┼─────┤
+#     │  S  │  A  │  A  │  A  │
+# 150 └─────┴─────┴─────┴─────┘
+#
+# Features:
+# - Arena deaths → team-based respawn with gear
+# - Spectator area → return to lobby
+# - Team areas → balanced spawn distribution
+# ================================================================
+
+spawns:
+  # 1) Arena combat zone - highest priority
+  - kind: coordinate
+    event: death
+    priority: 1400
+    triggerArea:
+      world: pvp_world
+      x:
+        min: 50
+        max: 200
+      z:
+        min: 50
+        max: 150
+    destinations:
+      # Red team spawn (west side)
+      - world: pvp_world
+        requireSafe: false
+        x:
+          min: 60
+          max: 80
+        z:
+          min: 70
+          max: 90
+        y: 64
+        weight: 50
+        weightConditions:
+          - type: permission
+            value: "arena.team.red"
+            weight: 100
+        actions:
+          messages:
+            - text: "<red>⚔️ Red team respawn!"
+              phases:
+                - AFTER
+          commands:
+            - command: "give %player% iron_sword 1"
+              chance: 100
+              phases:
+                - AFTER
+      # Blue team spawn (east side)
+      - world: pvp_world
+        requireSafe: false
+        x:
+          min: 170
+          max: 190
+        z:
+          min: 70
+          max: 90
+        y: 64
+        weight: 50
+        weightConditions:
+          - type: permission
+            value: "arena.team.blue"
+            weight: 100
+        actions:
+          messages:
+            - text: "<blue>⚔️ Blue team respawn!"
+              phases:
+                - AFTER
+          commands:
+            - command: "give %player% iron_sword 1"
+              chance: 100
+              phases:
+                - AFTER
+    conditions:
+      permissions:
+        - "arena.team.red || arena.team.blue"
+    actions:
+      messages:
+        - text: "<yellow>💀 Fallen in battle!"
+          phases:
+            - BEFORE
+
+  # 2) Spectator area - medium priority
+  - kind: coordinate
+    event: death
+    priority: 1200
+    triggerArea:
+      world: pvp_world
+      x:
+        min: 0
+        max: 50
+      z:
+        min: 0
+        max: 150
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 0
+        y: 64
+        z: 0
+        yaw: 90
+        pitch: 0
+    actions:
+      messages:
+        - text: "<gray>👀 Returned from spectator area"
+          phases:
+            - AFTER
+
+  # 3) Team spawn areas - join events
+  - kind: coordinate
+    event: join
+    priority: 1100
+    triggerArea:
+      world: pvp_world
+      x:
+        min: 50
+        max: 90
+      z:
+        min: 50
+        max: 100
+    destinations:
+      - world: pvp_world
+        requireSafe: true
+        x:
+          min: 70
+          max: 80
+        z:
+          min: 70
+          max: 80
+    conditions:
+      permissions:
+        - "arena.team.red"
+    actions:
+      messages:
+        - text: "<red>🏴 Red team area entered"
+          phases:
+            - AFTER
+      commands:
+        - command: "effect give %player% minecraft:strength 300 1"
+          chance: 100
+          phases:
+            - AFTER
+
+  - kind: coordinate
+    event: join
+    priority: 1100
+    triggerArea:
+      world: pvp_world
+      x:
+        min: 160
+        max: 200
+      z:
+        min: 50
+        max: 100
+    destinations:
+      - world: pvp_world
+        requireSafe: true
+        x:
+          min: 170
+          max: 180
+        z:
+          min: 70
+          max: 80
+    conditions:
+      permissions:
+        - "arena.team.blue"
+    actions:
+      messages:
+        - text: "<blue>🏴 Blue team area entered"
+          phases:
+            - AFTER
+      commands:
+        - command: "effect give %player% minecraft:strength 300 1"
+          chance: 100
+          phases:
+            - AFTER
+
+# ================================================================
+# 🎮 Setup Guide:
+# 1) Create PvP world: /mv create pvp_world normal
+# 2) Set permissions:
+#    - arena.team.red (red team players)
+#    - arena.team.blue (blue team players)
+# 3) Build arena structure at coordinates shown in map
+# 4) Test with: /msp simulate death (while standing in arena)
+# ================================================================
+
+
+# ================================================================
+# 🧩 For map creators (practical guide)
+# ================================================================
+
+# ─── Priority Strategy ───
+# Option A: Use very high priorities (1500+) to override client's main config defaults
+# Option B: Rely on client's main config defaults and adjust only when needed
+# Both approaches are valid - choose based on your project needs
+
+# ─── Fallback Strategy ───
+# Always include a low-priority world spawn as safety net:
+
+spawns:
+  - kind: world
+    event: death
+    priority: 100  # Low priority fallback
+    world: world
+    destinations:
+      - world: world
+        requireSafe: true
+        x:
+          min: -50
+          max: 50
+        z:
+          min: -50
+          max: 50
+
+# ─── Optional Premium Features ───
+# If your map uses optional plugins, comment them out with clear instructions:
+
+# spawns:
+#   - kind: world
+#     event: death
+#     world: world
+#     conditions:
+#      # Requires MMOCore plugin:
+#      # placeholders:
+#      # - "%mmocore_level% > 20"
+#      # - "%mmocore_class% == 'WARRIOR'"
+#     destinations:
+#       - world: world
+#         x: 0
+#         y: 64
+#         z: 0
+
+# ─── Area Design Tips ───
+# • Omit triggerArea.y for multi-floor dungeons (matches any height)
+# • Place specific areas before general ones (priority-wise)
+# • Test with /msp simulate death and /msp simulate join commands
+
+# ─── WorldGuard Integration ───
+# If using regions, ensure your clients have WorldGuard enabled:
+# 1. hooks.useWorldGuard=true in main config
+# 2. WorldGuard plugin installed
+# 3. Regions properly defined
+
+# ─── Performance Considerations ───
+# • Prefer requireSafe=false for known safe locations
+# • Limit weighted destinations per spawn (5-10 max)
+# • Group related spawns in same files for better organization
+
+# ─── Testing Commands ───
+# • /msp simulate death    - test death spawns at current location
+# • /msp simulate join     - test join spawns at current location
+# • /msp simulate back     - return to previous location
+# • /msp cache stats       - check safe location cache statistics
+# • /msp cache clear       - clear safe location cache for testing
+
+
+# ================================================================
+# 🗃️ Quick reference (most common patterns)
+# ================================================================
+
+# Basic world spawn:
+spawns:
+  - kind: world
+    event: join
+    world: world
+    destinations:
+      - world: world
+        x: 0
+        y: 64
+        z: 0
+
+# Basic region spawn (requires WorldGuard):
+spawns:
+  - kind: region
+    event: death
+    region: spawn
+    regionWorld: world
+    destinations:
+      - world: world
+        requireSafe: true
+        x:
+          min: -10
+          max: 10
+        z:
+          min: -10
+          max: 10
+
+
+# Basic coordinate area:
+spawns:
+  - kind: coordinate
+    event: death
+    triggerArea:
+      world: world
+      x:
+        min: 100
+        max: 200
+      z:
+        min: 100
+        max: 200
+    destinations:
+      - world: world
+        requireSafe: true
+        x: 150
+        z: 150
+
+# Actions only (no teleport):
+spawns:
+  - kind: world
+    event: death
+    world: world
+    actions:
+      messages:
+        - text: "<red>You died!"
+      commands:
+        - command: "heal %player%"
+          chance: 100
+
+
+# ================================================================
+# 📚 Full feature showcase
+# ================================================================
+# This example demonstrates most available features:
+
+spawns:
+  - kind: coordinate
+    event: both
+    priority: 1500
+    triggerArea:
+      world: world
+      worldMatchMode: exact
+      x:
+        min: 500
+        max: 1000
+      z:
+        min: 500
+        max: 1000
+    destinations:
+      - world: world
+        requireSafe: true
+        x:
+          min: 700
+          max: 800
+        z:
+          min: 700
+          max: 800
+        yaw:
+          min: 0
+          max: 360
+        weight: 80
+        weightConditions:
+          - type: permission
+            value: "mmospawnpoint.vip"
+            weight: 120
+          - type: placeholder
+            value: "%player_level% > 50"
+            weight: 110
+        waitingRoom:
+          world: world
+          x: 750
+          y: 200
+          z: 750
+          yaw: 180
+          pitch: 0
+        actions:
+          messages:
+            - text: "<green>Premium destination reached!"
+              phases:
+                - AFTER
+                - WAITING_ROOM
+          commands:
+            - command: "effect give %player% minecraft:speed 30 1"
+              chance: 100
+              phases:
+                - AFTER
+        actionExecutionMode: after
+        groundWhitelist:
+          - STONE
+          - COBBLESTONE
+        cache:
+          enabled: false
+      - world: world
+        requireSafe: false
+        x: 600
+        y: 64
+        z: 600
+        weight: 20
+        actions:
+          messages:
+            - text: "<yellow>Standard spawn point"
+              phases:
+                - AFTER
+        actionExecutionMode: before
+    conditions:
+      permissions:
+        - "mmospawnpoint.access && (mmospawnpoint.vip || mmospawnpoint.member)"
+      placeholders:
+        - "%player_gamemode% == 'SURVIVAL'"
+        - "%vault_eco_balance% > 100"
+    actions:
+      messages:
+        - text: "<blue>Area conditions passed"
+          phases:
+            - BEFORE
+        - text: "<gray>Searching for best spawn point..."
+          phases:
+            - WAITING_ROOM
+      commands:
+        - command: "title %player% subtitle \"<gray>Welcome to the area\""
+          chance: 100
+          phases:
+            - BEFORE
+    waitingRoom:
+      world: world
+      x: 750
+      y: 150
+      z: 750
+      yaw: 0
+      pitch: 0
+    partyRespawnDisabled: false

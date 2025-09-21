@@ -1,0 +1,177 @@
+# ================================================================
+# 🏰 Dungeon Example - Region-Based MMO Spawns
+# ================================================================
+# MMO-style dungeon respawn logic using WorldGuard regions.
+#
+# Requirements:
+# - WorldGuard plugin installed
+# - config.yml: hooks.useWorldGuard = true
+# - Create regions with: /rg define <region_name>
+#
+# Map (top-down, conceptual; X→ right, Z→ down)
+#   E = entrance, R = rooms, B = boss, X = emergency exit
+#
+#       Z
+#   150 ┌───────┐
+#       │   E   │ dungeon_entrance
+#   170 └───────┘
+#   180 ┌───────────────┐
+#       │   R1   R2     │ "dungeon_.*" (rooms)
+#   210 └───────┬───────┘
+#               │
+#   220       ┌─┴─┐
+#             │ B │ dungeon_boss (party respawn off)
+#   240       └───┘
+#
+#   0,0 → dungeon_emergency (any emergency areas)
+#
+# Notes:
+# - boss (B): party respawn disabled → harder boss fights
+# - rooms (R1,R2): safe search with mild penalties
+# - entrance (E): light penalty (fallback)
+# ================================================================
+
+spawns:
+  # 1) Boss room — highest priority, harsh penalty, no party respawn
+  - kind: region
+    event: death
+    priority: 1500
+    region: dungeon_boss
+    regionWorld: world
+    destinations:
+      - world: world
+        requireSafe: true
+        x: { min: 200, max: 210 }
+        z: { min: 220, max: 230 }
+        actions:
+          messages:
+            - text: "<dark_red>💀 The Ancient Guardian has slain you!"
+              phases: [BEFORE]
+            - text: "<red>⚰️ Your party must continue without you..."
+              phases: [AFTER]
+    actions:
+    # Optional: EXP penalty if you use an MMO plugin (uncomment)
+    # commands:
+    #   - command: "mmo addexp %player% -500"
+    #     chance: 100
+    #     phases: [AFTER]
+    waitingRoom:
+      world: world
+      x: 250
+      y: 100
+      z: 250
+      yaw: 180
+      pitch: 0
+    party:
+      respawnDisabled: true   # Disable party respawn in boss room
+
+  # 2) Dungeon rooms — medium penalty, regex for multiple rooms
+  - kind: region
+    event: death
+    priority: 1200
+    region: "dungeon_.*"
+    regionMatchMode: regex
+    regionWorld: world
+    destinations:
+      # Safe room (weighted main)
+      - world: world
+        requireSafe: true
+        x: { min: 195, max: 205 }
+        z: { min: 180, max: 190 }
+        weight: 80
+        actions:
+          messages:
+            - text: "<yellow>🛡️ Respawned in the safe room"
+              phases: [AFTER]
+          commands:
+            - command: "effect give %player% minecraft:weakness 60 1"
+              chance: 100
+              phases: [AFTER]
+      # Entrance fallback (weighted backup)
+      - world: world
+        requireSafe: false
+        x: 200
+        y: 64
+        z: 150
+        weight: 20
+        actions:
+          messages:
+            - text: "<red>💨 Blown back to dungeon entrance!"
+              phases: [AFTER]
+    actions:
+      messages:
+        - text: "<red>🗡️ You fell to the dungeon's dangers"
+          phases: [BEFORE]
+
+  # 3) Entrance — light penalty, both join/death events
+  - kind: region
+    event: both
+    priority: 1000
+    region: dungeon_entrance
+    regionWorld: world
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 200
+        y: 64
+        z: 150
+        yaw: 0
+        pitch: 0
+    conditions:
+      permissions:
+        - "mmo.dungeon.access"
+      # Optional level requirement (requires PlaceholderAPI + MMOCore)
+      # placeholders:
+      #   - "%mmocore_level% >= 10"
+    actions:
+      messages:
+        - text: "<blue>🏰 Entering the Ancient Ruins..."
+          phases: [AFTER]
+        - text: "<gray>💡 Tip: Bring a party for better survival!"
+          phases: [AFTER]
+      commands:
+        - command: "effect give %player% minecraft:night_vision 300 1"
+          chance: 100
+          phases: [AFTER]
+
+  # 4) Emergency exit — generic rescue area
+  - kind: region
+    event: death
+    priority: 800
+    region: dungeon_emergency
+    regionWorld: world
+    destinations:
+      - world: world
+        requireSafe: false
+        x: 0
+        y: 64
+        z: 0
+    actions:
+      messages:
+        - text: "<red>🚨 Emergency evacuation activated!"
+          phases: [BEFORE]
+        - text: "<yellow>⚡ Teleported to safety"
+          phases: [AFTER]
+
+# ================================================================
+# 🗺️ Setup Guide:
+# 1) WorldGuard:
+#    /rg define dungeon_entrance
+#    /rg define dungeon_room1
+#    /rg define dungeon_room2
+#    /rg define dungeon_boss
+#    /rg define dungeon_emergency
+#
+# 2) Permissions:
+#    mmo.dungeon.access - basic dungeon access
+#
+# 3) Optional MMO integration:
+#    - MMOCore (level/EXP), PlaceholderAPI (conditions)
+#
+# 4) Party system:
+#    - Boss room disables party respawn (see
+#    party:
+#      respawnDisabled: true)
+#    - For cooperative dungeons: set entries without partyRespawnDisabled
+#    - Main config: party.scope = "death"
+# ================================================================
