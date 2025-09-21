@@ -465,7 +465,7 @@ spawns:
 
 
 # ================================================================
-# ⚠️ Example 6: "Void Trap" using setspawnpoint command
+# ⚠️ Example 6: "Void Trap" using spawnpoint set command
 # ================================================================
 # Actions-only spawn that sets player's bed spawn to current location
 # Creates a "trap" where player will respawn here on future deaths
@@ -473,8 +473,7 @@ spawns:
 # IMPORTANT: Requires PlaceholderAPI + Player expansion for %player_world%, %player_x% etc.
 #
 # How it works:
-# - Uses plugin command "msp setspawnpoint" to forcibly set player's vanilla respawn point
-# - Plugin uses force=true, so no actual bed is required
+# - Uses plugin command "msp spawnpoint set" to forcibly set player's vanilla respawn point
 # - On future deaths, if no higher-priority MMOSpawnPoint rules match,
 #   server will respawn player at this bed location (the "trap")
 # - Works across dimensions (overworld/nether/end)
@@ -493,10 +492,10 @@ spawns:
           phases:
             - BEFORE
       commands:
-        - command: "msp setspawnpoint %player% %player_world% %player_x% %player_y% %player_z% %player_yaw% %player_pitch%"
+        - command: "msp spawnpoint set %player% %player_world% %player_x% %player_y% %player_z% %player_yaw% %player_pitch%"
           chance: 100
           phases:
-            - AFTER
+            - BEFORE
 
 # Warning: Ensure target world exists and no higher-priority death spawns override this trap
 
@@ -1084,14 +1083,22 @@ spawns:
     priority: 1400
     triggerArea:
       world: pvp_world
-      x: { min: 50, max: 200 }
-      z: { min: 50, max: 150 }
+      x:
+        min: 50
+        max: 200
+      z:
+        min: 50
+        max: 150
     destinations:
       # Red team spawn (west side)
       - world: pvp_world
         requireSafe: false
-        x: { min: 60, max: 80 }
-        z: { min: 70, max: 90 }
+        x:
+          min: 60
+          max: 80
+        z:
+          min: 70
+          max: 90
         y: 64
         weight: 50
         weightConditions:
@@ -1101,16 +1108,22 @@ spawns:
         actions:
           messages:
             - text: "<red>⚔️ Red team respawn!"
-              phases: [AFTER]
+              phases:
+                - AFTER
           commands:
             - command: "give %player% iron_sword 1"
               chance: 100
-              phases: [AFTER]
+              phases:
+                - AFTER
       # Blue team spawn (east side)
       - world: pvp_world
         requireSafe: false
-        x: { min: 170, max: 190 }
-        z: { min: 70, max: 90 }
+        x:
+          min: 170
+          max: 190
+        z:
+          min: 70
+          max: 90
         y: 64
         weight: 50
         weightConditions:
@@ -1120,18 +1133,21 @@ spawns:
         actions:
           messages:
             - text: "<blue>⚔️ Blue team respawn!"
-              phases: [AFTER]
+              phases:
+                - AFTER
           commands:
             - command: "give %player% iron_sword 1"
               chance: 100
-              phases: [AFTER]
+              phases:
+                - AFTER
     conditions:
       permissions:
         - "arena.team.red || arena.team.blue"
     actions:
       messages:
         - text: "<yellow>💀 Fallen in battle!"
-          phases: [BEFORE]
+          phases:
+            - BEFORE
 
   # 2) Spectator area - medium priority
   - kind: coordinate
@@ -1139,8 +1155,12 @@ spawns:
     priority: 1200
     triggerArea:
       world: pvp_world
-      x: { min: 0, max: 50 }
-      z: { min: 0, max: 150 }
+      x:
+        min: 0
+        max: 50
+      z:
+        min: 0
+        max: 150
     destinations:
       - world: world
         requireSafe: false
@@ -1152,7 +1172,8 @@ spawns:
     actions:
       messages:
         - text: "<gray>👀 Returned from spectator area"
-          phases: [AFTER]
+          phases:
+            - AFTER
 
   # 3) Team spawn areas - join events
   - kind: coordinate
@@ -1160,48 +1181,68 @@ spawns:
     priority: 1100
     triggerArea:
       world: pvp_world
-      x: { min: 50, max: 90 }
-      z: { min: 50, max: 100 }
+      x:
+        min: 50
+        max: 90
+      z:
+        min: 50
+        max: 100
     destinations:
       - world: pvp_world
         requireSafe: true
-        x: { min: 70, max: 80 }
-        z: { min: 70, max: 80 }
+        x:
+          min: 70
+          max: 80
+        z:
+          min: 70
+          max: 80
     conditions:
       permissions:
         - "arena.team.red"
     actions:
       messages:
         - text: "<red>🏴 Red team area entered"
-          phases: [AFTER]
+          phases:
+            - AFTER
       commands:
         - command: "effect give %player% minecraft:strength 300 1"
           chance: 100
-          phases: [AFTER]
+          phases:
+            - AFTER
 
   - kind: coordinate
     event: join
     priority: 1100
     triggerArea:
       world: pvp_world
-      x: { min: 160, max: 200 }
-      z: { min: 50, max: 100 }
+      x:
+        min: 160
+        max: 200
+      z:
+        min: 50
+        max: 100
     destinations:
       - world: pvp_world
         requireSafe: true
-        x: { min: 170, max: 180 }
-        z: { min: 70, max: 80 }
+        x:
+          min: 170
+          max: 180
+        z:
+          min: 70
+          max: 80
     conditions:
       permissions:
         - "arena.team.blue"
     actions:
       messages:
         - text: "<blue>🏴 Blue team area entered"
-          phases: [AFTER]
+          phases:
+            - AFTER
       commands:
         - command: "effect give %player% minecraft:strength 300 1"
           chance: 100
-          phases: [AFTER]
+          phases:
+            - AFTER
 
 # ================================================================
 # 🎮 Setup Guide:

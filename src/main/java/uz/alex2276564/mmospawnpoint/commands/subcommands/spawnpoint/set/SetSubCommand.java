@@ -13,39 +13,33 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandP
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.commands.subcommands.spawnpoint.SpawnpointFlags;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 public class SetSubCommand implements NestedSubCommandProvider {
+
+    private enum Mode { NONE, PLAYER, WORLD }
+
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
         return parent.subcommand("set")
                 .permission("mmospawnpoint.spawnpoint.set")
                 .description("Set player's bed/anchor spawn with conditions")
 
-                // ARG 0: player_or_world_or_flag
+                // ARG 0: player | world | flag
                 .argument(new ArgumentBuilder<>("player_or_world_or_flag", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
+                            // flags (filtered)
+                            addFlagSuggestions(out, partial, soFar);
 
-                            // Flags
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--if-missing".startsWith(p)) out.add("--if-missing");
-                            if ("--only-if-incorrect".startsWith(p)) out.add("--only-if-incorrect");
-                            if ("--require-valid-bed".startsWith(p)) out.add("--require-valid-bed");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
-
-                            // Игроки
+                            String p = norm(partial);
+                            // players
                             for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
                                 String name = online.getName();
                                 if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                             }
-
-                            // Миры
+                            // worlds
                             for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
                                 String name = w.getName();
                                 if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
@@ -53,160 +47,240 @@ public class SetSubCommand implements NestedSubCommandProvider {
                             return out;
                         }))
 
-                // ARG 1: world_or_x_or_flag
+                // ARG 1: depends on mode: (PLAYER → world) (WORLD → x) (NONE → player/world)
                 .argument(new ArgumentBuilder<>("world_or_x_or_flag", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
+                            addFlagSuggestions(out, partial, soFar);
 
-                            // Flags
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--if-missing".startsWith(p)) out.add("--if-missing");
-                            if ("--only-if-incorrect".startsWith(p)) out.add("--only-if-incorrect");
-                            if ("--require-valid-bed".startsWith(p)) out.add("--require-valid-bed");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
+                            Mode mode = detectMode(soFar);
+                            String p = norm(partial);
 
-                            // Worlds or coordinates
-                            for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
-                                String name = w.getName();
-                                if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
+                            if (mode == Mode.PLAYER) {
+                                // if world not set yet -> suggest worlds, otherwise suggest X
+                                World givenWorld = detectWorld(soFar, mode);
+                                if (givenWorld == null) {
+                                    for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                        String name = w.getName();
+                                        if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
+                                    }
+                                } else {
+                                    addXSuggestions(sender, out, partial);
+                                }
+                            } else if (mode == Mode.WORLD) {
+                                addXSuggestions(sender, out, partial);
+                            } else { // NONE
+                                // still no non-flag token: propose players/worlds
+                                for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
+                                    String name = online.getName();
+                                    if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
+                                }
+                                for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                    String name = w.getName();
+                                    if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
+                                }
                             }
-
-                            // X coordinates
-                            if (sender instanceof Player pl) {
-                                out.add(String.format(Locale.US, "%.1f", pl.getLocation().getX()));
-                            }
-                            out.add("0");
-                            out.add("100");
-                            out.add("-100");
-
                             return out;
                         }))
 
-                // ARG 2: x_or_y_or_flag
+                // ARG 2: depends on mode: (PLAYER → x) (WORLD → y) (NONE → player/world)
                 .argument(new ArgumentBuilder<>("x_or_y_or_flag", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
+                            addFlagSuggestions(out, partial, soFar);
 
-                            // Flags
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--if-missing".startsWith(p)) out.add("--if-missing");
-                            if ("--only-if-incorrect".startsWith(p)) out.add("--only-if-incorrect");
-                            if ("--require-valid-bed".startsWith(p)) out.add("--require-valid-bed");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
+                            Mode mode = detectMode(soFar);
+                            String p = norm(partial);
 
-                            // Coordinates
-                            if (sender instanceof Player pl) {
-                                out.add(String.format(Locale.US, "%.1f", pl.getLocation().getX()));
-                                out.add(String.format(Locale.US, "%.1f", pl.getLocation().getY()));
+                            if (mode == Mode.PLAYER) {
+                                World givenWorld = detectWorld(soFar, mode);
+                                if (givenWorld == null) {
+                                    // still missing world -> suggest worlds
+                                    for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                        String name = w.getName();
+                                        if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
+                                    }
+                                } else {
+                                    addXSuggestions(sender, out, partial);
+                                }
+                            } else if (mode == Mode.WORLD) {
+                                addYSuggestions(sender, out, partial);
+                            } else {
+                                // NONE: still propose players/worlds
+                                for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
+                                    String name = online.getName();
+                                    if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
+                                }
+                                for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                    String name = w.getName();
+                                    if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
+                                }
                             }
-                            out.add("0");
-                            out.add("64");
-                            out.add("100");
-
                             return out;
                         }))
 
-                // ARG 3: y_or_z_or_flag
+                // ARG 3: depends on mode: (PLAYER → y) (WORLD → z)
                 .argument(new ArgumentBuilder<>("y_or_z_or_flag", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
+                            addFlagSuggestions(out, partial, soFar);
 
-                            // Flags
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--if-missing".startsWith(p)) out.add("--if-missing");
-                            if ("--only-if-incorrect".startsWith(p)) out.add("--only-if-incorrect");
-                            if ("--require-valid-bed".startsWith(p)) out.add("--require-valid-bed");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
-
-                            // Coordinates
-                            if (sender instanceof Player pl) {
-                                out.add(String.format(Locale.US, "%.1f", pl.getLocation().getY()));
-                                out.add(String.format(Locale.US, "%.1f", pl.getLocation().getZ()));
+                            Mode mode = detectMode(soFar);
+                            if (mode == Mode.PLAYER) {
+                                addYSuggestions(sender, out, partial);
+                            } else if (mode == Mode.WORLD) {
+                                addZSuggestions(sender, out, partial);
+                            } else {
+                                // NONE: nothing strong to suggest; fallback to coords
+                                addYSuggestions(sender, out, partial);
+                                addZSuggestions(sender, out, partial);
                             }
-                            out.add("64");
-                            out.add("80");
-                            out.add("100");
-
                             return out;
                         }))
 
-                // ARG 4: z_or_yaw_or_flag
+                // ARG 4: depends on mode: (PLAYER → z) (WORLD → yaw)
                 .argument(new ArgumentBuilder<>("z_or_yaw_or_flag", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
+                            addFlagSuggestions(out, partial, soFar);
 
-                            // Flags
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--if-missing".startsWith(p)) out.add("--if-missing");
-                            if ("--only-if-incorrect".startsWith(p)) out.add("--only-if-incorrect");
-                            if ("--require-valid-bed".startsWith(p)) out.add("--require-valid-bed");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
-
-                            // Coordinates Z или Yaw
-                            if (sender instanceof Player pl) {
-                                out.add(String.format(Locale.US, "%.1f", pl.getLocation().getZ()));
-                                out.add(String.format(Locale.US, "%.0f", pl.getLocation().getYaw()));
+                            Mode mode = detectMode(soFar);
+                            if (mode == Mode.PLAYER) {
+                                addZSuggestions(sender, out, partial);
+                            } else if (mode == Mode.WORLD) {
+                                addYawSuggestions(sender, out, partial);
+                            } else {
+                                addZSuggestions(sender, out, partial);
+                                addYawSuggestions(sender, out, partial);
                             }
-                            out.add("0");
-                            out.add("90");
-                            out.add("180");
-                            out.add("270");
-
                             return out;
                         }))
 
-                // ARG 5+: other arguments and flags
+                // ARG 5: yaw_or_pitch_or_flag (both optional)
                 .argument(new ArgumentBuilder<>("yaw_or_pitch_or_flag", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
+                            addFlagSuggestions(out, partial, soFar);
 
-                            // Flags
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--if-missing".startsWith(p)) out.add("--if-missing");
-                            if ("--only-if-incorrect".startsWith(p)) out.add("--only-if-incorrect");
-                            if ("--require-valid-bed".startsWith(p)) out.add("--require-valid-bed");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
-
-                            // Yaw/Pitch
-                            if (sender instanceof Player pl) {
-                                out.add(String.format(Locale.US, "%.0f", pl.getLocation().getYaw()));
-                                out.add(String.format(Locale.US, "%.0f", pl.getLocation().getPitch()));
-                            }
-                            out.add("0");
-                            out.add("-30");
-                            out.add("30");
-
-                            return out;
-                        }))
-
-                .argument(new ArgumentBuilder<>("extra_flags", ArgumentType.STRING)
-                        .optional(null)
-                        .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
-                            List<String> out = new ArrayList<>();
-
-                            // Only Flags
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--if-missing".startsWith(p)) out.add("--if-missing");
-                            if ("--only-if-incorrect".startsWith(p)) out.add("--only-if-incorrect");
-                            if ("--require-valid-bed".startsWith(p)) out.add("--require-valid-bed");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
-
+                            addYawSuggestions(sender, out, partial);
+                            addPitchSuggestions(sender, out, partial);
                             return out;
                         }))
 
                 .executor(this::execute);
     }
+
+    // ========== dynamic helpers ==========
+
+    private static final String[] FLAGS = {
+            "--if-has",
+            "--if-missing",
+            "--only-if-incorrect",
+            "--require-valid-bed",
+            "--dry-run"
+    };
+
+    private static boolean isFlag(String s) {
+        return s != null && s.startsWith("--");
+    }
+
+    private static String norm(String s) {
+        return s == null ? "" : s.toLowerCase(Locale.ROOT);
+    }
+
+    private static void addFlagSuggestions(List<String> out, String partial, String[] soFar) {
+        String p = norm(partial);
+        Set<String> used = new HashSet<>();
+        if (soFar != null) {
+            for (String s : soFar) if (isFlag(s)) used.add(s.toLowerCase(Locale.ROOT));
+        }
+        for (String flag : FLAGS) {
+            if (!used.contains(flag) && flag.startsWith(p)) out.add(flag);
+        }
+    }
+
+    private static void addXSuggestions(CommandSender sender, List<String> out, String partial) {
+        addCoordSuggestions(sender, out, partial, Axis.X);
+    }
+
+    private static void addYSuggestions(CommandSender sender, List<String> out, String partial) {
+        addCoordSuggestions(sender, out, partial, Axis.Y);
+    }
+
+    private static void addZSuggestions(CommandSender sender, List<String> out, String partial) {
+        addCoordSuggestions(sender, out, partial, Axis.Z);
+    }
+
+    private static void addYawSuggestions(CommandSender sender, List<String> out, String partial) {
+        String p = norm(partial);
+        List<String> base = Arrays.asList("0", "90", "180", "270");
+        if (sender instanceof Player pl) {
+            base = new ArrayList<>(base);
+            base.add(String.format(Locale.US, "%.0f", pl.getLocation().getYaw()));
+        }
+        for (String s : base) if (s.toLowerCase(Locale.ROOT).startsWith(p)) out.add(s);
+    }
+
+    private static void addPitchSuggestions(CommandSender sender, List<String> out, String partial) {
+        String p = norm(partial);
+        List<String> base = Arrays.asList("-30", "0", "30");
+        if (sender instanceof Player pl) {
+            base = new ArrayList<>(base);
+            base.add(String.format(Locale.US, "%.0f", pl.getLocation().getPitch()));
+        }
+        for (String s : base) if (s.toLowerCase(Locale.ROOT).startsWith(p)) out.add(s);
+    }
+
+    private enum Axis { X, Y, Z }
+    private static void addCoordSuggestions(CommandSender sender, List<String> out, String partial, Axis axis) {
+        String p = norm(partial);
+        List<String> base = new ArrayList<>(Arrays.asList("0", "64", "100", "-100"));
+        if (sender instanceof Player pl) {
+            Location l = pl.getLocation();
+            switch (axis) {
+                case X -> base.add(String.format(Locale.US, "%.1f", l.getX()));
+                case Y -> base.add(String.format(Locale.US, "%.1f", l.getY()));
+                case Z -> base.add(String.format(Locale.US, "%.1f", l.getZ()));
+            }
+        }
+        for (String s : base) if (s.toLowerCase(Locale.ROOT).startsWith(p)) out.add(s);
+    }
+
+    private static Mode detectMode(String[] soFar) {
+        List<String> nonFlags = Arrays.stream(soFar == null ? new String[0] : soFar)
+                .filter(s -> s != null && !isFlag(s))
+                .toList();
+        if (nonFlags.isEmpty()) return Mode.NONE;
+
+        String first = nonFlags.get(0);
+        if (Bukkit.getWorld(first) != null) return Mode.WORLD;
+        if (Bukkit.getPlayerExact(first) != null) return Mode.PLAYER;
+        return Mode.NONE;
+    }
+
+    private static World detectWorld(String[] soFar, Mode mode) {
+        List<String> nonFlags = Arrays.stream(soFar == null ? new String[0] : soFar)
+                .filter(s -> s != null && !isFlag(s))
+                .toList();
+        if (nonFlags.isEmpty()) return null;
+
+        if (mode == Mode.WORLD) {
+            return Bukkit.getWorld(nonFlags.get(0));
+        }
+        if (mode == Mode.PLAYER) {
+            if (nonFlags.size() >= 2) {
+                return Bukkit.getWorld(nonFlags.get(1));
+            }
+        }
+        return null;
+    }
+
+    // ========== execute (как у тебя) ==========
 
     private void execute(CommandSender sender, uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandContext ctx) {
         MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
@@ -222,6 +296,10 @@ public class SetSubCommand implements NestedSubCommandProvider {
         }
         String[] pos = SpawnpointFlags.stripFlags(raw);
 
+        if (pos.length == 0) {
+            plugin.getMessageManager().sendMessageKeyed(sender,"commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
+            return;
+        }
 
         int i;
         Player target;

@@ -9,6 +9,7 @@ import uz.alex2276564.mmospawnpoint.utils.WorldGuardUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class PartyManager {
 
@@ -29,7 +30,6 @@ public class PartyManager {
     private final Map<UUID, Party> parties = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> playerPartyMap = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> pendingInvitations = new ConcurrentHashMap<>();
-    private final Random random = new Random();
 
     @Getter
     private final int maxPartySize;
@@ -558,7 +558,7 @@ public class PartyManager {
             case "most_members_region":
                 return findTargetInMostPopulatedRegion(candidates);
             case "random":
-                return candidates.get(this.random.nextInt(candidates.size()));
+                return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
             case "leader_priority":
                 return findWithLeaderPriority(candidates);
             case "specific_target_only": {
@@ -589,7 +589,7 @@ public class PartyManager {
             case "most_members_region":
                 return findTargetInMostPopulatedRegion(candidates);
             case "random":
-                return candidates.get(this.random.nextInt(candidates.size()));
+                return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
             case "leader_priority":
                 return findWithLeaderPriority(candidates);
             case "specific_target_only": {
@@ -701,7 +701,7 @@ public class PartyManager {
         }
         if (bestWorld != null) {
             List<Player> list = worldGroups.get(bestWorld);
-            return list.get(this.random.nextInt(list.size()));
+            return list.get(ThreadLocalRandom.current().nextInt(list.size()));
         }
         return null;
     }
@@ -741,7 +741,7 @@ public class PartyManager {
         }
         if (bestRegion != null) {
             List<Player> list = regionGroups.get(bestRegion);
-            return list.get(this.random.nextInt(list.size()));
+            return list.get(ThreadLocalRandom.current().nextInt(list.size()));
         }
         return null;
     }
@@ -756,7 +756,7 @@ public class PartyManager {
                 }
             }
         }
-        return candidates.get(this.random.nextInt(candidates.size()));
+        return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
     }
 
     // ============================= RESTRICTIONS & REASONS =============================

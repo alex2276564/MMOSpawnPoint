@@ -209,8 +209,8 @@ public final class MMOSpawnPoint extends JavaPlugin {
 
         SafeLocationFinder.cleanup();
         SafeLocationFinder.clearCache();
-        SpawnEntry.clearRegexCache();
-        SimulateContext.PREV.clear();
+        SpawnEntry.clearPatternCachee();
+        SimulateContext.clearPREV();
 
         if (runner != null) {
             runner.cancelAllTasks();

@@ -582,8 +582,8 @@ public class SpawnPointsConfigValidator {
             return;
         }
 
-        boolean isValue = axis.Value();
-        boolean isRange = axis.Range();
+        boolean isValue = axis.isValue();
+        boolean isRange = axis.isRange();
 
         if (!isValue && !isRange) {
             result.addError(prefix, "Axis must define either 'value' or BOTH 'min' and 'max'.");

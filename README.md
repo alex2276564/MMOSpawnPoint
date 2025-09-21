@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Text Formatting](https://img.shields.io/badge/Text%20Formatting-🌈%20MiniMessage-ff69b4)](https://docs.advntr.dev/minimessage/)
 
-**MMOSpawnPoint** is an advanced MMO spawn system with region-based spawns, party respawn mechanics, safe location finding, resource pack integration, and comprehensive condition-based teleportation. Features walking spawn points, waiting rooms, partial async location search, advanced caching, and extensive customization for MMO servers.
+**MMOSpawnPoint** is an advanced MMO spawn system with region-based spawns, party respawn mechanics, safe location finding, resource pack integration, and comprehensive condition-based teleportation. Features walking spawn points, waiting rooms, batched safe location search, advanced caching, and extensive customization for MMO servers.
 
 ## ✨ Features
 
@@ -15,9 +15,9 @@
 * **World-Based Spawns:** Configure unique spawn points for each world with pattern support
 * **Coordinate-Based Spawns:** Define precise trigger areas with flexible axis constraints
 * **Conditional Spawns:** Use permissions and PlaceholderAPI with full logical expression support
-* **Partial asynchronous Safe Location Finding:** Advanced caching system with configurable search strategies
+* **Batched safe search (tick-budgeted on Paper, region-thread on Folia) Location Finding:** Advanced caching system with configurable search strategies
 * **Waiting Room System:** Professional partial async processing with customizable waiting areas
-* **Advanced Party System:** Complete party mechanics with respawn, cooldowns, restrictions, and target selection
+* **Advanced Party System:** Complete party mechanics with respawn, cooldowns, restrictions, and respawn target
 * **Walking Spawn Points:** Content creators can respawn at death location and serve as party anchor points
 * **Resource Pack Integration:** Seamless resource pack loading with waiting room support
 * **Comprehensive Actions:** Execute commands, send messages, with conditional chances and phase control
@@ -184,7 +184,7 @@ MMOSpawnPoint revolutionizes player respawning with features like:
 
 * Allow players to form groups and respawn together with advanced mechanics
 * Configurable cooldowns, distance restrictions, and bypass permissions
-* Multiple target selection strategies (closest, most populated, leader priority)
+* Multiple respawn target strategies (closest, most populated, leader priority)
 * Perfect for adventure maps, dungeons, and RPG servers
 * Walking Spawn Point feature for content creators and streamers
 
@@ -195,7 +195,7 @@ MMOSpawnPoint revolutionizes player respawning with features like:
 * Creates amazing opportunities for content creation and community engagement
 * Advanced restriction controls for balanced gameplay
 
-### ⚡ Partial Asynchronous Safe Location Finding
+### ⚡ batched Safe Location Finding
 
 * Advanced caching system with configurable expiry and size limits
 * Professional waiting room system prevents lag during location searches
@@ -230,7 +230,7 @@ mmospawnpoint.party.options
 
 #### Content Creators/Premium (Top Tier)
 ```text
-mmospawnpoint.party.respawnatdeath
+mmospawnpoint.party.deathLocationSpawn
 mmospawnpoint.bypass.party.cooldown
 ```
 
@@ -345,7 +345,7 @@ The logic remains the same, except for the fallback behavior:
 - 🎯 Destination selection (inside a matched entry)
     - If there is only one destination, it’s used.
     - If there are multiple, weights (and weightConditions) decide which one is picked.
-    - If requireSafe: true, a waiting room is used while the plugin searches for a safe spot partial asynchronously.
+    - If requireSafe: true, a waiting room is used while the plugin searches for a safe spot.
 
 - 🧭 Easy flow (at a glance)
   Player dies/joins  
@@ -450,7 +450,7 @@ The waiting room feature is not just a temporary holding area - it's a fallback 
 
 **⚠️ DANGER ZONES:** Walking Spawn Points can be dangerous if content creators die in inescapable locations (lava pits, void areas, enclosed spaces, etc.). 
 
-**Solution:** Instruct players with `mmospawnpoint.party.respawnatdeath` permission to temporarily switch their party mode when exploring dangerous areas:
+**Solution:** Instruct players with `mmospawnpoint.party.deathLocationSpawn` permission to temporarily switch their party mode when exploring dangerous areas:
 
 ```
 /msp party options mode normal    (before entering dangerous areas)
@@ -890,7 +890,7 @@ If you encounter issues with the plugin:
 - **Minecraft Versions:** 1.16.5 to the latest release
 - **Server Software:**
     - ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
-    - ✅ [Folia](https://papermc.io/software/folia) - **Fully Supported** with optimized region-aware scheduling
+    - ⚠️ [Folia](https://papermc.io/software/folia) - **Partially Supported** with optimized region-aware scheduling
     - ❌ Spigot - Not supported
 - **Java Version:** Java 17 or higher
 - **Optional Dependencies:**
@@ -918,7 +918,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Claude (Anthropic)** - Advanced system architecture, complex algorithm implementation, and comprehensive documentation
 - **ChatGPT (OpenAI)** - Feature design, code optimization, and configuration systems
 
-*The majority of the plugin's sophisticated features, including the advanced party system, partial asynchronous safe location finding, and comprehensive configuration validation, were implemented through AI-assisted development.*
+*The majority of the plugin's sophisticated features, including the advanced party system, batched safe search (tick-budgeted on Paper, region-thread on Folia) location finding, and comprehensive configuration validation, were implemented through AI-assisted development.*
 
 ## 🤝 Contributing
 

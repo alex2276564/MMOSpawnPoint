@@ -21,7 +21,7 @@ public record SpawnEntry(
 
     private static final ConcurrentHashMap<String, Pattern> REGEX_CACHE = new ConcurrentHashMap<>();
 
-    public static void clearRegexCache() {
+    public static void clearPatternCachee() {
         REGEX_CACHE.clear();
     }
 
@@ -83,16 +83,16 @@ public record SpawnEntry(
             boolean insideInclude = false;
             for (SpawnPointsConfig.RectSpec r : area.rects) {
                 if (r == null || r.x == null || r.z == null) continue;
-                double minX = r.x.Value() ? r.x.value : r.x.min;
-                double maxX = r.x.Value() ? r.x.value : r.x.max;
-                double minZ = r.z.Value() ? r.z.value : r.z.min;
-                double maxZ = r.z.Value() ? r.z.value : r.z.max;
+                double minX = r.x.isValue() ? r.x.value : r.x.min;
+                double maxX = r.x.isValue() ? r.x.value : r.x.max;
+                double minZ = r.z.isValue() ? r.z.value : r.z.min;
+                double maxZ = r.z.isValue() ? r.z.value : r.z.max;
                 double minY;
                 double maxY;
                 if (r.y == null) {
                     minY = Double.NEGATIVE_INFINITY;
                     maxY = Double.POSITIVE_INFINITY;
-                } else if (r.y.Value()) {
+                } else if (r.y.isValue()) {
                     minY = r.y.value;
                     maxY = r.y.value;
                 } else {
@@ -109,16 +109,16 @@ public record SpawnEntry(
             if (area.excludeRects != null && !area.excludeRects.isEmpty()) {
                 for (SpawnPointsConfig.RectSpec ex : area.excludeRects) {
                     if (ex == null || ex.x == null || ex.z == null) continue;
-                    double exMinX = ex.x.Value() ? ex.x.value : ex.x.min;
-                    double exMaxX = ex.x.Value() ? ex.x.value : ex.x.max;
-                    double exMinZ = ex.z.Value() ? ex.z.value : ex.z.min;
-                    double exMaxZ = ex.z.Value() ? ex.z.value : ex.z.max;
+                    double exMinX = ex.x.isValue() ? ex.x.value : ex.x.min;
+                    double exMaxX = ex.x.isValue() ? ex.x.value : ex.x.max;
+                    double exMinZ = ex.z.isValue() ? ex.z.value : ex.z.min;
+                    double exMaxZ = ex.z.isValue() ? ex.z.value : ex.z.max;
                     double exMinY;
                     double exMaxY;
                     if (ex.y == null) {
                         exMinY = Double.NEGATIVE_INFINITY;
                         exMaxY = Double.POSITIVE_INFINITY;
-                    } else if (ex.y.Value()) {
+                    } else if (ex.y.isValue()) {
                         exMinY = ex.y.value;
                         exMaxY = ex.y.value;
                     } else {
@@ -152,9 +152,9 @@ public record SpawnEntry(
     }
 
     private boolean matchesAxis(SpawnPointsConfig.AxisSpec axis, double coord, int blockCoord) {
-        if (axis.Value()) {
+        if (axis.isValue()) {
             return blockCoord == (int) Math.floor(axis.value);
-        } else if (axis.Range()) {
+        } else if (axis.isRange()) {
             return coord >= axis.min && coord <= axis.max;
         }
         return false;

@@ -95,17 +95,47 @@ public class LegacyMessageManager implements MessageManager {
 
     @Override
     public @NotNull String stripTags(@NotNull String message) {
-        // Cheap removal of <...> tags; preserve newlines
-        String s = message.replace("<newline>", "\n").replace("<br>", "\n");
-        // remove any <...> and </...>
-        StringBuilder out = new StringBuilder(s.length());
-        boolean inTag = false;
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '<') { inTag = true; continue; }
-            if (c == '>') { inTag = false; continue; }
-            if (!inTag) out.append(c);
+        // Convert <br>/<newline> to line breaks first
+        StringBuilder out = new StringBuilder(message.length());
+
+        for (int i = 0; i < message.length(); i++) {
+            char c = message.charAt(i);
+            if (c != '<') {
+                out.append(c);
+                continue;
+            }
+            int end = message.indexOf('>', i + 1);
+            if (end < 0) {
+                // Broken tag, print '<' literally
+                out.append(c);
+                continue;
+            }
+
+            String tag = message.substring(i + 1, end).trim();     // original inside <>
+            String lower = tag.toLowerCase(Locale.ROOT);     // case-insensitive checks
+            i = end; // consume the tag
+
+            // Newline shortcuts
+            if ("br".equals(lower) || "newline".equals(lower)) {
+                out.append('\n');
+                continue;
+            }
+
+            // Reset, explicit closing tags, known colors/styles, or complex (hover/click/gradient/etc.)
+            // → drop formatting-only tags for plain text output
+            if ("reset".equals(lower)
+                    || lower.startsWith("/")
+                    || COLOR.containsKey(lower)
+                    || STYLE.containsKey(lower)
+                    || isComplex(lower)) {
+                // skip tag (remove it from plain text)
+                continue;
+            }
+
+            // Unknown tag → keep literally so placeholders like <player> are not lost
+            out.append('<').append(tag).append('>');
         }
+
         return out.toString();
     }
 
@@ -210,11 +240,11 @@ public class LegacyMessageManager implements MessageManager {
                 continue;
             }
             int end = msg.indexOf('>', i + 1);
-            if (end < 0) { // broken tag, just print
+            if (end < 0) { // broken tag, just print '<'
                 out.append(c);
                 continue;
             }
-            String tag = msg.substring(i + 1, end).trim();
+            String tag = msg.substring(i + 1, end).trim(); // original inside <>
             i = end;
 
             String lower = tag.toLowerCase(Locale.ROOT);
@@ -245,13 +275,22 @@ public class LegacyMessageManager implements MessageManager {
                     }
                     // restore stack without removed tag
                     while (!tmp.isEmpty()) stack.push(tmp.pop());
+
+                    if (removed) {
+                        // re-emit all active codes (color first, then styles)
+                        reemitStack(out, stack);
+                    } else {
+                        // unknown closer → keep literally
+                        out.append('<').append(tag).append('>');
+                    }
+                } else {
+                    // no active tags → keep literally
+                    out.append('<').append(tag).append('>');
                 }
-                // re-emit all active codes (color first, then styles)
-                reemitStack(out, stack);
             }
             // complex tags we ignore: gradient:..., hover:..., click:..., font:..., ...
             else if (isComplex(lower)) {
-                // ignore
+                // ignore formatting that can't be represented in legacy
             }
             // color
             else if (COLOR.containsKey(lower)) {
@@ -261,11 +300,13 @@ public class LegacyMessageManager implements MessageManager {
             }
             // style
             else if (STYLE.containsKey(lower) && !containsTag(stack, lower)) {
-                    stack.push(new Tag(TagType.STYLE, lower, "&" + STYLE.get(lower)));
-                    reemitStack(out, stack);
-                }
-
-            // unknown tag -> strip
+                stack.push(new Tag(TagType.STYLE, lower, "&" + STYLE.get(lower)));
+                reemitStack(out, stack);
+            }
+            // unknown tag -> keep literally (so placeholders like <player> are visible if not replaced earlier)
+            else {
+                out.append('<').append(tag).append('>');
+            }
         }
         return out.toString();
     }

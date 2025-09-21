@@ -34,11 +34,11 @@ public class SpawnPointsConfig extends OkaeriConfig {
         // Maximum bound (strictly greater than min)
         public Double max;
 
-        public boolean Value() {
+        public boolean isValue() {
             return value != null && min == null && max == null;
         }
 
-        public boolean Range() {
+        public boolean isRange() {
             return value == null && min != null && max != null;
         }
     }

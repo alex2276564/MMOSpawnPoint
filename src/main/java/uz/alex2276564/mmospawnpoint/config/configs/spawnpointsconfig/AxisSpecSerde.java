@@ -24,12 +24,12 @@ public class AxisSpecSerde implements ObjectSerializer<SpawnPointsConfig.AxisSpe
                           @NonNull SerializationData data,
                           @NonNull GenericsDeclaration generics) {
 
-        if (object.Value()) {
+        if (object.isValue()) {
             data.setValue(object.value);
             return;
         }
 
-        if (object.Range()) {
+        if (object.isRange()) {
             data.add("min", object.min);
             data.add("max", object.max);
             return;

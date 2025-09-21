@@ -60,7 +60,7 @@ body:
     id: config
     attributes:
       label: Configuration
-      description: Please provide your config.yml content
+      description: Please provide your config content
       render: yaml
 
   - type: textarea

@@ -8,6 +8,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.utils.StringUtils;
 
 import java.util.Collections;
@@ -57,11 +58,8 @@ public class AdventureMessageManager implements MessageManager {
     public @NotNull Component parse(@NotNull String message, @NotNull Map<String, String> placeholders) {
         String processedMessage = StringUtils.processEscapeSequences(message);
         TagResolver.Builder builder = TagResolver.builder();
-
         //noinspection PatternValidation
-        placeholders.forEach((key, value) ->
-                builder.resolver(Placeholder.unparsed(key, value)));
-
+        placeholders.forEach((key, value) -> builder.resolver(Placeholder.unparsed(key, value)));
         return miniMessage.deserialize(processedMessage, builder.build());
     }
 
@@ -72,9 +70,7 @@ public class AdventureMessageManager implements MessageManager {
 
         // ⚠️ WARNING - allows MiniMessage tags in values!
         //noinspection PatternValidation
-        trustedPlaceholders.forEach((key, value) ->
-                builder.resolver(Placeholder.parsed(key, value)));
-
+        trustedPlaceholders.forEach((key, value) -> builder.resolver(Placeholder.parsed(key, value)));
         return miniMessage.deserialize(processedMessage, builder.build());
     }
 
@@ -83,21 +79,39 @@ public class AdventureMessageManager implements MessageManager {
         return miniMessage.stripTags(message);
     }
 
-    // non-keyed
+    // ========= helpers =========
+
+    private void sendToPlayer(Player player, Component component) {
+        var runner = MMOSpawnPoint.getInstance().getRunner();
+        // On Paper this returns true → send immediately; on Folia checks region-thread ownership
+        if (runner.isOwnedByCurrentRegion(player)) {
+            player.sendMessage(component);
+        } else {
+            runner.runAtEntity(player, () -> player.sendMessage(component));
+        }
+    }
+
+    private void sendToConsole(CommandSender sender, Component component) {
+        String plain = PlainTextComponentSerializer.plainText().serialize(component);
+        sender.sendMessage(plain);
+    }
+
+    // ========= non-keyed =========
+
     @Override
     public void sendMessage(@NotNull Player player, @NotNull String message) {
-        player.sendMessage(parse(message));
+        sendToPlayer(player, parse(message));
     }
 
     @Override
     public void sendMessage(@NotNull Player player, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
-        player.sendMessage(parse(message, placeholder, replacement));
+        sendToPlayer(player, parse(message, placeholder, replacement));
     }
 
     @Override
     public void sendMessage(@NotNull CommandSender sender, @NotNull String message) {
         if (sender instanceof Player player) {
-            sendMessage(player, message);
+            sendToPlayer(player, parse(message));
         } else {
             sender.sendMessage(stripTags(message));
         }
@@ -106,32 +120,31 @@ public class AdventureMessageManager implements MessageManager {
     @Override
     public void sendMessage(@NotNull CommandSender sender, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
         if (sender instanceof Player player) {
-            player.sendMessage(parse(message, placeholder, replacement));
+            sendToPlayer(player, parse(message, placeholder, replacement));
         } else {
-            Component parsed = parse(message, placeholder, replacement);
-            String plainText = PlainTextComponentSerializer.plainText().serialize(parsed);
-            sender.sendMessage(plainText);
+            sendToConsole(sender, parse(message, placeholder, replacement));
         }
     }
 
-    // keyed
+    // ========= keyed =========
+
     @Override
     public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message) {
         if (isDisabled(key)) return;
-        player.sendMessage(parse(message));
+        sendToPlayer(player, parse(message));
     }
 
     @Override
     public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
         if (isDisabled(key)) return;
-        player.sendMessage(parse(message, placeholder, replacement));
+        sendToPlayer(player, parse(message, placeholder, replacement));
     }
 
     @Override
     public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message) {
         if (isDisabled(key)) return;
         if (sender instanceof Player player) {
-            sendMessageKeyed(player, key, message);
+            sendToPlayer(player, parse(message));
         } else {
             sender.sendMessage(stripTags(message));
         }
@@ -141,30 +154,25 @@ public class AdventureMessageManager implements MessageManager {
     public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message, @NotNull String placeholder, @NotNull String replacement) {
         if (isDisabled(key)) return;
         if (sender instanceof Player player) {
-            player.sendMessage(parse(message, placeholder, replacement));
+            sendToPlayer(player, parse(message, placeholder, replacement));
         } else {
-            Component parsed = parse(message, placeholder, replacement);
-            String plainText = PlainTextComponentSerializer.plainText().serialize(parsed);
-            sender.sendMessage(plainText);
+            sendToConsole(sender, parse(message, placeholder, replacement));
         }
     }
 
     @Override
     public void sendMessageKeyed(@NotNull Player player, String key, @NotNull String message, @NotNull Map<String, String> placeholders) {
         if (isDisabled(key)) return;
-        player.sendMessage(parse(message, placeholders));
+        sendToPlayer(player, parse(message, placeholders));
     }
 
     @Override
     public void sendMessageKeyed(@NotNull CommandSender sender, String key, @NotNull String message, @NotNull Map<String, String> placeholders) {
         if (isDisabled(key)) return;
         if (sender instanceof Player player) {
-            player.sendMessage(parse(message, placeholders));
+            sendToPlayer(player, parse(message, placeholders));
         } else {
-            // For console — plain text
-            Component parsed = parse(message, placeholders);
-            String plainText = PlainTextComponentSerializer.plainText().serialize(parsed);
-            sender.sendMessage(plainText);
+            sendToConsole(sender, parse(message, placeholders));
         }
     }
 }

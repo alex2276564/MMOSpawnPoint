@@ -624,7 +624,7 @@ public class SpawnManager {
             if (isPoint) {
                 double x = option.x.value;
                 double z = option.z.value;
-                double y = (option.y != null && option.y.Value()) ? option.y.value : 100.0;
+                double y = (option.y != null && option.y.isValue()) ? option.y.value : 100.0;
                 return new Location(world, x, y, z);
             }
 
@@ -657,7 +657,7 @@ public class SpawnManager {
             if (isPoint) {
                 double x = option.x.value;
                 double z = option.z.value;
-                double y = (option.y != null && option.y.Value())
+                double y = (option.y != null && option.y.isValue())
                         ? option.y.value
                         : world.getHighestBlockYAt((int) Math.floor(x), (int) Math.floor(z)) + 1.0;
                 Location base = new Location(world, x, y, z);
@@ -723,7 +723,7 @@ public class SpawnManager {
                     return null;
                 }
 
-                double y = (option.y != null && option.y.Value())
+                double y = (option.y != null && option.y.isValue())
                         ? option.y.value
                         : world.getHighestBlockYAt((int) Math.floor(x), (int) Math.floor(z)) + 1.0;
 
@@ -1018,10 +1018,10 @@ public class SpawnManager {
 
     private void applyYawPitch(SpawnPointsConfig.Destination option, Location loc) {
         float yaw = (option.yaw == null) ? loc.getYaw()
-                : option.yaw.Value() ? option.yaw.value.floatValue()
+                : option.yaw.isValue() ? option.yaw.value.floatValue()
                 : (float) (option.yaw.min + ThreadLocalRandom.current().nextDouble() * (option.yaw.max - option.yaw.min));
         float pitch = (option.pitch == null) ? loc.getPitch()
-                : option.pitch.Value() ? option.pitch.value.floatValue()
+                : option.pitch.isValue() ? option.pitch.value.floatValue()
                 : (float) (option.pitch.min + ThreadLocalRandom.current().nextDouble() * (option.pitch.max - option.pitch.min));
         pitch = (float) clampPitch(pitch);
 
@@ -1038,17 +1038,17 @@ public class SpawnManager {
         for (SpawnPointsConfig.RectSpec r : list) {
             if (r == null || r.x == null || r.z == null) continue;
 
-            double minX = r.x.Value() ? r.x.value : r.x.min;
-            double maxX = r.x.Value() ? r.x.value : r.x.max;
-            double minZ = r.z.Value() ? r.z.value : r.z.min;
-            double maxZ = r.z.Value() ? r.z.value : r.z.max;
+            double minX = r.x.isValue() ? r.x.value : r.x.min;
+            double maxX = r.x.isValue() ? r.x.value : r.x.max;
+            double minZ = r.z.isValue() ? r.z.value : r.z.min;
+            double maxZ = r.z.isValue() ? r.z.value : r.z.max;
 
             double minY;
             double maxY;
             if (r.y == null) {
                 minY = resolveMinY(world);
                 maxY = world.getMaxHeight();
-            } else if (r.y.Value()) {
+            } else if (r.y.isValue()) {
                 minY = r.y.value;
                 maxY = r.y.value;
             } else {
@@ -1092,7 +1092,7 @@ public class SpawnManager {
 
         if (option.x == null) {
             minX = centerX - 32.0; maxX = centerX + 32.0;
-        } else if (option.x.Value()) {
+        } else if (option.x.isValue()) {
             minX = option.x.value; maxX = option.x.value;
         } else {
             minX = option.x.min; maxX = option.x.max;
@@ -1100,7 +1100,7 @@ public class SpawnManager {
 
         if (option.z == null) {
             minZ = centerZ - 32.0; maxZ = centerZ + 32.0;
-        } else if (option.z.Value()) {
+        } else if (option.z.isValue()) {
             minZ = option.z.value; maxZ = option.z.value;
         } else {
             minZ = option.z.min; maxZ = option.z.max;
@@ -1109,7 +1109,7 @@ public class SpawnManager {
         double minY = resolveMinY(world);
         double maxY = world.getMaxHeight();
         if (option.y != null) {
-            if (option.y.Value()) {
+            if (option.y.isValue()) {
                 minY = option.y.value; maxY = option.y.value;
             } else {
                 minY = option.y.min; maxY = option.y.max;
@@ -1183,22 +1183,22 @@ public class SpawnManager {
 
     private float computeYaw(SpawnPointsConfig.Destination option) {
         if (option.yaw == null) return 0.0f;
-        if (option.yaw.Value()) return option.yaw.value.floatValue();
+        if (option.yaw.isValue()) return option.yaw.value.floatValue();
         double d = option.yaw.min + ThreadLocalRandom.current().nextDouble() * (option.yaw.max - option.yaw.min);
         return (float) d;
     }
 
     private float computePitch(SpawnPointsConfig.Destination option) {
         if (option.pitch == null) return 0.0f;
-        if (option.pitch.Value()) return option.pitch.value.floatValue();
+        if (option.pitch.isValue()) return option.pitch.value.floatValue();
         double d = option.pitch.min + ThreadLocalRandom.current().nextDouble() * (option.pitch.max - option.pitch.min);
         return (float) d;
     }
 
     private boolean isPointOption(SpawnPointsConfig.Destination option) {
         return option.x != null && option.z != null
-                && option.x.Value() && option.z.Value()
-                && (option.y == null || option.y.Value());
+                && option.x.isValue() && option.z.isValue()
+                && (option.y == null || option.y.isValue());
     }
 
     private static String normalizeMode(String mode) {
@@ -1480,5 +1480,25 @@ public class SpawnManager {
             return Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0).getSpawnLocation();
         }
         return new Location(world, target.x, target.y, target.z, target.yaw, target.pitch);
+    }
+
+    /**
+     * Runs AFTER phase if a non-waiting-room flow (requireSafe=false) set it pending,
+     * and we used vanilla setRespawnLocation (no teleportPlayerWithDelay call).
+     * Call this 1 tick after the actual respawn so the player is already at the new location.
+     */
+    public void runAfterPhaseIfPending(Player player) {
+        try {
+            PendingAfter pending = pendingAfterActions.remove(player.getUniqueId());
+            if (pending == null) return; // nothing to do
+
+            // Execute AFTER for the resolved entry
+            runPhaseForEntry(player, pending.loc, pending.global, SpawnPointsConfig.Phase.AFTER);
+        } catch (Exception e) {
+            if (isDebug()) {
+                plugin.getLogger().warning("Error while running AFTER phase for " + player.getName() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 }

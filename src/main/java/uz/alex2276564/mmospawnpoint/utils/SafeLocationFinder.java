@@ -531,9 +531,9 @@ public class SafeLocationFinder {
     private static int hashGroundWhitelist(@Nullable Set<Material> wl) {
         if (wl == null || wl.isEmpty()) return 0;
         // Stable hash: sort by name to avoid iteration order issues
-        java.util.List<String> names = new java.util.ArrayList<>(wl.size());
+        List<String> names = new ArrayList<>(wl.size());
         for (Material m : wl) names.add(m.name());
-        java.util.Collections.sort(names);
+        Collections.sort(names);
         return names.hashCode();
     }
 
@@ -625,6 +625,7 @@ public class SafeLocationFinder {
             MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] NEAR MISS " + typeTag + " @" + world + " (" + bx + "," + bz + ")");
         }
 
+        @SuppressWarnings("squid:S2583") // SonarLint false positive
         Location found = attemptSafeNearOnce(base, radius, groundWhitelist);
         if (found != null && (accept == null || accept.test(found))) {
             CACHE.put(key, found.clone());

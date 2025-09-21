@@ -11,12 +11,12 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandP
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.commands.subcommands.spawnpoint.SpawnpointFlags;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 public class ClearSubCommand implements NestedSubCommandProvider {
+
+    private static final String[] FLAGS = { "--if-has", "--dry-run" };
+
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
         return parent.subcommand("clear")
@@ -26,35 +26,39 @@ public class ClearSubCommand implements NestedSubCommandProvider {
                 .argument(new ArgumentBuilder<>("player_or_flag", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
+                            addFlagSuggestions(out, partial, soFar);
 
-                            // Flags
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
-
-                            // Players
+                            String p = (partial == null ? "" : partial.toLowerCase(Locale.ROOT));
                             for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
                                 String name = online.getName();
                                 if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                             }
-
                             return out;
                         }))
 
                 .argument(new ArgumentBuilder<>("extra_flags", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
-
-                            if ("--if-has".startsWith(p)) out.add("--if-has");
-                            if ("--dry-run".startsWith(p)) out.add("--dry-run");
-
+                            addFlagSuggestions(out, partial, soFar);
                             return out;
                         }))
 
                 .executor(this::execute);
+    }
+
+    private static void addFlagSuggestions(List<String> out, String partial, String[] soFar) {
+        String p = (partial == null ? "" : partial.toLowerCase(Locale.ROOT));
+        Set<String> used = new HashSet<>();
+        if (soFar != null) {
+            for (String s : soFar) {
+                if (s != null && s.startsWith("--")) used.add(s.toLowerCase(Locale.ROOT));
+            }
+        }
+        for (String f : FLAGS) {
+            if (!used.contains(f) && f.startsWith(p)) out.add(f);
+        }
     }
 
     private void execute(CommandSender sender, uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandContext ctx) {
@@ -117,13 +121,13 @@ public class ClearSubCommand implements NestedSubCommandProvider {
                     }
 
                     if (sender instanceof Player sp && sp.getUniqueId().equals(target.getUniqueId())) {
- plugin.getMessageManager().sendMessageKeyed(
+                        plugin.getMessageManager().sendMessageKeyed(
                                 sp, "commands.spawnpoint.clear.successSelf", msgs.successSelf);
                     } else {
                         plugin.getMessageManager().sendMessageKeyed(sender,
                                 "commands.spawnpoint.clear.successOther", msgs.successOther,
                                 Map.of("player", target.getName()));
-                         plugin.getMessageManager().sendMessageKeyed(
+                        plugin.getMessageManager().sendMessageKeyed(
                                 target, "commands.spawnpoint.clear.targetNotified", msgs.targetNotified,
                                 Map.of("setter", sender.getName())
                         );
