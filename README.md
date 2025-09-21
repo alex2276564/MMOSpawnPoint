@@ -47,16 +47,16 @@ MMOSpawnPoint supports both the full command `/mmospawnpoint` and the shorter al
 ### Party System Commands
 
 * `/msp party` - Show party help (requires `mmospawnpoint.party`)
-* `/msp party invite <player>` - Invite a player to your party (requires `mmospawnpoint.party.invite`)
+* `/msp party invite [player]` - Invite a player to your party (requires `mmospawnpoint.party.invite`)
 * `/msp party accept` - Accept a party invitation (requires `mmospawnpoint.party.accept`)
 * `/msp party deny` - Decline a party invitation (requires `mmospawnpoint.party.deny`)
 * `/msp party leave` - Leave your current party (requires `mmospawnpoint.party.leave`)
 * `/msp party list` - List all members in your party (requires `mmospawnpoint.party.list`)
-* `/msp party remove <player>` - Remove a player from your party (requires `mmospawnpoint.party.remove`)
-* `/msp party setleader <player>` - Transfer party leadership (requires `mmospawnpoint.party.setleader`)
+* `/msp party remove [player]` - Remove a player from your party (requires `mmospawnpoint.party.remove`)
+* `/msp party setleader [player]` - Transfer party leadership (requires `mmospawnpoint.party.setleader`)
 * `/msp party options` - View and change party options (requires `mmospawnpoint.party.options`)
 * `/msp party options mode <normal|party_member>` - Change party respawn mode (requires `mmospawnpoint.party.options.mode`)
-* `/msp party options target <player>` - Set party respawn target (requires `mmospawnpoint.party.options.target`)
+* `/msp party options target [player]` - Set party respawn target (requires `mmospawnpoint.party.options.target`)
 
 ### Admin & Debug Commands
 
@@ -388,7 +388,7 @@ By design, MMOSpawnPoint does not implement arbitrary "teleport me now" entry po
 
 * Create a portal with AdvancedPortals (or similar).
 * Configure MSP to target the portal's location in a coordinate-based rule (e.g., event: death for that area).
-* In the portal, execute: /msp simulate death <player> (or run the command via an NPC/trigger system).
+* In the portal, execute: /msp simulate death [player] (or run the command via an NPC/trigger system).
 * The player will be processed by MSP as if they had died in the configured triggerArea, and teleported according to your MSP rules.
 
 This lets you reuse all MSP features (party, waiting room, safe search, weights) for custom flows such as portals, checkpoints, scripted events, etc.
