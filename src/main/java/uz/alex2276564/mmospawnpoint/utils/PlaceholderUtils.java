@@ -40,7 +40,12 @@ public class PlaceholderUtils {
                     try {
                         return PlaceholderAPI.setPlaceholders(player, var);
                     } catch (Exception e) {
-                        MMOSpawnPoint.getInstance().getLogger().warning("[MMOSpawnPoint] Placeholder error for: " + var + " -> " + e.getMessage());
+                        if (MMOSpawnPoint.getInstance().getConfigManager().getMainConfig().settings.debugMode) {
+                            MMOSpawnPoint.getInstance().getLogger().warning("[MMOSpawnPoint] Placeholder error for: " + var + " -> " + e.getMessage());
+                        } else {
+                            MMOSpawnPoint.getInstance().getLogger().warning("[MMOSpawnPoint] Placeholder evaluation failed: " + e.getClass().getSimpleName());
+                            MMOSpawnPoint.getInstance().getLogger().warning("[MMOSpawnPoint] Please enable the debug mode in config.yml to see all information.");
+                        }
                         return "";
                     }
                 }

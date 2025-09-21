@@ -42,7 +42,7 @@ MMOSpawnPoint supports both the full command `/mmospawnpoint` and the shorter al
 ### Main Commands
 
 * `/msp help` - Show help information (requires `mmospawnpoint.command`)
-* `/msp reload [all|config|messages|spawnpoints]` - Reload plugin configuration (requires `mmospawnpoint.reload`)
+* `/msp reload` - Reload plugin configuration (requires `mmospawnpoint.reload`)
 
 ### Party System Commands
 
@@ -67,7 +67,7 @@ MMOSpawnPoint supports both the full command `/mmospawnpoint` and the shorter al
 * `/msp cache` - Show cache help (requires `mmospawnpoint.cache`)
 * `/msp cache stats` - View cache statistics (requires `mmospawnpoint.cache.stats`)
 * `/msp cache clear [player]` - Clear cache (requires `mmospawnpoint.cache.clear`)
-* `/msp spawnpoint set [player] <world> <x> <y> <z> [yaw] [pitch] [--if-has|--if-missing] [--only-if-incorrect] [--require-valid-bed] [--dry-run]` — Set bed/anchor spawn (requires mmospawnpoint.spawnpoint.set)
+* `/msp spawnpoint set [player] [world] [x] [y] [z] [yaw] [pitch] [--if-has|--if-missing] [--only-if-incorrect] [--require-valid-bed] [--dry-run]` — Set bed/anchor spawn (requires mmospawnpoint.spawnpoint.set)
 * `/msp spawnpoint clear [player] [--if-has] [--dry-run]` — Clear bed/anchor spawn (requires mmospawnpoint.spawnpoint.clear)
 * `/msp spawnpoint teleport [player]`— Teleport to bed/anchor spawn (requires mmospawnpoint.spawnpoint.teleport)
 * `/msp spawnpoint show [player]` — Show bed/anchor spawn; includes clickable teleport (requires mmospawnpoint.spawnpoint.show)
@@ -973,4 +973,4 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 **Thank you for using MMOSpawnPoint!** 🏰✨
 
-*Essential for professional servers • Required for map creators • The spawn system that powers the best Minecraft experiences*
+Essential for professional servers • Required for map creators • The spawn system that powers the best Minecraft experiences

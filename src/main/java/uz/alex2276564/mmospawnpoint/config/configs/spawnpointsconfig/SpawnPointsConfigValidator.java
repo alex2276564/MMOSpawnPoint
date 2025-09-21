@@ -127,51 +127,54 @@ public class SpawnPointsConfigValidator {
                                     result.addError(p + ".triggerArea.world", "Invalid regex: " + ex.getMessage());
                                 }
                             }
-                            if (e.triggerArea != null) {
-                                boolean hasRects = e.triggerArea.rects != null && !e.triggerArea.rects.isEmpty();
-                                boolean hasAnyAxis = e.triggerArea.x != null || e.triggerArea.y != null || e.triggerArea.z != null;
+                            boolean hasRects = e.triggerArea.rects != null && !e.triggerArea.rects.isEmpty();
+                            boolean hasAnyAxis = e.triggerArea.x != null || e.triggerArea.y != null || e.triggerArea.z != null;
 
-                                if (hasRects && hasAnyAxis) {
-                                    result.addError(p + ".triggerArea", "Use either rects or axis specs (x/y/z), not both");
+                            if (hasRects && hasAnyAxis) {
+                                result.addError(p + ".triggerArea", "Use either rects or axis specs (x/y/z), not both");
+                            }
+                            if (!hasRects && !hasAnyAxis) {
+                                result.addError(p + ".triggerArea", "Define at least one axis or rects");
+                            }
+                            // validate rects if present (x/z required, y optional)
+                            if (hasRects) {
+                                for (int j = 0; j < e.triggerArea.rects.size(); j++) {
+                                    var r = e.triggerArea.rects.get(j);
+                                    String rp = p + ".triggerArea.rects[" + j + "]";
+                                    if (r == null) {
+                                        result.addError(rp, "Rect cannot be null");
+                                        continue;
+                                    }
+                                    if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
+                                    else validateAxisSpec(result, r.x, rp + ".x");
+                                    if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
+                                    else validateAxisSpec(result, r.z, rp + ".z");
+                                    if (r.y != null) validateAxisSpec(result, r.y, rp + ".y");
                                 }
-                                if (!hasRects && !hasAnyAxis) {
-                                    result.addError(p + ".triggerArea", "Define at least one axis or rects");
-                                }
-                                // validate rects if present (x/z required, y optional)
-                                if (hasRects) {
-                                    for (int j = 0; j < e.triggerArea.rects.size(); j++) {
-                                        var r = e.triggerArea.rects.get(j);
-                                        String rp = p + ".triggerArea.rects[" + j + "]";
-                                        if (r == null) { result.addError(rp, "Rect cannot be null"); continue; }
+                                // excludeRects
+                                if (e.triggerArea.excludeRects != null) {
+                                    for (int j = 0; j < e.triggerArea.excludeRects.size(); j++) {
+                                        var r = e.triggerArea.excludeRects.get(j);
+                                        String rp = p + ".triggerArea.excludeRects[" + j + "]";
+                                        if (r == null) {
+                                            result.addError(rp, "Exclude rect cannot be null");
+                                            continue;
+                                        }
                                         if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
                                         else validateAxisSpec(result, r.x, rp + ".x");
                                         if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
                                         else validateAxisSpec(result, r.z, rp + ".z");
                                         if (r.y != null) validateAxisSpec(result, r.y, rp + ".y");
                                     }
-                                    // excludeRects
-                                    if (e.triggerArea.excludeRects != null) {
-                                        for (int j = 0; j < e.triggerArea.excludeRects.size(); j++) {
-                                            var r = e.triggerArea.excludeRects.get(j);
-                                            String rp = p + ".triggerArea.excludeRects[" + j + "]";
-                                            if (r == null) { result.addError(rp, "Exclude rect cannot be null"); continue; }
-                                            if (r.x == null) result.addError(rp + ".x", "Rect.x is required");
-                                            else validateAxisSpec(result, r.x, rp + ".x");
-                                            if (r.z == null) result.addError(rp + ".z", "Rect.z is required");
-                                            else validateAxisSpec(result, r.z, rp + ".z");
-                                            if (r.y != null) validateAxisSpec(result, r.y, rp + ".y");
-                                        }
-                                    }
-                                } else {
-                                    // legacy axis checks
-                                    if (e.triggerArea.x != null)
-                                        validateAxisSpec(result, e.triggerArea.x, p + ".triggerArea.x");
-                                    if (e.triggerArea.y != null)
-                                        validateAxisSpec(result, e.triggerArea.y, p + ".triggerArea.y");
-                                    if (e.triggerArea.z != null)
-                                        validateAxisSpec(result, e.triggerArea.z, p + ".triggerArea.z");
                                 }
-
+                            } else {
+                                // legacy axis checks
+                                if (e.triggerArea.x != null)
+                                    validateAxisSpec(result, e.triggerArea.x, p + ".triggerArea.x");
+                                if (e.triggerArea.y != null)
+                                    validateAxisSpec(result, e.triggerArea.y, p + ".triggerArea.y");
+                                if (e.triggerArea.z != null)
+                                    validateAxisSpec(result, e.triggerArea.z, p + ".triggerArea.z");
                             }
                         }
                     }
