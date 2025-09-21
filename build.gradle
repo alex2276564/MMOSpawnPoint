@@ -1,11 +1,11 @@
 plugins {
     id 'java'
-    id("xyz.jpenilla.run-paper") version "2.3.1"
-    id 'com.gradleup.shadow' version '9.0.0-rc3'
+    id 'com.gradleup.shadow' version '9.1.0'
+    id("xyz.jpenilla.run-paper") version "3.0.0"
 }
 
 group = 'uz.alex2276564'
-version = '1.0'
+version = '1.0.0'
 
 repositories {
     mavenCentral()
@@ -29,16 +29,20 @@ repositories {
         name = "okaeri"
         url = "https://storehouse.okaeri.eu/repository/maven-public/"
     }
+    maven {
+        name = "tcoded-releases"
+        url = "https://repo.tcoded.com/releases"
+    }
 }
 
 dependencies {
     compileOnly "com.destroystokyo.paper:paper-api:1.16.5-R0.1-SNAPSHOT"
 
-    compileOnly 'org.projectlombok:lombok:1.18.38'
-    annotationProcessor 'org.projectlombok:lombok:1.18.38'
+    compileOnly 'org.projectlombok:lombok:1.18.42'
+    annotationProcessor 'org.projectlombok:lombok:1.18.42'
 
-    testCompileOnly 'org.projectlombok:lombok:1.18.38'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.38'
+    testCompileOnly 'org.projectlombok:lombok:1.18.42'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.42'
 
     compileOnly("me.clip:placeholderapi:2.11.6")
 
@@ -49,6 +53,12 @@ dependencies {
     compileOnly "net.kyori:adventure-text-minimessage:4.23.0"
 
     implementation("eu.okaeri:okaeri-configs-yaml-snakeyaml:5.0.13")
+
+    implementation "io.papermc:paperlib:1.0.8"
+
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.2")
+
+    implementation 'com.tcoded:FoliaLib:0.5.1'
 }
 
 // ⚠️ NOTE: Shading is required for legacy compatibility!
@@ -57,9 +67,17 @@ dependencies {
 shadowJar {
     archiveClassifier.set('')
 
-    relocate 'eu.okaeri.configs', 'uz.alex2276564.permguard.libs.okaeri.configs'
+    mergeServiceFiles()
 
-    relocate 'com.google.gson', 'uz.alex2276564.permguard.libs.gson'
+    relocate 'eu.okaeri.configs', 'uz.alex2276564.mmospawnpoint.libs.okaeri.configs'
+
+    relocate 'com.google.gson', 'uz.alex2276564.mmospawnpoint.libs.gson'
+
+    relocate "io.papermc.lib", "uz.alex2276564.mmospawnpoint.libs.paperlib"
+
+    relocate 'com.github.benmanes.caffeine', 'uz.alex2276564.mmospawnpoint.libs.caffeine'
+
+    relocate 'com.tcoded.folialib', 'uz.alex2276564.mmospawnpoint.libs.folialib'
 }
 
 build {

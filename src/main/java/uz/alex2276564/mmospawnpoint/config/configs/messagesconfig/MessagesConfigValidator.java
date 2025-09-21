@@ -1,0 +1,285 @@
+package uz.alex2276564.mmospawnpoint.config.configs.messagesconfig;
+
+import lombok.experimental.UtilityClass;
+import uz.alex2276564.mmospawnpoint.config.utils.validation.ValidationResult;
+import uz.alex2276564.mmospawnpoint.config.utils.validation.Validators;
+
+@UtilityClass
+public class MessagesConfigValidator {
+
+    public static void validate(MessagesConfig config) {
+        ValidationResult result = new ValidationResult();
+
+        validateCommandsSection(result, config.commands);
+        validateGeneralSection(result, config.general);
+        validatePartySection(result, config.party);
+        validateResourcePackSection(result, config.resourcepack);
+        validateJoinSection(result, config.join);
+
+        result.throwIfInvalid("Messages configuration");
+    }
+
+    // ============================= COMMANDS =============================
+
+    private static void validateCommandsSection(ValidationResult result, MessagesConfig.CommandsSection commands) {
+        // commands.help
+        Validators.notBlank(result, "commands.help.header", commands.help.header, "Help header cannot be empty");
+        Validators.notBlank(result, "commands.help.reloadLine", commands.help.reloadLine, "Help reload line cannot be empty");
+        Validators.notBlank(result, "commands.help.partyLine", commands.help.partyLine, "Help party line cannot be empty");
+        Validators.notBlank(result, "commands.help.simulateLine", commands.help.simulateLine, "Help simulate line cannot be empty");
+        Validators.notBlank(result, "commands.help.cacheLine", commands.help.cacheLine, "Help cache line cannot be empty");
+        Validators.notBlank(result, "commands.help.spawnpointLine", commands.help.spawnpointLine, "Help spawnpoint line cannot be empty");
+        Validators.notBlank(result, "commands.help.helpLine", commands.help.helpLine, "Help help line cannot be empty");
+
+        // commands.reload
+        Validators.notBlank(result, "commands.reload.success", commands.reload.success, "Reload success message cannot be empty");
+        Validators.notBlank(result, "commands.reload.error", commands.reload.error, "Reload error message cannot be empty");
+        if (!commands.reload.success.contains("<type>")) {
+            result.addError("commands.reload.success", "Reload success message must contain <type> placeholder");
+        }
+        if (!commands.reload.error.contains("<error>")) {
+            result.addError("commands.reload.error", "Reload error message must contain <error> placeholder");
+        }
+
+        // commands.spawnpoint
+        var sp = commands.spawnpoint;
+
+        // help
+        Validators.notBlank(result, "commands.spawnpoint.help.header", sp.help.header, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.help.setLine", sp.help.setLine, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.help.clearLine", sp.help.clearLine, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.help.teleportLine", sp.help.teleportLine, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.help.showLine", sp.help.showLine, "Cannot be empty");
+
+        // set
+        Validators.notBlank(result, "commands.spawnpoint.set.consoleUsage", sp.set.consoleUsage, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.selfSuccess", sp.set.selfSuccess, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.otherSuccess", sp.set.otherSuccess, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.targetNotification", sp.set.targetNotification, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.failed", sp.set.failed, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.error", sp.set.error, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.invalidWorld", sp.set.invalidWorld, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.invalidCoords", sp.set.invalidCoords, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.playerNotFound", sp.set.playerNotFound, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.skippedIfHas", sp.set.skippedIfHas, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.skippedIfMissing", sp.set.skippedIfMissing, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.skippedIfCorrect", sp.set.skippedIfCorrect, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.skippedNoValidBed", sp.set.skippedNoValidBed, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.set.dryRun", sp.set.dryRun, "Cannot be empty");
+
+        // clear
+        Validators.notBlank(result, "commands.spawnpoint.clear.consoleNeedsPlayer", sp.clear.consoleNeedsPlayer, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.successSelf", sp.clear.successSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.successOther", sp.clear.successOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.targetNotified", sp.clear.targetNotified, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.noSpawn", sp.clear.noSpawn, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.failed", sp.clear.failed, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.clear.dryRun", sp.clear.dryRun, "Cannot be empty");
+
+        // teleport
+        Validators.notBlank(result, "commands.spawnpoint.teleport.consoleNeedsPlayer", sp.teleport.consoleNeedsPlayer, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.successSelf", sp.teleport.successSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.successOther", sp.teleport.successOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.targetNotified", sp.teleport.targetNotified, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.noSpawn", sp.teleport.noSpawn, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.teleport.noSpawnOther", sp.teleport.noSpawnOther, "Cannot be empty");
+
+        // show
+        Validators.notBlank(result, "commands.spawnpoint.show.consoleNeedsPlayer", sp.show.consoleNeedsPlayer, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.show.noSpawn", sp.show.noSpawn, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.show.noSpawnOther", sp.show.noSpawnOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.spawnpoint.show.line", sp.show.line, "Cannot be empty");
+
+        var sim = commands.simulate;
+        Validators.notBlank(result, "commands.simulate.helpHeader", sim.helpHeader, "Simulate help header cannot be empty");
+        Validators.notBlank(result, "commands.simulate.helpDeathLine", sim.helpDeathLine, "Simulate help death line cannot be empty");
+        Validators.notBlank(result, "commands.simulate.helpJoinLine", sim.helpJoinLine, "Simulate help join line cannot be empty");
+        Validators.notBlank(result, "commands.simulate.helpBackLine", sim.helpBackLine, "Simulate help back line cannot be empty");
+        Validators.notBlank(result, "commands.simulate.noPermission", sim.noPermission, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.onlyPlayers", sim.onlyPlayers, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.deathSelf", sim.deathSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.deathOther", sim.deathOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.joinSelf", sim.joinSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.joinOther", sim.joinOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.simulationFailed", sim.simulationFailed, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.backSelf", sim.backSelf, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.backOther", sim.backOther, "Cannot be empty");
+        Validators.notBlank(result, "commands.simulate.backNone", sim.backNone, "Cannot be empty");
+
+        var cache = commands.cache;
+        Validators.notBlank(result, "commands.cache.helpHeader", cache.helpHeader, "Cache help header cannot be empty");
+        Validators.notBlank(result, "commands.cache.helpStatsLine", cache.helpStatsLine, "Cache help stats line cannot be empty");
+        Validators.notBlank(result, "commands.cache.helpClearLine", cache.helpClearLine, "Cache help clear line cannot be empty");
+        Validators.notBlank(result, "commands.cache.statsLine", cache.statsLine, "Cannot be empty");
+        Validators.notBlank(result, "commands.cache.clearedAll", cache.clearedAll, "Cannot be empty");
+        Validators.notBlank(result, "commands.cache.clearedPlayer", cache.clearedPlayer, "Cannot be empty");
+    }
+
+    // ============================= GENERAL =============================
+
+    private static void validateGeneralSection(ValidationResult result, MessagesConfig.GeneralSection general) {
+        Validators.notBlank(result, "general.noSpawnFound", general.noSpawnFound, "No spawn found message cannot be empty");
+    }
+
+    // ============================= PARTY =============================
+
+    private static void validatePartySection(ValidationResult result, MessagesConfig.PartySection party) {
+        // Prefix
+        Validators.notBlank(result, "party.prefix", party.prefix, "Party prefix cannot be empty");
+
+        // Invite flow
+        Validators.notBlank(result, "party.inviteSent", party.inviteSent, "Invite sent message cannot be empty");
+        Validators.notBlank(result, "party.inviteReceived", party.inviteReceived, "Invite received message cannot be empty");
+        Validators.notBlank(result, "party.invitationDeclined", party.invitationDeclined, "Invitation declined message cannot be empty");
+        Validators.notBlank(result, "party.invitationDeclinedToLeader", party.invitationDeclinedToLeader, "Invitation declined (leader) cannot be empty");
+        Validators.notBlank(result, "party.invitationExpiredOrInvalid", party.invitationExpiredOrInvalid, "Invitation expired/invalid message cannot be empty");
+        Validators.notBlank(result, "party.inviteFailedPartyFull", party.inviteFailedPartyFull, "Invite failed (party full) cannot be empty");
+        Validators.notBlank(result, "party.inviteFailedAlreadyInParty", party.inviteFailedAlreadyInParty, "Invite failed (already in party) cannot be empty");
+        Validators.notBlank(result, "party.noInvitations", party.noInvitations, "No invitations message cannot be empty");
+        Validators.notBlank(result, "party.inviteExpired", party.inviteExpired, "Invite expired message cannot be empty");
+
+        // Placeholders for invite
+        if (!party.inviteSent.contains("<player>")) {
+            result.addError("party.inviteSent", "Invite sent message must contain <player> placeholder");
+        }
+        if (!party.inviteReceived.contains("<player>")) {
+            result.addError("party.inviteReceived", "Invite received message must contain <player> placeholder");
+        }
+        if (!party.invitationDeclinedToLeader.contains("<player>")) {
+            result.addError("party.invitationDeclinedToLeader", "Invitation declined (leader) must contain <player> placeholder");
+        }
+
+        // Join/Leave/Kick
+        Validators.notBlank(result, "party.joinedParty", party.joinedParty, "Joined party message cannot be empty");
+        Validators.notBlank(result, "party.playerJoinedParty", party.playerJoinedParty, "Player joined party message cannot be empty");
+        Validators.notBlank(result, "party.leftParty", party.leftParty, "Left party message cannot be empty");
+        Validators.notBlank(result, "party.playerLeftParty", party.playerLeftParty, "Player left party message cannot be empty");
+        Validators.notBlank(result, "party.playerRemoved", party.playerRemoved, "Player removed message cannot be empty");
+        Validators.notBlank(result, "party.playerRemovedFromParty", party.playerRemovedFromParty, "Player removed from party message cannot be empty");
+        Validators.notBlank(result, "party.cannotRemoveSelf", party.cannotRemoveSelf, "Cannot remove self message cannot be empty");
+        Validators.notBlank(result, "party.partyDisbanded", party.partyDisbanded, "Party disbanded message cannot be empty");
+
+        // Placeholders for join/leave/kick
+        if (!party.playerJoinedParty.contains("<player>")) {
+            result.addError("party.playerJoinedParty", "Player joined party message must contain <player> placeholder");
+        }
+        if (!party.playerLeftParty.contains("<player>")) {
+            result.addError("party.playerLeftParty", "Player left party message must contain <player> placeholder");
+        }
+        if (!party.playerRemovedFromParty.contains("<player>")) {
+            result.addError("party.playerRemovedFromParty", "Player removed from party message must contain <player> placeholder");
+        }
+
+        // Permissions/system
+        Validators.notBlank(result, "party.onlyPlayers", party.onlyPlayers, "Only players message cannot be empty");
+        Validators.notBlank(result, "party.systemDisabled", party.systemDisabled, "System disabled message cannot be empty");
+        Validators.notBlank(result, "party.notInParty", party.notInParty, "Not in party message cannot be empty");
+        Validators.notBlank(result, "party.notLeader", party.notLeader, "Not leader message cannot be empty");
+        Validators.notBlank(result, "party.playerNotInYourParty", party.playerNotInYourParty, "Player not in your party message cannot be empty");
+        Validators.notBlank(result, "party.invalidRespawnMode", party.invalidRespawnMode, "Invalid respawn mode message cannot be empty");
+        Validators.notBlank(result, "party.errorOccurred", party.errorOccurred, "Error occurred message cannot be empty");
+
+        // Leader / Options
+        Validators.notBlank(result, "party.newLeaderAssigned", party.newLeaderAssigned, "New leader assigned message cannot be empty");
+        Validators.notBlank(result, "party.respawnModeChanged", party.respawnModeChanged, "Respawn mode changed message cannot be empty");
+        Validators.notBlank(result, "party.respawnTargetSet", party.respawnTargetSet, "Respawn target set message cannot be empty");
+        Validators.notBlank(result, "party.alreadyLeader", party.alreadyLeader, "Already leader message cannot be empty");
+
+        if (!party.newLeaderAssigned.contains("<player>")) {
+            result.addError("party.newLeaderAssigned", "New leader assigned must contain <player> placeholder");
+        }
+        if (!party.respawnModeChanged.contains("<mode>")) {
+            result.addError("party.respawnModeChanged", "Respawn mode changed must contain <mode> placeholder");
+        }
+        if (!party.respawnTargetSet.contains("<player>")) {
+            result.addError("party.respawnTargetSet", "Respawn target set must contain <player> placeholder");
+        }
+
+        // Respawn flow
+        Validators.notBlank(result, "party.respawnedAtMember", party.respawnedAtMember, "Respawned at member message cannot be empty");
+        Validators.notBlank(result, "party.respawnDisabledRegion", party.respawnDisabledRegion, "Respawn disabled (region) cannot be empty");
+        Validators.notBlank(result, "party.respawnDisabledWorld", party.respawnDisabledWorld, "Respawn disabled (world) cannot be empty");
+        Validators.notBlank(result, "party.respawnCooldown", party.respawnCooldown, "Respawn cooldown message cannot be empty");
+        Validators.notBlank(result, "party.walkingSpawnPointMessage", party.walkingSpawnPointMessage, "Walking spawn point message cannot be empty");
+        Validators.notBlank(result, "party.walkingSpawnPointRestricted", party.walkingSpawnPointRestricted, "Walking spawn point restricted cannot be empty");
+        Validators.notBlank(result, "party.respawnTooFar", party.respawnTooFar, "Respawn too far message cannot be empty");
+
+        if (!party.respawnedAtMember.contains("<player>")) {
+            result.addError("party.respawnedAtMember", "Respawned at member must contain <player> placeholder");
+        }
+        if (!party.respawnCooldown.contains("<time>")) {
+            result.addError("party.respawnCooldown", "Respawn cooldown must contain <time> placeholder");
+        }
+
+        // List command
+        Validators.notBlank(result, "party.listHeader", party.listHeader, "List header cannot be empty");
+        Validators.notBlank(result, "party.listLeader", party.listLeader, "List leader cannot be empty");
+        Validators.notBlank(result, "party.listLeaderMissing", party.listLeaderMissing, "List leader missing cannot be empty");
+        Validators.notBlank(result, "party.listMember", party.listMember, "List member cannot be empty");
+        Validators.notBlank(result, "party.listAnchor", party.listAnchor, "List anchor cannot be empty");
+        Validators.notBlank(result, "party.listAnchorMissing", party.listAnchorMissing, "List anchor missing cannot be empty");
+        Validators.notBlank(result, "party.listSettingsHeader", party.listSettingsHeader, "List settings header cannot be empty");
+        Validators.notBlank(result, "party.listRespawnMode", party.listRespawnMode, "List respawn mode cannot be empty");
+        Validators.notBlank(result, "party.listNoAnchor", party.listNoAnchor, "List no anchor cannot be empty");
+        Validators.notBlank(result, "party.listSeparator", party.listSeparator, "List separator cannot be empty");
+
+        if (!party.listLeader.contains("<player>")) {
+            result.addError("party.listLeader", "List leader must contain <player> placeholder");
+        }
+        if (!party.listMember.contains("<player>")) {
+            result.addError("party.listMember", "List member must contain <player> placeholder");
+        }
+        if (!party.listAnchor.contains("<player>")) {
+            result.addError("party.listAnchor", "List anchor must contain <player> placeholder");
+        }
+        if (!party.listRespawnMode.contains("<mode>")) {
+            result.addError("party.listRespawnMode", "List respawn mode must contain <mode> placeholder");
+        }
+
+        // Validate options section
+        validatePartyOptionsSection(result, party.options);
+
+        // Validate help section
+        validatePartyHelpSection(result, party.help);
+    }
+
+    private static void validatePartyOptionsSection(ValidationResult result, MessagesConfig.PartySection.PartyOptionsSection options) {
+        Validators.notBlank(result, "party.options.header", options.header, "Options header cannot be empty");
+        Validators.notBlank(result, "party.options.respawnMode", options.respawnMode, "Options respawn mode cannot be empty");
+        Validators.notBlank(result, "party.options.respawnTarget", options.respawnTarget, "Options respawn target cannot be empty");
+        Validators.notBlank(result, "party.options.respawnTargetNotFound", options.respawnTargetNotFound, "Options respawn target not found cannot be empty");
+        Validators.notBlank(result, "party.options.separator", options.separator, "Options separator cannot be empty");
+        Validators.notBlank(result, "party.options.modeHelp", options.modeHelp, "Options mode help cannot be empty");
+        Validators.notBlank(result, "party.options.targetHelp", options.targetHelp, "Options target help cannot be empty");
+    }
+
+    private static void validatePartyHelpSection(ValidationResult result, MessagesConfig.PartySection.PartyHelpSection help) {
+        Validators.notBlank(result, "party.help.header", help.header, "Party help header cannot be empty");
+        Validators.notBlank(result, "party.help.invite", help.invite, "Party help invite cannot be empty");
+        Validators.notBlank(result, "party.help.accept", help.accept, "Party help accept cannot be empty");
+        Validators.notBlank(result, "party.help.deny", help.deny, "Party help deny cannot be empty");
+        Validators.notBlank(result, "party.help.leave", help.leave, "Party help leave cannot be empty");
+        Validators.notBlank(result, "party.help.list", help.list, "Party help list cannot be empty");
+        Validators.notBlank(result, "party.help.remove", help.remove, "Party help remove cannot be empty");
+        Validators.notBlank(result, "party.help.setleader", help.setleader, "Party help setleader cannot be empty");
+        Validators.notBlank(result, "party.help.options", help.options, "Party help options cannot be empty");
+    }
+
+    // ============================= RESOURCEPACK =============================
+
+
+    private static void validateResourcePackSection(ValidationResult result, MessagesConfig.ResourcePackSection resourcepack) {
+        Validators.notBlank(result, "resourcepack.waiting", resourcepack.waiting, "Resource pack waiting message cannot be empty");
+        Validators.notBlank(result, "resourcepack.loaded", resourcepack.loaded, "Resource pack loaded message cannot be empty");
+        Validators.notBlank(result, "resourcepack.failed", resourcepack.failed, "Resource pack failed message cannot be empty");
+        Validators.notBlank(result, "resourcepack.waitingInRoom", resourcepack.waitingInRoom, "Resource pack waiting in room message cannot be empty");
+        Validators.notBlank(result, "resourcepack.timeout", resourcepack.timeout, "Resource pack timeout message cannot be empty");
+    }
+
+    // ============================= JOIN =============================
+
+    private static void validateJoinSection(ValidationResult result, MessagesConfig.JoinSection join) {
+        Validators.notBlank(result, "join.teleportedOnJoin", join.teleportedOnJoin, "Teleported on join message cannot be empty");
+        Validators.notBlank(result, "join.skippedDead", join.skippedDead, "Skipped dead message cannot be empty");
+    }
+}

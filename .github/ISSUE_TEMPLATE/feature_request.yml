@@ -1,7 +1,7 @@
 name: Feature Request
-description: Suggest an idea for SmartSpawnPoint
+description: Suggest an idea for MMOSpawnPoint
 title: "[Feature]: "
-labels: ["enhancement"]
+labels: [ "enhancement" ]
 body:
   - type: markdown
     attributes:
