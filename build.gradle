@@ -48,7 +48,7 @@ dependencies {
 
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.5")
 
-    implementation 'com.google.code.gson:gson:2.13.1'
+    implementation 'com.google.code.gson:gson:2.13.2'
 
     compileOnly "net.kyori:adventure-text-minimessage:4.24.0"
 
