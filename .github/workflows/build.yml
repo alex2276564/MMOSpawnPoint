@@ -97,7 +97,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
 
   security-scan-snyk:
-    name: 🔐 Security Scan Snyk
+    name: 🔐 Security Scan Snyk (push)
     runs-on: ubuntu-latest
 
     # Skip security scan Snyk for PR (for PR we connect GitHub App integration Snyk)
