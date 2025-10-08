@@ -99,10 +99,9 @@ jobs:
   security-scan-snyk:
     name: 🔐 Security Scan Snyk
     runs-on: ubuntu-latest
-    # Fix condition to work for both push and PR (excluding forks)
-    if: |
-      github.event_name == 'push' || 
-      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)
+
+    # Skip security scan Snyk for PR (for PR we connect GitHub App integration Snyk)
+    if: github.event_name == 'push'
 
     permissions:
       actions: read
