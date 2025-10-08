@@ -28,7 +28,7 @@ env:
   # the workflow will leave PR open and add a comment (no failure). If the repo does
   # not have Branch Protection Rules, the workflow will be merged immediately (no failure).
 
-  WAIT_FOR_CI: 'true'
+  WAIT_FOR_CI: 'false'
 # ==========
 
 concurrency:
