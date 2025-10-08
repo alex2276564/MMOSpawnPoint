@@ -27,8 +27,7 @@ env:
   # If true — enable auto-merge and wait for checks. If repo doesn’t allow auto-merge,
   # the workflow will leave PR open and add a comment (no failure). If the repo does
   # not have Branch Protection Rules, the workflow will be merged immediately (no failure).
-
-  WAIT_FOR_CI: 'false'
+  WAIT_FOR_CI: 'true'
 # ==========
 
 concurrency:
@@ -122,12 +121,13 @@ jobs:
             }
           }"
 
-          # Get booleans as a TSV line and split into vars
-          resp=$(gh api graphql \
-            -f query="$query" -F o="$OWNER" -F n="$NAME" \
-            --jq '.data.repository | [.autoMergeAllowed, .squashMergeAllowed, .rebaseMergeAllowed, .mergeCommitAllowed] | @tsv')
+          # One call, then parse with jq (no here-strings / no process substitution)
+          repo_json=$(gh api graphql -f query="$query" -F o="$OWNER" -F n="$NAME")
 
-          IFS=$'\t' read -r AUTO_ALLOWED SQUASH_ALLOWED REBASE_ALLOWED MERGE_ALLOWED <<<"$resp"
+          AUTO_ALLOWED=$(printf '%s' "$repo_json" | jq -r '.data.repository.autoMergeAllowed')
+          SQUASH_ALLOWED=$(printf '%s' "$repo_json" | jq -r '.data.repository.squashMergeAllowed')
+          REBASE_ALLOWED=$(printf '%s' "$repo_json" | jq -r '.data.repository.rebaseMergeAllowed')
+          MERGE_ALLOWED=$(printf '%s' "$repo_json" | jq -r '.data.repository.mergeCommitAllowed')
 
           # Determine merge flag based on repo allowances (with fallback)
           REQ_METHOD="$(lc "${MERGE_METHOD}")"
