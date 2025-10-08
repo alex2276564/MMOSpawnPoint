@@ -76,11 +76,12 @@ jobs:
 
           # Determine PR semver level
           case "$UPDATE_TYPE" in
-            version-update:semver-patch) PR_LEVEL=patch ;;
-            version-update:semver-minor) PR_LEVEL=minor ;;
-            version-update:semver-major) PR_LEVEL=major ;;
-            *) PR_LEVEL=major ;;
+            version-update:semver-patch) PR_LEVEL="patch" ;;
+            version-update:semver-minor) PR_LEVEL="minor" ;;
+            version-update:semver-major) PR_LEVEL="major" ;;
+            *) PR_LEVEL="major" ;;
           esac
+          
 
           # Pick policy: security > prod/dev
           if [ -n "${SEC_SEVERITY:-}" ]; then
