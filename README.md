@@ -130,7 +130,7 @@ If you plan to use an AI assistant (e.g., DeepSeek, Grok, etc.) to speed up and 
 
 * Your config.yml
 * README (plain): <https://github.com/alex2276564/MMOSpawnPoint/blob/main/README.md?plain=1>
-* Examples (plain): <https://github.com/alex2276564/MMOSpawnPoint/blob/main/src/main/resources/examples.txt>
+* Examples (plain): <https://github.com/alex2276564/MMOSpawnPoint/blob/main/src/main/resources/spawnpoints/examples.txt>
 
 Once the AI has this context, you can ask it to draft spawnpoints tailored to your worlds/regions:
 
