@@ -676,6 +676,11 @@ public class MainConfig extends OkaeriConfig {
         @Comment("📦 Wait for resource pack to load before processing join spawns")
         @Comment("⚠️ PERFORMANCE NOTE: Best practice is to pre-load resource packs in hub/lobby")
         @Comment("This feature adds complexity - consider hub-based RP loading instead")
+        @Comment("")
+        @Comment("❗ Unlike ItemsAdder, this plugin does not freeze players or protect them during RP loading,")
+        @Comment("allowing potential abuse (e.g., delaying teleportation time/point). Therefore, it's better to")
+        @Comment("disable this and load RP in the hub, or use useWaitingRoomForResourcePack with a delay in")
+        @Comment("ItemsAdder-like plugins before protection and sending RP to the player to avoid conflicts")
         public boolean waitForResourcePack = false;
 
         @Comment("")
@@ -688,6 +693,9 @@ public class MainConfig extends OkaeriConfig {
         @Comment("🏠 Move player to waiting room during resource pack download")
         @Comment("Prevents players from wandering around during RP download")
         @Comment("Only works if waitingRoom.enabled = true")
+        @Comment("")
+        @Comment("⚠️ If enabled, it is recommended to disable join and RP loading protections from")
+        @Comment("ItemsAdder and similar plugins, or set a delay on them to prevent conflicts")
         public boolean useWaitingRoomForResourcePack = false;
     }
 
