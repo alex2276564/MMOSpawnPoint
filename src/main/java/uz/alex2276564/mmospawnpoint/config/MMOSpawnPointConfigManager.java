@@ -146,7 +146,7 @@ public class MMOSpawnPointConfigManager {
     private void loadSpawnPointConfigs() {
         allSpawnEntries.clear();
 
-        SpawnEntry.clearPatternCachee();
+        SpawnEntry.clearPatternCache();
 
         File spawnPointsDir = new File(plugin.getDataFolder(), "spawnpoints");
 

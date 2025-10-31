@@ -21,7 +21,7 @@ public record SpawnEntry(
 
     private static final ConcurrentHashMap<String, Pattern> REGEX_CACHE = new ConcurrentHashMap<>();
 
-    public static void clearPatternCachee() {
+    public static void clearPatternCache() {
         REGEX_CACHE.clear();
     }
 
