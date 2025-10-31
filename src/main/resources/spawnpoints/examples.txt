@@ -6,7 +6,7 @@
 # rules faster and more consistently, feed it these three files first:
 # - Your config.yml
 # - README (plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/README.md?plain=1
-# - Examples (this file, plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/src/main/resources/examples.txt
+# - Examples (this file, plain): https://github.com/alex2276564/MMOSpawnPoint/blob/main/src/main/resources/spawnpoints/examples.txt
 # Then ask it to draft exact spawn rules for your worlds/regions, including:
 # • priorities, requireSafe, waitingRoom, rects/excludeRects
 # • weightConditions (permission/placeholder), actions with phases
