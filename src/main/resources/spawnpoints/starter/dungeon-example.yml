@@ -60,7 +60,8 @@ spawns:
     # commands:
     #   - command: "mmo addexp %player% -500"
     #     chance: 100
-    #     phases: [AFTER]
+    #     phases:
+    #       - AFTER
     waitingRoom:
       world: world
       x: 250
