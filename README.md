@@ -676,6 +676,8 @@ spawns:
 
 **Note:** If using this approach, ensure players can't repeatedly trigger the join spawn by returning to that area, unless your actions are safe to execute multiple times.
 
+**Important Note on First-Join Handling:** MMOSpawnPoint does not include a default firstjoin listener—only a standard join listener. If you need to handle first-join spawns (e.g., for new players), it's recommended to configure this separately through your world manager, such as Multiverse-Core, or by setting the world spawn point (e.g., via `/setworldspawnpoint` in the world where players appear). This approach is more appropriate and avoids potential conflicts, as MSP focuses on death and subsequent join spawns. Always ensure that your firstjoin setup doesn't interfere with MSP's functionality.
+
 ### Dungeon Plugin Compatibility
 
 **For MythicDungeons v2** (which creates worlds like `MythicDungeonWorld_0`, `MythicDungeonWorld_1`, etc.), disable party respawn with regex matching:
