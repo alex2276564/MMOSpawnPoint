@@ -41,14 +41,20 @@ spawns:
     destinations:
       - world: world
         requireSafe: true
-        x: { min: 200, max: 210 }
-        z: { min: 220, max: 230 }
+        x:
+          min: 200
+          max: 210
+        z:
+          min: 220
+          max: 230
         actions:
           messages:
             - text: "<dark_red>💀 The Ancient Guardian has slain you!"
-              phases: [BEFORE]
+              phases:
+                - BEFORE
             - text: "<red>⚰️ Your party must continue without you..."
-              phases: [AFTER]
+              phases:
+                - AFTER
     actions:
     # Optional: EXP penalty if you use an MMO plugin (uncomment)
     # commands:
@@ -76,17 +82,23 @@ spawns:
       # Safe room (weighted main)
       - world: world
         requireSafe: true
-        x: { min: 195, max: 205 }
-        z: { min: 180, max: 190 }
+        x:
+          min: 195
+          max: 205
+        z:
+          min: 180
+          max: 190
         weight: 80
         actions:
           messages:
             - text: "<yellow>🛡️ Respawned in the safe room"
-              phases: [AFTER]
+              phases:
+                - AFTER
           commands:
             - command: "effect give %player% minecraft:weakness 60 1"
               chance: 100
-              phases: [AFTER]
+              phases:
+                - AFTER
       # Entrance fallback (weighted backup)
       - world: world
         requireSafe: false
@@ -97,11 +109,13 @@ spawns:
         actions:
           messages:
             - text: "<red>💨 Blown back to dungeon entrance!"
-              phases: [AFTER]
+              phases:
+                - AFTER
     actions:
       messages:
         - text: "<red>🗡️ You fell to the dungeon's dangers"
-          phases: [BEFORE]
+          phases:
+            - BEFORE
 
   # 3) Entrance — light penalty, both join/death events
   - kind: region
@@ -126,13 +140,16 @@ spawns:
     actions:
       messages:
         - text: "<blue>🏰 Entering the Ancient Ruins..."
-          phases: [AFTER]
+          phases:
+            - AFTER
         - text: "<gray>💡 Tip: Bring a party for better survival!"
-          phases: [AFTER]
+          phases:
+            - AFTER
       commands:
         - command: "effect give %player% minecraft:night_vision 300 1"
           chance: 100
-          phases: [AFTER]
+          phases:
+            - AFTER
 
   # 4) Emergency exit — generic rescue area
   - kind: region
@@ -149,9 +166,11 @@ spawns:
     actions:
       messages:
         - text: "<red>🚨 Emergency evacuation activated!"
-          phases: [BEFORE]
+          phases:
+            - BEFORE
         - text: "<yellow>⚡ Teleported to safety"
-          phases: [AFTER]
+          phases:
+            - AFTER
 
 # ================================================================
 # 🗺️ Setup Guide:
