@@ -931,7 +931,7 @@ If you encounter issues with the plugin:
 * **Java Version:** Java 17 or higher
 * **Optional Dependencies:**
     * WorldGuard 7.0.5+ (for region-based spawns)
-    * PlaceholderAPI 2.11.6+ (for condition-based spawns)
+    * PlaceholderAPI latest version (for condition-based spawns)
 
 ## 📦 Other Plugins
 
