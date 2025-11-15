@@ -140,7 +140,51 @@ Once the AI has this context, you can ask it to draft spawnpoints tailored to yo
 * Always validate the result:
     * YAML: [yamllint.com](http://www.yamllint.com/)
     * In-game: /msp simulate death and /msp simulate join
-* Keep a low-priority global fallback to catch edge cases.
+* Keep a low-priority global fallback only if it's needed to catch edge cases.
+
+## 🏗️ Why Traditional Spawn Plugins Are Outdated
+
+### The Core Problem: Replace vs Extend
+
+**Good architecture:** New code layers **on top** of existing systems, not replaces them.
+
+**MSP approach:** Respects and extends vanilla mechanics.  
+**CMI/Essentials/SetSpawn approach:** Overrides vanilla entirely.
+
+This isn't just technical—it's a fundamental design philosophy difference.
+
+---
+
+### The Issues
+
+**MSP respects and extends vanilla mechanics.** Traditional plugins override them completely.
+
+These plugins are so outdated that **even vanilla Minecraft 1.21.9+ can do more**—and that's not even mentioning other problems:
+
+**Why handle firstjoin at all?** This should be vanilla's job (`/setworldspawn`) or a world manager like Multiverse-Core.
+
+**Why globally override death respawn?** Vanilla + world managers already work correctly—even with per-dimension spawns on modern versions (and where this is not enough, solutions such as MSP are usually already needed).
+
+**Why should firstjoin and death spawns even be the same location?** Different events need different logic—forcing them to share one spawn point is a design limitation, not a feature.
+
+**And many other questions:** Plugin compatibility issues? Gameplay problems? Config readability? Manual plugin integrations? Scalability? The list goes on.
+
+---
+
+### Why Is It Like This?
+
+You might wonder: *"Why are things so bad?"*
+
+We wonder too. We can only guess at the reasons:
+- Support for very old Minecraft versions
+- Support for outdated Spigot/CraftBukkit (not Paper)
+- Unwillingness to change API/behavior (too many existing tutorials)
+- Unwillingness to rewrite legacy code (+ all those economy/kits/homes integrations)
+- Unwillingness to break thousands of existing server setups
+
+In short: **they probably have their reasons** (backward compatibility = prison), and we have ours.
+
+**Which approach to choose for your server?** That's up to you.
 
 ## 🔄 How It Works
 
