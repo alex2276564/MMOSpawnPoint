@@ -176,6 +176,7 @@ These plugins are so outdated that **even vanilla Minecraft 1.21.9+ can do more*
 You might wonder: *"Why are things so bad?"*
 
 We wonder too. We can only guess at the reasons:
+
 - Support for very old Minecraft versions
 - Support for outdated Spigot/CraftBukkit (not Paper)
 - Unwillingness to change API/behavior (too many existing tutorials)
