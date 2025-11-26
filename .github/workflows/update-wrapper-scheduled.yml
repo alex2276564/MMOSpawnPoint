@@ -17,6 +17,6 @@ jobs:
         run: chmod +x gradlew
 
       - name: Update Gradle Wrapper
-        uses: gradle-update/update-gradle-wrapper-action@v2.1.0
+        uses: gradle-update/update-gradle-wrapper-action@main
         with:
           repo-token: ${{ secrets.PAT_TOKEN_REPO_WORKFLOW_1 }}
