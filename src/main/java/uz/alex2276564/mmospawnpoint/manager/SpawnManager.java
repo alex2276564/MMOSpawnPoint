@@ -144,6 +144,63 @@ public class SpawnManager {
         }
     }
 
+    /**
+     * Resolve join spawn location for PlayerSpawnLocationEvent.
+     * <p>
+     * - Does NOT teleport the player.
+     * - Does NOT send "noSpawnFound" messages.
+     * - Returns null to keep vanilla spawnLocation.
+     * <p>
+     * Used when settings.teleport.useSetSpawnLocationForJoin = true
+     * and join.waitForResourcePack = false.
+     */
+    public Location resolveJoinSpawnLocationForSpawnEvent(Player player, Location baseSpawnLocation) {
+        try {
+            if (isDebug()) {
+                plugin.getLogger().info("Resolving join spawn (spawn-location event) for " + player.getName()
+                        + " from base location " + locationToString(baseSpawnLocation));
+            }
+
+            // Party join scoped
+            String partyScope = plugin.getConfigManager().getMainConfig().party.scope;
+            if (plugin.getConfigManager().getMainConfig().party.enabled
+                    && partyManager != null
+                    && ("join".equalsIgnoreCase(partyScope) || "both".equalsIgnoreCase(partyScope))) {
+
+                Location partyLocation = partyManager.findPartyJoinLocation(player);
+                if (partyLocation != null && partyLocation != PartyManager.FALLBACK_TO_NORMAL_SPAWN_MARKER) {
+                    if (isDebug()) {
+                        plugin.getLogger().info("Using party join spawn location for "
+                                + player.getName() + ": " + locationToString(partyLocation));
+                    }
+                    return partyLocation;
+                }
+            }
+
+            // Normal MSP join rules (world/region/coordinate entries)
+            Location joinLocation = findSpawnLocationByPriority("join", baseSpawnLocation, player);
+            if (joinLocation != null) {
+                if (isDebug()) {
+                    plugin.getLogger().info("Using MSP join spawn location for "
+                            + player.getName() + ": " + locationToString(joinLocation));
+                }
+                return joinLocation;
+            }
+
+            if (isDebug()) {
+                plugin.getLogger().info("No MSP join spawn location found for "
+                        + player.getName() + " – keeping vanilla spawn location");
+            }
+            return null;
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("Error resolving join spawn for "
+                    + player.getName() + ": " + e.getMessage());
+            if (isDebug()) e.printStackTrace();
+            return null;
+        }
+    }
+
     public boolean processDeathSpawn(Player player) {
         try {
             Location deathLocation = deathLocations.remove(player.getUniqueId());
@@ -281,9 +338,23 @@ public class SpawnManager {
             long enteredMs = System.currentTimeMillis();
             startBatchedLocationSearchForSelected(player, selected, globalActions, enteredMs, hasMultipleDestinations, eventType);
 
-            // If death + useSetRespawn, schedule WAITING_ROOM one tick later (server will teleport after event)
-            boolean useSetRespawn = plugin.getConfigManager().getMainConfig().settings.teleport.useSetRespawnLocationForDeath;
-            if ("death".equalsIgnoreCase(eventType) && useSetRespawn) {
+            // If we use spawn-location based flow (death/join), schedule WAITING_ROOM one tick later
+            // so that it runs after vanilla respawn/spawn puts the player in the waiting room.
+            var mainCfg = plugin.getConfigManager().getMainConfig();
+            boolean scheduleWaitingRoomPhase = false;
+
+            if ("death".equalsIgnoreCase(eventType)
+                    && mainCfg.settings.teleport.useSetRespawnLocationForDeath) {
+                scheduleWaitingRoomPhase = true;
+            } else if ("join".equalsIgnoreCase(eventType)
+                    && mainCfg.settings.teleport.useSetSpawnLocationForJoin
+                    && !mainCfg.join.waitForResourcePack) {
+                // Only when we actually use PlayerSpawnLocationEvent for join,
+                // and resource-pack waiting is not enabled.
+                scheduleWaitingRoomPhase = true;
+            }
+
+            if (scheduleWaitingRoomPhase) {
                 plugin.getRunner().runGlobalLater(() -> runWaitingRoomPhaseIfPending(player), 1L);
             }
 
@@ -297,7 +368,8 @@ public class SpawnManager {
         Location finalLoc = resolveNonSafeLocation(selected);
         if (finalLoc == null) return null;
 
-        // AFTER runs after final teleport
+        // AFTER runs after final teleport (teleportPlayerWithDelay) or after vanilla respawn/spawn
+        // when useSetRespawnLocationForDeath/useSetSpawnLocationForJoin are enabled.
         pendingAfterActions.put(player.getUniqueId(), new PendingAfter(selected, globalActions));
         return finalLoc;
     }
@@ -435,7 +507,7 @@ public class SpawnManager {
 
     /**
      * One async search job per player while they are in the waiting room.
-     *
+     * <p>
      * Paper:
      *  - Multiple attempts per tick on the main thread within timeBudgetNs
      * Folia:
@@ -1487,13 +1559,18 @@ public class SpawnManager {
      * and we used vanilla setRespawnLocation (no teleportPlayerWithDelay call).
      * Call this 1 tick after the actual respawn so the player is already at the new location.
      */
-    public void runAfterPhaseIfPending(Player player) {
+    public void runAfterPhaseIfPending(Player player, String eventType) {
         try {
             PendingAfter pending = pendingAfterActions.remove(player.getUniqueId());
             if (pending == null) return; // nothing to do
 
             // Execute AFTER for the resolved entry
             runPhaseForEntry(player, pending.loc, pending.global, SpawnPointsConfig.Phase.AFTER);
+
+            // For join spawn-location flows, also send the join.teleportedOnJoin message
+            if ("join".equalsIgnoreCase(eventType)) {
+                sendTeleportMessage(player, "join");
+            }
         } catch (Exception e) {
             if (isDebug()) {
                 plugin.getLogger().warning("Error while running AFTER phase for " + player.getName() + ": " + e.getMessage());

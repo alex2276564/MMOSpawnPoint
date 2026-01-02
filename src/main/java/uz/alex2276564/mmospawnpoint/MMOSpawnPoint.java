@@ -174,6 +174,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
         pm.registerEvents(new PlayerJoinListener(this), this);
         pm.registerEvents(new PlayerQuitListener(this), this);
         pm.registerEvents(new PlayerWorldChangeListener(this), this);
+        pm.registerEvents(new PlayerSpawnLocationListener(this), this);
 
         if (configManager.getMainConfig().join.waitForResourcePack) {
             resourcePackListener = new PlayerResourcePackListener(this);

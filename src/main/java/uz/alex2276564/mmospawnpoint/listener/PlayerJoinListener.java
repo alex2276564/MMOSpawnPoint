@@ -32,29 +32,41 @@ public class PlayerJoinListener implements Listener {
             // Notify the player that join teleport is skipped because they are dead
             String skipped = plugin.getConfigManager().getMessagesConfig().join.skippedDead;
             plugin.getMessageManager().sendMessageKeyed(player, "join.skippedDead", skipped);
-
-
             return;
         }
 
-        // Check party scope
-        String partyScope = plugin.getConfigManager().getMainConfig().party.scope;
-        if (plugin.getConfigManager().getMainConfig().party.enabled &&
-                ("join".equals(partyScope) || "both".equals(partyScope)) && plugin.getConfigManager().getMainConfig().settings.debugMode) {
-            plugin.getLogger().info("Party system active for joins, processing party join spawn for " + player.getName());
+        var mainConfig = plugin.getConfigManager().getMainConfig();
+
+        // Party scope debug (actual party join spawn is handled either in PlayerSpawnLocationEvent
+        // or in processJoinSpawn, depending on config)
+        String partyScope = mainConfig.party.scope;
+        if (mainConfig.party.enabled
+                && ("join".equalsIgnoreCase(partyScope) || "both".equalsIgnoreCase(partyScope))
+                && mainConfig.settings.debugMode) {
+            plugin.getLogger().info("Party system active for joins for " + player.getName());
         }
 
-        // Handle resource pack waiting
-        if (plugin.getConfigManager().getMainConfig().join.waitForResourcePack) {
+        // Resource pack waiting takes priority and always uses post-join teleport flow
+        if (mainConfig.join.waitForResourcePack) {
             handleResourcePackWait(player);
-        } else {
-            // Process join spawn on entity thread next tick
-            plugin.getRunner().runAtEntityLater(player, () -> {
-                if (player.isOnline() && !player.isDead()) {
-                    processJoinSpawn(player);
-                }
-            }, 1L);
+            return;
         }
+
+        // If we use PlayerSpawnLocationEvent for join, MSP spawn was already handled there
+        if (mainConfig.settings.teleport.useSetSpawnLocationForJoin) {
+            if (mainConfig.settings.debugMode) {
+                plugin.getLogger().info("Join spawn for " + player.getName()
+                        + " is handled via PlayerSpawnLocationEvent (no post-join teleport)");
+            }
+            return;
+        }
+
+        // Legacy / fallback behavior: process join spawn via post-join teleport
+        plugin.getRunner().runAtEntityLater(player, () -> {
+            if (player.isOnline() && !player.isDead()) {
+                processJoinSpawn(player);
+            }
+        }, 1L);
     }
 
     private void handleResourcePackWait(Player player) {
@@ -93,7 +105,7 @@ public class PlayerJoinListener implements Listener {
                     plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.timeout", timeoutMessage);
                 }
 
-                // Process join spawn anyway
+                // Process join spawn anyway (post-join teleport flow)
                 if (!player.isDead()) {
                     processJoinSpawn(player);
                 }

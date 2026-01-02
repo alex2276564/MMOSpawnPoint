@@ -339,6 +339,19 @@ public class MainConfig extends OkaeriConfig {
         public boolean useSetRespawnLocationForDeath = true;
 
         @Comment("")
+        @Comment("🚪 Use PlayerSpawnLocationEvent for join events (where available)")
+        @Comment("true  = set the spawn location before the player appears in the world (no flicker)")
+        @Comment("false = use PlayerJoinEvent + post-join teleport (may show 1-tick vanilla spawn)")
+        @Comment("Tip:")
+        @Comment("- If you integrate with complex respawn logic from other plugins,")
+        @Comment("  testing both modes is recommended.")
+        @Comment("Note:")
+        @Comment("- This setting is ignored if join.waitForResourcePack is true; in that case")
+        @Comment("  MSP always uses the post-join teleport flow so that the resource pack")
+        @Comment("  waiting-room logic can move the player first.")
+        public boolean useSetSpawnLocationForJoin = true;
+
+        @Comment("")
         @Comment("# ----------------------------------------------------------------")
         @Comment("# 📏 DIMENSION-AWARE Y-LEVEL SELECTION")
         @Comment("# ----------------------------------------------------------------")

@@ -53,7 +53,7 @@ public class PlayerRespawnListener implements Listener {
                     event.setRespawnLocation(partyLoc);
 
                     // run AFTER (if any pending) on next tick, since vanilla respawn will move the player
-                    plugin.getRunner().runAtEntityLater(player, () -> plugin.getSpawnManager().runAfterPhaseIfPending(player), 1L);
+                    plugin.getRunner().runAtEntityLater(player, () -> plugin.getSpawnManager().runAfterPhaseIfPending(player, "death"), 1L);
 
                     return;
                 }
@@ -66,7 +66,7 @@ public class PlayerRespawnListener implements Listener {
 
                 // run AFTER (if any pending) on next tick for non-waiting-room flows
                 // (for waiting-room flows, AFTER will be executed by SafeSearchJob.finish())
-                plugin.getRunner().runAtEntityLater(player, () -> plugin.getSpawnManager().runAfterPhaseIfPending(player), 1L);
+                plugin.getRunner().runAtEntityLater(player, () -> plugin.getSpawnManager().runAfterPhaseIfPending(player, "death"), 1L);
             }
         } catch (Exception e) {
             plugin.getLogger().severe("Error handling player respawn for " + event.getPlayer().getName() + ": " + e.getMessage());
