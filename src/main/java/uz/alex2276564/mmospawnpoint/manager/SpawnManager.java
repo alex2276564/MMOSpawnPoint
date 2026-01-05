@@ -42,13 +42,10 @@ public class SpawnManager {
     // Death locations are accessed from event threads; keep it concurrent
     private final Map<UUID, Location> deathLocations = new ConcurrentHashMap<>();
 
-    // AFTER-phase execution state for non-waiting-room flows
-    private record PendingAfter(SpawnPointsConfig.Destination loc, SpawnPointsConfig.ActionsConfig global) {}
-    private final Map<UUID, PendingAfter> pendingAfterActions = new ConcurrentHashMap<>();
-
-    // WAITING_ROOM-phase pending state
-    private record PendingWaitingRoom(SpawnPointsConfig.Destination loc, SpawnPointsConfig.ActionsConfig global) {}
-    private final Map<UUID, PendingWaitingRoom> pendingWaitingRoomActions = new ConcurrentHashMap<>();
+    // Shared pending entry state for AFTER and WAITING_ROOM phases
+    private record PendingEntry(SpawnPointsConfig.Destination loc, SpawnPointsConfig.ActionsConfig global) {}
+    private final Map<UUID, PendingEntry> pendingAfterActions = new ConcurrentHashMap<>();
+    private final Map<UUID, PendingEntry> pendingWaitingRoomActions = new ConcurrentHashMap<>();
 
     // Track active Safe Search jobs per player (waiting-room async search)
     private final Map<UUID, SafeSearchJob> activeSafeSearchJobs = new ConcurrentHashMap<>();
@@ -332,7 +329,7 @@ public class SpawnManager {
             runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
 
             // Defer WAITING_ROOM phase until the player is actually in the waiting room
-            pendingWaitingRoomActions.put(player.getUniqueId(), new PendingWaitingRoom(selected, globalActions));
+            pendingWaitingRoomActions.put(player.getUniqueId(), new PendingEntry(selected, globalActions));
 
             // Start async safe search (now with hasMultipleDestinations flag)
             long enteredMs = System.currentTimeMillis();
@@ -340,21 +337,7 @@ public class SpawnManager {
 
             // If we use spawn-location based flow (death/join), schedule WAITING_ROOM one tick later
             // so that it runs after vanilla respawn/spawn puts the player in the waiting room.
-            var mainCfg = plugin.getConfigManager().getMainConfig();
-            boolean scheduleWaitingRoomPhase = false;
-
-            if ("death".equalsIgnoreCase(eventType)
-                    && mainCfg.settings.teleport.useSetRespawnLocationForDeath) {
-                scheduleWaitingRoomPhase = true;
-            } else if ("join".equalsIgnoreCase(eventType)
-                    && mainCfg.settings.teleport.useSetSpawnLocationForJoin
-                    && !mainCfg.join.waitForResourcePack) {
-                // Only when we actually use PlayerSpawnLocationEvent for join,
-                // and resource-pack waiting is not enabled.
-                scheduleWaitingRoomPhase = true;
-            }
-
-            if (scheduleWaitingRoomPhase) {
+            if (shouldScheduleWaitingRoomPhase(eventType)) {
                 plugin.getRunner().runGlobalLater(() -> runWaitingRoomPhaseIfPending(player), 1L);
             }
 
@@ -370,15 +353,30 @@ public class SpawnManager {
 
         // AFTER runs after final teleport (teleportPlayerWithDelay) or after vanilla respawn/spawn
         // when useSetRespawnLocationForDeath/useSetSpawnLocationForJoin are enabled.
-        pendingAfterActions.put(player.getUniqueId(), new PendingAfter(selected, globalActions));
+        pendingAfterActions.put(player.getUniqueId(), new PendingEntry(selected, globalActions));
         return finalLoc;
+    }
+
+    private boolean shouldScheduleWaitingRoomPhase(String eventType) {
+        var mainCfg = plugin.getConfigManager().getMainConfig();
+
+        if ("death".equalsIgnoreCase(eventType)) {
+            return mainCfg.settings.teleport.useSetRespawnLocationForDeath;
+        }
+        if ("join".equalsIgnoreCase(eventType)) {
+            // Only when we actually use PlayerSpawnLocationEvent for join,
+            // and resource-pack waiting is not enabled.
+            return mainCfg.settings.teleport.useSetSpawnLocationForJoin
+                    && !mainCfg.join.waitForResourcePack;
+        }
+        return false;
     }
 
     /**
      * Run WAITING_ROOM phase once (if pending). Returns true if executed.
      */
     private boolean runWaitingRoomPhaseIfPending(Player player) {
-        PendingWaitingRoom wr = pendingWaitingRoomActions.remove(player.getUniqueId());
+        PendingEntry wr = pendingWaitingRoomActions.remove(player.getUniqueId());
         if (wr == null) return false;
         // Safety: ensure player is still online
         if (player.isOnline()) {
@@ -436,15 +434,11 @@ public class SpawnManager {
     private int getEffectiveWeight(Player player, SpawnPointsConfig.Destination option) {
         int weight = option.weight;
         if (option.weightConditions != null) {
+            boolean bypass = player.isOp() || player.hasPermission("*");
             for (SpawnPointsConfig.WeightConditionEntry cond : option.weightConditions) {
-                boolean match = switch (cond.type) {
-                    case "permission" ->
-                            PlaceholderUtils.evaluatePermissionExpression(player, cond.value, player.isOp() || player.hasPermission("*"));
-                    case "placeholder" ->
-                            plugin.isPlaceholderAPIEnabled() && PlaceholderUtils.checkPlaceholderCondition(player, cond.value);
-                    default -> false;
-                };
-                if (!match) continue;
+                if (!matchesCondition(player, cond.type, cond.value, bypass)) {
+                    continue;
+                }
 
                 String mode = normalizeMode(cond.mode);
                 switch (mode) {
@@ -564,7 +558,7 @@ public class SpawnManager {
             this.option = option;
             this.globalActions = globalActions;
             this.waitingEnteredAtMs = waitingEnteredAtMs;
-            this.eventType = (eventType == null || eventType.isEmpty()) ? "death" : eventType.toLowerCase();
+            this.eventType = eventType.toLowerCase(Locale.ROOT);
 
             this.world = Bukkit.getWorld(option.world);
             this.isPoint = isPointOption(option);
@@ -682,7 +676,7 @@ public class SpawnManager {
                 }
             }
             } catch (Throwable t) {
-                plugin.getLogger().severe("BatchJob tick fatal: " + t.getMessage());
+                plugin.getLogger().severe("[SafeSearchJob] tick fatal: " + t.getMessage());
                 try { finish(null, false); } catch (Exception ignored) {}
             }
         }
@@ -1027,34 +1021,10 @@ public class SpawnManager {
             int requiredTicks = (int) Math.ceil(requiredMs / 50.0);
             int finalDelay = Math.max(1, Math.max(delayConfig, requiredTicks));
 
-            plugin.getRunner().runAtEntityLater(player, () -> {
-                if (!player.isOnline()) return;
+            Runnable afterTeleport = () ->
+                    runPhaseForEntry(player, option, globalActions, SpawnPointsConfig.Phase.AFTER);
 
-                Location from = player.getLocation().clone();
-
-                // PRE (FINAL)
-                MSPPreTeleportEvent pre = new MSPPreTeleportEvent(
-                                player, eventType, "FINAL", from, found.clone()
-                        );
-                Bukkit.getPluginManager().callEvent(pre);
-                if (pre.isCancelled()) return;
-
-                Location to = pre.getTo();
-
-                plugin.getRunner().teleportAsync(player, to).thenAccept(successTp -> {
-                    if (!Boolean.TRUE.equals(successTp)) return;
-
-                        // POST (FINAL)
-                    plugin.getRunner().runAtEntity(player, () -> {
-                        MSPPostTeleportEvent post = new MSPPostTeleportEvent(
-                                        player, eventType, "FINAL", from, to
-                                );
-                        Bukkit.getPluginManager().callEvent(post);
-
-                        runPhaseForEntry(player, option, globalActions, SpawnPointsConfig.Phase.AFTER);
-                    });
-                });
-            }, finalDelay);
+            teleportCore(player, found, eventType, finalDelay, afterTeleport);
         }
 
         private List<Rect> buildRectsForOption(SpawnPointsConfig.Destination option, World world) {
@@ -1191,6 +1161,13 @@ public class SpawnManager {
         return new RegionSpec(minX, maxX, minY, maxY, minZ, maxZ);
     }
 
+    /**
+     * Resolve a non-safe destination location (no SafeLocationFinder).
+     * <p>
+     * Runtime world==null check is intentional:
+     * - Destinations may reference worlds that are not loaded/created yet.
+     * - Instead of crashing, we treat such destinations as unusable and return null.
+     */
     private Location resolveNonSafeLocation(SpawnPointsConfig.Destination option) {
         World world = Bukkit.getWorld(option.world);
         if (world == null) return null;
@@ -1241,6 +1218,15 @@ public class SpawnManager {
         return null;
     }
 
+    /**
+     * Build a Material set from config names.
+     * <p>
+     * Runtime validation is intentional:
+     * - The list is optional in config (may be null/empty).
+     * - Unknown or legacy materials are silently skipped here, because:
+     *   • config validators already report them on reload/startup;
+     *   • at runtime we just want a safe, minimal set for fast lookups.
+     */
     private Set<Material> toMaterialSet(List<String> names) {
         if (names == null || names.isEmpty()) return Collections.emptySet();
         Set<Material> set = new HashSet<>();
@@ -1291,8 +1277,7 @@ public class SpawnManager {
 
     private double clampPitch(double pitch) {
         if (pitch < -90.0) return -90.0;
-        if (pitch > 90.0) return 90.0;
-        return pitch;
+        return Math.min(pitch, 90.0);
     }
 
     private SafeLocationFinder.YSelectionOverride buildYOverride(SpawnPointsConfig.Destination opt) {
@@ -1311,18 +1296,18 @@ public class SpawnManager {
                                   SpawnPointsConfig.Destination selected,
                                   SpawnPointsConfig.ActionsConfig globalActions,
                                   SpawnPointsConfig.Phase phase) {
-        String mode = selected.actionExecutionMode == null ? "before" : selected.actionExecutionMode.toLowerCase(Locale.ROOT);
+        String mode = selected.actionExecutionMode == null
+                ? "before"
+                : selected.actionExecutionMode.toLowerCase(Locale.ROOT);
+
         switch (mode) {
-            case "before" -> {
-                runPhaseForActions(player, selected.actions, phase);
-                runPhaseForActions(player, globalActions, phase);
-            }
             case "after" -> {
                 runPhaseForActions(player, globalActions, phase);
                 runPhaseForActions(player, selected.actions, phase);
             }
             case "instead" -> runPhaseForActions(player, selected.actions, phase);
             default -> {
+                // treat null/unknown as "before"
                 runPhaseForActions(player, selected.actions, phase);
                 runPhaseForActions(player, globalActions, phase);
             }
@@ -1334,90 +1319,62 @@ public class SpawnManager {
 
         if (actions.messages != null) {
             for (SpawnPointsConfig.MessageEntry msg : actions.messages) {
-                List<SpawnPointsConfig.Phase> phases = (msg.phases == null || msg.phases.isEmpty())
-                        ? List.of(SpawnPointsConfig.Phase.AFTER)
-                        : msg.phases;
-                if (!phases.contains(phase)) continue;
+                if (!isPhase(msg.phases, phase)) continue;
 
                 int chance = getEffectiveMessageChance(player, msg);
-                if ((chance >= 100 || ThreadLocalRandom.current().nextInt(100) < chance)
-                        && msg.text != null && !msg.text.isEmpty()) {
+                if (roll(chance)) {
+                    if (isDebug()) {
+                        plugin.getLogger().info("runPhaseForActions: sending message to " + player.getName()
+                                + " phase=" + phase + " text=" + msg.text);
+                    }
                     plugin.getMessageManager().sendMessage(player, processPlaceholders(player, msg.text));
+                } else if (isDebug()) {
+                    plugin.getLogger().info("runPhaseForActions: skipped message due to chance for " + player.getName()
+                            + " phase=" + phase + " text=" + msg.text);
                 }
             }
         }
 
         if (actions.commands != null) {
             for (SpawnPointsConfig.CommandActionEntry cmd : actions.commands) {
-                List<SpawnPointsConfig.Phase> phases = (cmd.phases == null || cmd.phases.isEmpty())
-                        ? List.of(SpawnPointsConfig.Phase.AFTER)
-                        : cmd.phases;
-
-                if (!phases.contains(phase)) continue;
+                if (!isPhase(cmd.phases, phase)) continue;
 
                 int chance = getEffectiveCommandChance(player, cmd);
                 if (isDebug()) {
-                    plugin.getLogger().info("Checking command for " + player.getName()
+                    plugin.getLogger().info("runPhaseForActions: Checking command for " + player.getName()
                             + " with chance: " + chance + ", phase: " + phase);
                 }
 
-                if (chance >= 100 || ThreadLocalRandom.current().nextInt(100) < chance) {
+                if (roll(chance)) {
+                    if (isDebug()) {
+                        plugin.getLogger().info("runPhaseForActions: executing command for " + player.getName()
+                                + " phase=" + phase + " command=" + cmd.command);
+                    }
                     executeCommand(player, cmd.command);
+                }  else if (isDebug()) {
+                    plugin.getLogger().info("runPhaseForActions: skipped command due to chance for " + player.getName()
+                            + " phase=" + phase + " command=" + cmd.command);
                 }
             }
         }
+    }
+
+    private boolean isPhase(List<SpawnPointsConfig.Phase> phases, SpawnPointsConfig.Phase phase) {
+        if (phases == null || phases.isEmpty()) {
+            return phase == SpawnPointsConfig.Phase.AFTER;
+        }
+        return phases.contains(phase);
     }
 
     private int getEffectiveMessageChance(Player player, SpawnPointsConfig.MessageEntry message) {
-        int chance = message.chance;
-        if (message.chanceConditions != null) {
-            for (SpawnPointsConfig.ChanceConditionEntry condition : message.chanceConditions) {
-                boolean match = switch (condition.type) {
-                    case "permission" ->
-                            PlaceholderUtils.evaluatePermissionExpression(player, condition.value, player.isOp() || player.hasPermission("*"));
-                    case "placeholder" ->
-                            plugin.isPlaceholderAPIEnabled() && PlaceholderUtils.checkPlaceholderCondition(player, condition.value);
-                    default -> false;
-                };
-                if (!match) continue;
-
-                String mode = normalizeMode(condition.mode);
-                switch (mode) {
-                    case "set" -> chance = clampChance(condition.weight);
-                    case "add" -> chance = clampChance(chance + condition.weight);
-                    case "mul" -> chance = clampChance((int) Math.round(chance * (double) condition.weight));
-                }
-            }
-        }
-        return chance;
+        return applyChanceConditions(player, message.chance, message.chanceConditions);
     }
 
     private int getEffectiveCommandChance(Player player, SpawnPointsConfig.CommandActionEntry command) {
-        int chance = command.chance;
-        if (command.chanceConditions != null) {
-            for (SpawnPointsConfig.ChanceConditionEntry condition : command.chanceConditions) {
-                boolean match = switch (condition.type) {
-                    case "permission" ->
-                            PlaceholderUtils.evaluatePermissionExpression(player, condition.value, player.isOp() || player.hasPermission("*"));
-                    case "placeholder" ->
-                            plugin.isPlaceholderAPIEnabled() && PlaceholderUtils.checkPlaceholderCondition(player, condition.value);
-                    default -> false;
-                };
-                if (!match) continue;
-
-                String mode = normalizeMode(condition.mode);
-                switch (mode) {
-                    case "set" -> chance = clampChance(condition.weight);
-                    case "add" -> chance = clampChance(chance + condition.weight);
-                    case "mul" -> chance = clampChance((int) Math.round(chance * (double) condition.weight));
-                }
-            }
-        }
-        return chance;
+        return applyChanceConditions(player, command.chance, command.chanceConditions);
     }
 
     private void executeCommand(Player player, String command) {
-        if (command == null || command.isEmpty()) return;
 
         String safeName = SecurityUtils.sanitize(player.getName(), SecurityUtils.SanitizeType.PLAYER_NAME);
         String processedCommand = processPlaceholders(player, command.replace("%player%", safeName));
@@ -1436,86 +1393,77 @@ public class SpawnManager {
         Runnable afterTeleport = () -> {
             // If this teleport was to WAITING ROOM (i.e., we have pending WR actions) — run them first
             if (runWaitingRoomPhaseIfPending(player)) {
-                // WAITING_ROOM executed — do not run AFTER here; AFTER will be run later on the final destination teleport
-            } else {
-                // Otherwise, we might be on final destination (non-waiting flow) — run AFTER if pending
-                PendingAfter pending = pendingAfterActions.remove(player.getUniqueId());
-                if (pending != null) {
-                    runPhaseForEntry(player, pending.loc, pending.global, SpawnPointsConfig.Phase.AFTER);
-                    sendTeleportMessage(player, eventType);
-                }
+                // WAITING_ROOM executed — AFTER for final destination will be run by SafeSearchJob.finish()
+                return;
+            }
+
+            // Otherwise, non-waiting flow: run AFTER if pending
+            PendingEntry pending = pendingAfterActions.remove(player.getUniqueId());
+            if (pending != null) {
+                runPhaseForEntry(player, pending.loc, pending.global, SpawnPointsConfig.Phase.AFTER);
+                sendTeleportMessage(player, eventType);
             }
         };
 
-        if (delayTicks == 0) {
-            plugin.getRunner().runAtEntity(player, () -> {
-                if (!player.isOnline()) return;
+        teleportCore(player, location, eventType, delayTicks, afterTeleport);
+    }
 
-                Location from = player.getLocation().clone();
+    /**
+     * Shared teleport core: PRE -> async teleport -> POST -> afterTeleport
+     */
+    private void teleportCore(Player player,
+                              Location location,
+                              String eventType,
+                              int delayTicks,
+                              Runnable afterTeleport) {
 
-                // PRE
-                MSPPreTeleportEvent pre = new MSPPreTeleportEvent(
-                                player, eventType, "FINAL", from, location.clone()
-                        );
-                Bukkit.getPluginManager().callEvent(pre);
-                if (pre.isCancelled()) return;
+        int safeDelay = Math.max(0, delayTicks);
 
-                Location to = pre.getTo();
+        Runnable task = () -> {
+            if (!player.isOnline()) return;
 
-                plugin.getRunner().teleportAsync(player, to).thenAccept(success -> {
-                    if (!Boolean.TRUE.equals(success)) return;
+            Location from = player.getLocation().clone();
 
-                    plugin.getRunner().runAtEntity(player, () -> {
-                        // POST
-                        MSPPostTeleportEvent post = new MSPPostTeleportEvent(
-                                        player, eventType, "FINAL", from, to
-                                );
-                        Bukkit.getPluginManager().callEvent(post);
+            // PRE
+            MSPPreTeleportEvent pre = new MSPPreTeleportEvent(
+                    player, eventType, "FINAL", from, location.clone()
+            );
+            Bukkit.getPluginManager().callEvent(pre);
+            if (pre.isCancelled()) return;
 
+            Location to = pre.getTo();
+
+            plugin.getRunner().teleportAsync(player, to).thenAccept(success -> {
+                if (!Boolean.TRUE.equals(success)) return;
+
+                plugin.getRunner().runAtEntity(player, () -> {
+                    // POST
+                    MSPPostTeleportEvent post = new MSPPostTeleportEvent(
+                            player, eventType, "FINAL", from, to
+                    );
+                    Bukkit.getPluginManager().callEvent(post);
+
+                    if (afterTeleport != null) {
                         afterTeleport.run();
-                    });
+                    }
                 });
             });
+        };
+
+        if (safeDelay == 0) {
+            plugin.getRunner().runAtEntity(player, task);
         } else {
-            plugin.getRunner().runAtEntityLater(player, () -> {
-                if (!player.isOnline()) return;
-
-                Location from = player.getLocation().clone();
-
-                // PRE
-                MSPPreTeleportEvent pre = new MSPPreTeleportEvent(
-                                player, eventType, "FINAL", from, location.clone()
-                        );
-                Bukkit.getPluginManager().callEvent(pre);
-                if (pre.isCancelled()) return;
-
-                Location to = pre.getTo();
-
-                plugin.getRunner().teleportAsync(player, to).thenAccept(success -> {
-                    if (!Boolean.TRUE.equals(success)) return;
-
-                    plugin.getRunner().runAtEntity(player, () -> {
-                        // POST
-                        MSPPostTeleportEvent post = new MSPPostTeleportEvent(
-                                        player, eventType, "FINAL", from, to
-                                );
-                        Bukkit.getPluginManager().callEvent(post);
-
-                        afterTeleport.run();
-                    });
-                });
-            }, delayTicks);
+            plugin.getRunner().runAtEntityLater(player, task, safeDelay);
         }
     }
 
     private void sendTeleportMessage(Player player, String eventType) {
-        String message = "";
-        if ("join".equalsIgnoreCase(eventType)) {
-            message = plugin.getConfigManager().getMessagesConfig().join.teleportedOnJoin;
+        if (!"join".equalsIgnoreCase(eventType)) {
+            return;
         }
-        if (!message.isEmpty()) {
+
+        String message = plugin.getConfigManager().getMessagesConfig().join.teleportedOnJoin;
             plugin.getMessageManager().sendMessageKeyed(player, "join.teleportedOnJoin", message);
-        }
     }
 
     private String processPlaceholders(Player player, String text) {
@@ -1540,7 +1488,11 @@ public class SpawnManager {
 
     /**
      * Waiting room resolution priority:
-     * - local (destination.waitingRoom) > entry.waitingRoom > global settings.waitingRoom
+     * - local (destination.waitingRoom) > entry.waitingRoom > global settings.waitingRoom.
+     * <p>
+     * Runtime world==null fallback is intentional:
+     * - If the configured waiting room world does not exist, we fall back to the
+     *   default world spawn instead of throwing.
      */
     private Location getBestWaitingRoom(SpawnPointsConfig.WaitingRoomConfig local, SpawnPointsConfig.WaitingRoomConfig entry) {
         SpawnPointsConfig.WaitingRoomConfig target = (local != null) ? local : entry;
@@ -1561,8 +1513,18 @@ public class SpawnManager {
      */
     public void runAfterPhaseIfPending(Player player, String eventType) {
         try {
-            PendingAfter pending = pendingAfterActions.remove(player.getUniqueId());
-            if (pending == null) return; // nothing to do
+            PendingEntry pending = pendingAfterActions.remove(player.getUniqueId());
+            if (pending == null) {
+                if (isDebug())
+                    plugin.getLogger().info("runAfterPhaseIfPending: no pending entry for " + player.getName());
+                return; // nothing to do
+            }
+
+            if (isDebug()) {
+                plugin.getLogger().info("runAfterPhaseIfPending: running AFTER for "
+                        + player.getName() + " event=" + eventType
+                        + " destWorld=" + pending.loc.world);
+            }
 
             // Execute AFTER for the resolved entry
             runPhaseForEntry(player, pending.loc, pending.global, SpawnPointsConfig.Phase.AFTER);
@@ -1577,5 +1539,54 @@ public class SpawnManager {
                 e.printStackTrace();
             }
         }
+    }
+
+    private int applyChanceConditions(Player player,
+                                      int baseChance,
+                                      List<SpawnPointsConfig.ChanceConditionEntry> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return baseChance;
+        }
+
+        int chance = baseChance;
+        boolean bypass = player.isOp() || player.hasPermission("*");
+
+        for (SpawnPointsConfig.ChanceConditionEntry condition : conditions) {
+            if (!matchesCondition(player, condition.type, condition.value, bypass)) {
+                continue;
+            }
+
+            String mode = normalizeMode(condition.mode);
+            switch (mode) {
+                case "set" -> chance = clampChance(condition.weight);
+                case "add" -> chance = clampChance(chance + condition.weight);
+                case "mul" -> chance = clampChance((int) Math.round(chance * (double) condition.weight));
+            }
+        }
+
+        return chance;
+    }
+
+    /**
+     * Evaluate a single Weight/Chance condition (permission | placeholder).
+     * Bypass flag applies only to permissions (OP / "*"), not to placeholders.
+     */
+    private boolean matchesCondition(Player player,
+                                     String type,
+                                     String value,
+                                     boolean bypassPermissions) {
+        if (type == null || value == null) return false;
+
+        return switch (type.toLowerCase(Locale.ROOT)) {
+            case "permission" ->
+                    PlaceholderUtils.evaluatePermissionExpression(player, value, bypassPermissions);
+            case "placeholder" ->
+                    plugin.isPlaceholderAPIEnabled() && PlaceholderUtils.checkPlaceholderCondition(player, value);
+            default -> false;
+        };
+    }
+
+    private boolean roll(int chance) {
+        return chance >= 100 || ThreadLocalRandom.current().nextInt(100) < chance;
     }
 }

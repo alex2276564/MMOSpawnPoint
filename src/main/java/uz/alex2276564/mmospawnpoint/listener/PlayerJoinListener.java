@@ -82,9 +82,7 @@ public class PlayerJoinListener implements Listener {
 
         // Send waiting message
         String waitingMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.waiting;
-        if (!waitingMessage.isEmpty()) {
             plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waiting", waitingMessage);
-        }
 
         // Move to waiting room if enabled
         if (plugin.getConfigManager().getMainConfig().join.useWaitingRoomForResourcePack) {
@@ -101,9 +99,7 @@ public class PlayerJoinListener implements Listener {
                 resourcePackListener.removeWaitingPlayer(player.getUniqueId());
 
                 String timeoutMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.timeout;
-                if (timeoutMessage != null && !timeoutMessage.isEmpty()) {
-                    plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.timeout", timeoutMessage);
-                }
+                plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.timeout", timeoutMessage);
 
                 // Process join spawn anyway (post-join teleport flow)
                 if (!player.isDead()) {

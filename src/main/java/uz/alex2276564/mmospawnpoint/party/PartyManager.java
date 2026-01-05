@@ -91,9 +91,7 @@ public class PartyManager {
                     Player leader = party.getLeaderPlayer();
                     if (leader != null && leader.isOnline()) {
                         String msg = plugin.getConfigManager().getMessagesConfig().party.inviteExpired;
-                        if (msg != null && !msg.isEmpty()) {
-                            plugin.getMessageManager().sendMessageKeyed(leader, "party.inviteExpired", msg);
-                        }
+                        plugin.getMessageManager().sendMessageKeyed(leader, "party.inviteExpired", msg);
                     }
                 }
             }
@@ -212,9 +210,7 @@ public class PartyManager {
         if (party.isEmpty()) {
             parties.remove(party.getId());
             String msg = plugin.getConfigManager().getMessagesConfig().party.partyDisbanded;
-            if (msg != null && !msg.isEmpty()) {
-                plugin.getMessageManager().sendMessageKeyed(player, "party.partyDisbanded", msg);
-            }
+            plugin.getMessageManager().sendMessageKeyed(player, "party.partyDisbanded", msg);
         }
         return true;
     }
@@ -234,7 +230,7 @@ public class PartyManager {
         if (party.isEmpty()) {
             parties.remove(party.getId());
             String msg = plugin.getConfigManager().getMessagesConfig().party.partyDisbanded;
-            if (msg != null && !msg.isEmpty() && leader.isOnline()) {
+            if (leader.isOnline()) {
                 plugin.getMessageManager().sendMessageKeyed(leader, "party.partyDisbanded", msg);
             }
         }
@@ -311,15 +307,13 @@ public class PartyManager {
         if (respawnCooldown > 0 && !bypassCooldown && party.isOnRespawnCooldown(playerId)) {
             long remaining = party.getRemainingCooldown(playerId);
             String msg = plugin.getConfigManager().getMessagesConfig().party.respawnCooldown;
-            if (msg != null && !msg.isEmpty()) {
-                plugin.getMessageManager().sendMessageKeyed(
-                        player,
-                        "party.respawnCooldown",
-                        msg,
-                        "time",
-                        String.valueOf(remaining)
-                );
-            }
+            plugin.getMessageManager().sendMessageKeyed(
+                    player,
+                    "party.respawnCooldown",
+                    msg,
+                    "time",
+                    String.valueOf(remaining)
+            );
             return null;
         }
 
@@ -364,12 +358,12 @@ public class PartyManager {
             return handleTargetRestricted(player, party, targetReason);
         }
 
-       // Max distance restriction
+        // Max distance restriction
         if (maxRespawnDistance > 0
                 && target.getWorld().equals(deathLocation.getWorld())
                 && target.getLocation().distance(deathLocation) > maxRespawnDistance) {
             String msg = plugin.getConfigManager().getMessagesConfig().party.respawnTooFar;
-            if (msg != null && !msg.isEmpty()) plugin.getMessageManager().sendMessageKeyed(player, "party.respawnTooFar", msg);
+            plugin.getMessageManager().sendMessageKeyed(player, "party.respawnTooFar", msg);
             return null;
         }
 
@@ -379,9 +373,7 @@ public class PartyManager {
         }
 
         String respawnMsg = plugin.getConfigManager().getMessagesConfig().party.respawnedAtMember;
-        if (respawnMsg != null && !respawnMsg.isEmpty()) {
-            plugin.getMessageManager().sendMessageKeyed(player, "party.respawnedAtMember", respawnMsg, "player", target.getName());
-        }
+        plugin.getMessageManager().sendMessageKeyed(player, "party.respawnedAtMember", respawnMsg, "player", target.getName());
 
         return targetLocation;
     }
@@ -420,8 +412,7 @@ public class PartyManager {
         }
 
         String msg = plugin.getConfigManager().getMessagesConfig().party.respawnedAtMember;
-        if (msg != null && !msg.isEmpty())
-            plugin.getMessageManager().sendMessageKeyed(player, "party.respawnedAtMember", msg, "player", target.getName());
+        plugin.getMessageManager().sendMessageKeyed(player, "party.respawnedAtMember", msg, "player", target.getName());
 
         if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
             plugin.getLogger().info("Player " + player.getName() + " joining at party member " + target.getName());
@@ -476,8 +467,7 @@ public class PartyManager {
                 return FALLBACK_TO_NORMAL_SPAWN_MARKER;
             default:
                 String restrictedMsg = plugin.getConfigManager().getMessagesConfig().party.walkingSpawnPointRestricted;
-                if (restrictedMsg != null && !restrictedMsg.isEmpty())
-                    plugin.getMessageManager().sendMessageKeyed(player, "party.walkingSpawnPointRestricted", restrictedMsg);
+                plugin.getMessageManager().sendMessageKeyed(player, "party.walkingSpawnPointRestricted", restrictedMsg);
                 return null;
         }
     }
@@ -499,8 +489,7 @@ public class PartyManager {
                         return FALLBACK_TO_NORMAL_SPAWN_MARKER;
                     default:
                         String restrictedMsg = plugin.getConfigManager().getMessagesConfig().party.walkingSpawnPointRestricted;
-                        if (restrictedMsg != null && !restrictedMsg.isEmpty())
-                            plugin.getMessageManager().sendMessageKeyed(player, "party.walkingSpawnPointRestricted", restrictedMsg);
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.walkingSpawnPointRestricted", restrictedMsg);
                         return null;
                 }
             }
@@ -514,8 +503,7 @@ public class PartyManager {
 
     private void sendWalkingMessage(Player player) {
         String msg = plugin.getConfigManager().getMessagesConfig().party.walkingSpawnPointMessage;
-        if (msg != null && !msg.isEmpty())
-            plugin.getMessageManager().sendMessageKeyed(player, "party.walkingSpawnPointMessage", msg);
+        plugin.getMessageManager().sendMessageKeyed(player, "party.walkingSpawnPointMessage", msg);
     }
 
     // ============================= TARGET SELECTION =============================
@@ -781,11 +769,10 @@ public class PartyManager {
         String msg;
         if (reason == RestrictionReason.WORLD) {
             msg = plugin.getConfigManager().getMessagesConfig().party.respawnDisabledWorld;
-            if (msg != null && !msg.isEmpty()) plugin.getMessageManager().sendMessageKeyed(player, "party.respawnDisabledWorld", msg);
-        }
-        else {
+            plugin.getMessageManager().sendMessageKeyed(player, "party.respawnDisabledWorld", msg);
+        } else {
             msg = plugin.getConfigManager().getMessagesConfig().party.respawnDisabledRegion;
-            if (msg != null && !msg.isEmpty()) plugin.getMessageManager().sendMessageKeyed(player, "party.respawnDisabledRegion", msg);
+            plugin.getMessageManager().sendMessageKeyed(player, "party.respawnDisabledRegion", msg);
         }
     }
 
@@ -871,7 +858,7 @@ public class PartyManager {
             }
         }
         String msg = plugin.getConfigManager().getMessagesConfig().party.respawnDisabledRegion;
-        if (msg != null && !msg.isEmpty()) plugin.getMessageManager().sendMessageKeyed(player, "party.respawnDisabledRegion", msg);
+        plugin.getMessageManager().sendMessageKeyed(player, "party.respawnDisabledRegion", msg);
         return null;
     }
 
@@ -890,7 +877,7 @@ public class PartyManager {
             }
         }
         String msg = plugin.getConfigManager().getMessagesConfig().party.respawnDisabledRegion;
-        if (msg != null && !msg.isEmpty()) plugin.getMessageManager().sendMessageKeyed(player, "party.respawnDisabledRegion", msg);
+        plugin.getMessageManager().sendMessageKeyed(player, "party.respawnDisabledRegion", msg);
         return null;
     }
 }

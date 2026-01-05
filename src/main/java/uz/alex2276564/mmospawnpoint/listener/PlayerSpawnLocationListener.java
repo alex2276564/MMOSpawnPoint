@@ -53,9 +53,7 @@ public class PlayerSpawnLocationListener implements Listener {
                     if (!player.isOnline()) return;
 
                     String msg = plugin.getConfigManager().getMessagesConfig().general.noSpawnFound;
-                    if (msg != null && !msg.isEmpty()) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "general.noSpawnFound", msg);
-                    }
+                    plugin.getMessageManager().sendMessageKeyed(player, "general.noSpawnFound", msg);
                 }, 1L);
 
                 return;
