@@ -968,24 +968,6 @@ If you encounter issues with the plugin:
 6. **Check for conflicts:** Ensure no other plugins are handling respawn events
 7. **Plugin conflicts:** Disable party respawn in worlds managed by dungeon plugins (MythicDungeons, DungeonsXL, etc.)
 
-### Paper 1.21.9+ warning about PlayerSpawnLocationEvent
-
-On Paper 1.21.9+ you will see a warning like:
-
-> "MMOSpawnPoint has registered a listener for PlayerSpawnLocationEvent ...  
-> Listening to this event causes the player to be created early.  
-> Prefer AsyncPlayerSpawnLocationEvent."
-
-MSP intentionally uses `PlayerSpawnLocationEvent` to provide **flicker-free join spawns**
-while still supporting complex logic (regions/worlds, PlaceholderAPI, batched safe search, etc.).
-
-The recommended `AsyncPlayerSpawnLocationEvent` cannot safely perform this kind of world-dependent
-logic yet — it is strictly asynchronous and forbids nearly all Bukkit world access.
-
-For this reason, MSP currently treats `PlayerSpawnLocationEvent` as a *legacy but still required*
-entry point for join spawns. You can safely ignore this warning for now; once a realistic
-replacement exists, MSP will migrate off this event in a future major version.
-
 ## 🛠️ Compatibility
 
 * **Minecraft Versions:** 1.16.5 to the latest release

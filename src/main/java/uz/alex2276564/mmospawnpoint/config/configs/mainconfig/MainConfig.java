@@ -365,10 +365,13 @@ public class MainConfig extends OkaeriConfig {
         @Comment("Tip:")
         @Comment("- If you integrate with complex respawn logic from other plugins,")
         @Comment("  testing both modes is recommended.")
-        @Comment("Note:")
+        @Comment("Notes:")
         @Comment("- This setting is ignored if join.waitForResourcePack is true; in that case")
         @Comment("  MSP always uses the post-join teleport flow so that the resource pack")
         @Comment("  waiting-room logic can move the player first.")
+        @Comment("- On Minecraft 1.21.9+ PlayerSpawnLocationEvent is deprecated/unstable.")
+        @Comment("- MMOSpawnPoint will automatically fall back to PlayerJoinEvent-based join flow")
+        @Comment("  on these versions, even if this option is set to true.")
         public boolean useSetSpawnLocationForJoin = true;
 
         @Comment("")

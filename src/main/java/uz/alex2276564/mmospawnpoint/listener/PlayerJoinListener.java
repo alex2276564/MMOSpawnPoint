@@ -52,8 +52,10 @@ public class PlayerJoinListener implements Listener {
             return;
         }
 
-        // If we use PlayerSpawnLocationEvent for join, MSP spawn was already handled there
-        if (mainConfig.settings.teleport.useSetSpawnLocationForJoin) {
+        // If we use PlayerSpawnLocationEvent for join and this MC version supports it,
+        // MSP spawn was already handled there (no post-join teleport)
+        if (mainConfig.settings.teleport.useSetSpawnLocationForJoin
+                && plugin.isSpawnLocationJoinSupported()) {
             if (mainConfig.settings.debugMode) {
                 plugin.getLogger().info("Join spawn for " + player.getName()
                         + " is handled via PlayerSpawnLocationEvent (no post-join teleport)");

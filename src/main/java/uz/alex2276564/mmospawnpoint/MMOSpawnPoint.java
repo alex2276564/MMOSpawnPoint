@@ -52,6 +52,9 @@ public final class MMOSpawnPoint extends JavaPlugin {
     @Getter
     private PlayerResourcePackListener resourcePackListener;
 
+    @Getter
+    private boolean spawnLocationJoinSupported;
+
     @Override
     public void onEnable() {
         instance = this;
@@ -60,6 +63,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
             setupRunner();
             setupMessageManager();
             setupConfig();
+            detectSpawnLocationSupport();
             checkDependencies();
             setupBackupManager();
             setupManagers();
@@ -141,6 +145,67 @@ public final class MMOSpawnPoint extends JavaPlugin {
         }
     }
 
+    private void detectSpawnLocationSupport() {
+        String mc = getServer().getMinecraftVersion(); // e.g. "1.21.11", "1.16.5"
+        int[] parts = parseMinecraftVersion(mc);
+        int major = parts[0];
+        int minor = parts[1];
+        int patch = parts[2];
+
+        // By default we consider spawn-location join support safe
+        boolean safe = true;
+
+        // For 1.21.9+ (and any newer minor/major) disable PlayerSpawnLocationEvent usage
+        if (major > 1) {
+            safe = false;
+        } else if (major == 1) {
+            if (minor > 21) {
+                safe = false;
+            } else if (minor == 21 && patch >= 9) {
+                safe = false;
+            }
+        }
+
+        this.spawnLocationJoinSupported = safe;
+
+        if (!safe) {
+            getLogger().warning("Detected Minecraft " + mc
+                    + " (>= 1.21.9). PlayerSpawnLocationEvent is deprecated/unstable on this version.");
+            getLogger().warning("Join spawns will be handled via PlayerJoinEvent teleport flow "
+                    + "even if settings.teleport.useSetSpawnLocationForJoin is set to true.");
+        } else {
+            getLogger().info("Minecraft " + mc
+                    + " detected: PlayerSpawnLocationEvent join support is enabled.");
+        }
+    }
+
+    /**
+     * Parse Minecraft version string like "1.21.11" into [major, minor, patch].
+     * Non-numeric/missing parts are treated as 0.
+     */
+    private static int[] parseMinecraftVersion(String version) {
+        int major = 0;
+        int minor = 0;
+        int patch = 0;
+        if (version == null || version.isEmpty()) {
+            return new int[]{major, minor, patch};
+        }
+
+        // Some servers may report versions like "1.21.11-SNAPSHOT"
+        String core = version.split("-")[0];
+        String[] parts = core.split("\\.");
+
+        try {
+            if (parts.length > 0) major = Integer.parseInt(parts[0]);
+            if (parts.length > 1) minor = Integer.parseInt(parts[1]);
+            if (parts.length > 2) patch = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException ignored) {
+            // Fallback: keep zeros
+        }
+
+        return new int[]{major, minor, patch};
+    }
+
     private void setupConfig() {
         configManager = new MMOSpawnPointConfigManager(this);
         configManager.reload();
@@ -174,11 +239,14 @@ public final class MMOSpawnPoint extends JavaPlugin {
         pm.registerEvents(new PlayerJoinListener(this), this);
         pm.registerEvents(new PlayerQuitListener(this), this);
         pm.registerEvents(new PlayerWorldChangeListener(this), this);
-        pm.registerEvents(new PlayerSpawnLocationListener(this), this);
 
         if (configManager.getMainConfig().join.waitForResourcePack) {
             resourcePackListener = new PlayerResourcePackListener(this);
             pm.registerEvents(resourcePackListener, this);
+        }
+
+        if (spawnLocationJoinSupported) {
+            pm.registerEvents(new PlayerSpawnLocationListener(this), this);
         }
     }
 
