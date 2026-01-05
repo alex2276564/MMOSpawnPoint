@@ -208,15 +208,35 @@ public class MainConfig extends OkaeriConfig {
     }
 
     public static class SafeSearchBatchSection extends OkaeriConfig {
-        @Comment("⚡ Total safe location attempts across ALL players per server tick")
-        @Comment("Higher = faster search but more CPU load per tick")
-        @Comment("Paper: multiple attempts per tick, Folia: one attempt per tick per region")
+
+        @Comment("⚡ Total safe location attempts across ALL players per server tick.")
+        @Comment("Minecraft runs at 20 ticks per second (1 tick ≈ 50ms).")
+        @Comment("Each attempt is one SafeLocationFinder probe (block checks, world queries, etc.).")
+        @Comment("")
+        @Comment("Higher values:")
+        @Comment("  • Pros: safe locations are found faster, especially with many players.")
+        @Comment("  • Cons: more CPU work inside each 50ms tick (risk of short lag spikes).")
+        @Comment("")
+        @Comment("Paper:")
+        @Comment("  • MSP will try up to attemptsPerTick safe probes per tick,")
+        @Comment("    but will also respect timeBudgetMillis as a soft time limit.")
+        @Comment("Folia:")
+        @Comment("  • Each SafeSearchJob does exactly one attempt per tick on its region thread;")
+        @Comment("    attemptsPerTick is mostly a global upper bound and rarely needs tuning.")
         public int attemptsPerTick = 200;
 
         @Comment("")
-        @Comment("⏱️ Maximum time budget per tick for safe search (milliseconds)")
-        @Comment("Paper only - prevents lag spikes from expensive searches")
-        @Comment("Recommended: 2-4ms for busy servers, 4-8ms for smaller servers")
+        @Comment("⏱️ Maximum time budget per tick for safe search (milliseconds, Paper only).")
+        @Comment("This is a soft cap: MSP stops doing safe-location attempts in the current tick")
+        @Comment("once the total time spent exceeds this value.")
+        @Comment("")
+        @Comment("Example:")
+        @Comment("  • One server tick is 50ms.")
+        @Comment("  • timeBudgetMillis = 2 → MSP may use up to ~2ms per tick for safe search,")
+        @Comment("    leaving ~48ms for the rest of the server logic.")
+        @Comment("")
+        @Comment("Folia:")
+        @Comment("  • This setting is effectively ignored; each region job is naturally 1 attempt per tick.")
         public int timeBudgetMillis = 2;
     }
 
