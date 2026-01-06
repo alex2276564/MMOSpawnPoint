@@ -325,6 +325,10 @@ public class SpawnManager {
         boolean hasMultipleDestinations = destinations.size() > 1;
 
         if (useWaitingRoom) {
+            if (isDebug()) {
+                plugin.getLogger().info("processEntry: using waiting room for eventType=" + eventType);
+            }
+
             // BEFORE strictly before any teleport
             runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
 
@@ -333,15 +337,26 @@ public class SpawnManager {
 
             // Start async safe search (now with hasMultipleDestinations flag)
             long enteredMs = System.currentTimeMillis();
-            startBatchedLocationSearchForSelected(player, selected, globalActions, enteredMs, hasMultipleDestinations, eventType);
+            startBatchedLocationSearchForSelected(
+                    player,
+                    selected,
+                    globalActions,
+                    enteredMs,
+                    hasMultipleDestinations,
+                    eventType
+            );
 
-            // If we use spawn-location based flow (death/join), schedule WAITING_ROOM one tick later
-            // so that it runs after vanilla respawn/spawn puts the player in the waiting room.
+            // For spawn-location based flows (death/join), schedule WAITING_ROOM phase a bit later,
+            // and only consume pendingWaitingRoomActions when the player is actually online.
             if (shouldScheduleWaitingRoomPhase(eventType)) {
-                plugin.getRunner().runGlobalLater(() -> runWaitingRoomPhaseIfPending(player), 1L);
+                plugin.getRunner().runGlobalLater(() -> {
+                    if (player.isOnline()) {
+                        runWaitingRoomPhaseIfPending(player);
+                    }
+                }, 2L);
             }
 
-            // Waiting room location
+            // Waiting room location (PlayerRespawnEvent / PlayerSpawnLocationEvent will use this)
             return getBestWaitingRoom(selected.waitingRoom, entryWaitingRoom);
         }
 
@@ -618,26 +633,40 @@ public class SpawnManager {
 
         private void tick() {
             try {
-            if (!player.isOnline()) { finish(null, false); return; }
-            if (world == null)     { finish(null, false); return; }
-
-            // Timeout check
-            long timeoutMs = plugin.getConfigManager().getMainConfig().settings.waitingRoom.asyncSearchTimeout * 1000L;
-            if (timeoutMs > 0 && System.currentTimeMillis() - waitingEnteredAtMs > timeoutMs) {
-                if (isDebug()) {
-                    plugin.getLogger().warning("[MMOSpawnPoint] Safe search TIMEOUT for "
-                            + player.getName() + " in world=" + world.getName()
-                            + " attempts=" + attemptCount
-                            + " fail{feet=" + failFeet
-                            + ", head=" + failHead
-                            + ", groundNotSolid=" + failGroundNotSolid
-                            + ", blacklisted=" + failGroundBlacklisted
-                            + ", notWhitelisted=" + failGroundNotWhitelisted + "}"
-                    );
+                if (world == null) {
+                    finish(null, false);
+                    return;
                 }
-                finish(null, false);
-                return;
-            }
+
+                // Timeout — should work even if the player is not yet considered online
+                long timeoutMs = plugin.getConfigManager().getMainConfig().settings.waitingRoom.asyncSearchTimeout * 1000L;
+                if (timeoutMs > 0 && System.currentTimeMillis() - waitingEnteredAtMs > timeoutMs) {
+                    if (isDebug()) {
+                        plugin.getLogger().warning("[MMOSpawnPoint] Safe search TIMEOUT for "
+                                + player.getName() + " in world=" + world.getName()
+                                + " attempts=" + attemptCount
+                                + " fail{feet=" + failFeet
+                                + ", head=" + failHead
+                                + ", groundNotSolid=" + failGroundNotSolid
+                                + ", blacklisted=" + failGroundBlacklisted
+                                + ", notWhitelisted=" + failGroundNotWhitelisted + "}"
+                        );
+                    }
+                    finish(null, false);
+                    return;
+                }
+
+                // If the player is not yet online
+                if (!player.isOnline()) {
+                    // For join scenarios (PlayerSpawnLocationEvent), the player may not be online yet.
+                    // In this case, we simply wait for the next tick (or until the timeout/quit cleanup triggers).
+                    if ("join".equals(this.eventType)) {
+                        return;
+                    }
+                    // For death and other scenarios — exit immediately.
+                    finish(null, false);
+                    return;
+                }
 
             if (plugin.getRunner().isFolia()) {
                 // Folia: do one attempt per tick on the proper region thread

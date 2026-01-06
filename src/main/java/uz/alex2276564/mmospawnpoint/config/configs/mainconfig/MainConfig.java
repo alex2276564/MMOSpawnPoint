@@ -390,15 +390,19 @@ public class MainConfig extends OkaeriConfig {
     }
 
     public static class TeleportYSelection extends OkaeriConfig {
+        @Comment("")
         @Comment("Overworld policy (applies when world.environment == NORMAL; can be overridden per destination)")
         public OverworldSection overworld = new OverworldSection();
 
+        @Comment("")
         @Comment("Nether policy (applies when world.environment == NETHER; can be overridden per destination)")
         public NetherSection nether = new NetherSection();
 
+        @Comment("")
         @Comment("End policy (applies when world.environment == THE_END; can be overridden per destination)")
         public EndSection end = new EndSection();
 
+        @Comment("")
         @Comment("Custom-dimension policy (applies when world.environment == CUSTOM; can be overridden per destination)")
         @Comment("By default behaves like overworld, but can be tuned separately for datapack/custom dimensions.")
         public CustomSection custom = new CustomSection();
