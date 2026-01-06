@@ -1174,37 +1174,36 @@ public class SpawnManager {
     }
 
     private RegionSpec resolveAreaFromOption(SpawnPointsConfig.Destination option, World world) {
-        double centerX = world.getWorldBorder().getCenter().getX();
-        double centerZ = world.getWorldBorder().getCenter().getZ();
-
         double minX;
         double maxX;
         double minZ;
         double maxZ;
 
-        if (option.x == null) {
-            minX = centerX - 32.0; maxX = centerX + 32.0;
-        } else if (option.x.isValue()) {
-            minX = option.x.value; maxX = option.x.value;
+        if (option.x.isValue()) {
+            minX = option.x.value;
+            maxX = option.x.value;
         } else {
-            minX = option.x.min; maxX = option.x.max;
+            minX = option.x.min;
+            maxX = option.x.max;
         }
 
-        if (option.z == null) {
-            minZ = centerZ - 32.0; maxZ = centerZ + 32.0;
-        } else if (option.z.isValue()) {
-            minZ = option.z.value; maxZ = option.z.value;
+        if (option.z.isValue()) {
+            minZ = option.z.value;
+            maxZ = option.z.value;
         } else {
-            minZ = option.z.min; maxZ = option.z.max;
+            minZ = option.z.min;
+            maxZ = option.z.max;
         }
 
         double minY = resolveMinY(world);
         double maxY = world.getMaxHeight();
         if (option.y != null) {
             if (option.y.isValue()) {
-                minY = option.y.value; maxY = option.y.value;
+                minY = option.y.value;
+                maxY = option.y.value;
             } else {
-                minY = option.y.min; maxY = option.y.max;
+                minY = option.y.min;
+                maxY = option.y.max;
             }
         }
 
