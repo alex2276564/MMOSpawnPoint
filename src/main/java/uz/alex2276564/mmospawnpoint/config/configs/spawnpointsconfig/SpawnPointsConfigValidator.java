@@ -284,11 +284,23 @@ public class SpawnPointsConfigValidator {
         if (cond.permissions != null) {
             for (int i = 0; i < cond.permissions.size(); i++) {
                 String expr = cond.permissions.get(i);
+                String path = prefix + ".permissions[" + i + "]";
+
+                if (expr != null && expr.trim().equals("*")) {
+                    result.addError(
+                            path,
+                            "Using \"*\" here is not allowed. OP and players with \"*\" already bypass all permission conditions " +
+                                    "Remove this line or use a real permission expression instead."
+                    );
+                    continue;
+                }
+
                 if (PlaceholderUtils.isInvalidLogicalExpression(expr)) {
-                    result.addError(prefix + ".permissions[" + i + "]", "Invalid logical expression: " + expr);
+                    result.addError(path, "Invalid logical expression: " + expr);
                 }
             }
         }
+
         if (cond.placeholders != null) {
             for (int i = 0; i < cond.placeholders.size(); i++) {
                 String expr = cond.placeholders.get(i);
