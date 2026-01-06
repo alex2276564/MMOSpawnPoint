@@ -93,10 +93,26 @@ public class SpawnManager {
     }
 
     public void recordDeathLocation(Player player, Location location) {
-        // Keep the first death location only until it is consumed at respawn
-        deathLocations.putIfAbsent(player.getUniqueId(), location.clone());
+        UUID id = player.getUniqueId();
+        Location clone = location.clone();
+
+        boolean overwrite = plugin.getConfigManager()
+                .getMainConfig()
+                .death
+                .overwriteLastDeathLocation;
+
+        if (overwrite) {
+            // Always keep the last death location until it is consumed at respawn
+            deathLocations.put(id, clone);
+        } else {
+            // Keep the first death location only until it is consumed at respawn
+            deathLocations.putIfAbsent(id, clone);
+        }
+
         if (isDebug()) {
-            plugin.getLogger().info("Recorded death location for " + player.getName() + ": " + locationToString(location));
+            plugin.getLogger().info("Recorded death location for " + player.getName()
+                    + " (overwriteLastDeathLocation=" + overwrite + "): "
+                    + locationToString(location));
         }
     }
 

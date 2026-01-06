@@ -30,6 +30,15 @@ public class MainConfig extends OkaeriConfig {
 
     @Comment("")
     @Comment("# ================================================================")
+    @Comment("# 💀 DEATH HANDLING")
+    @Comment("# ================================================================")
+    @Comment("# Advanced options for death-related behavior")
+    @Comment("# ================================================================")
+    @Comment("")
+    public DeathSection death = new DeathSection();
+
+    @Comment("")
+    @Comment("# ================================================================")
     @Comment("# 🚪 JOIN HANDLING")
     @Comment("# ================================================================")
     @Comment("# Controls player join behavior and resource pack integration")
@@ -729,6 +738,30 @@ public class MainConfig extends OkaeriConfig {
         @Comment("🔄 Maximum attempts to find alternative target")
         @Comment("Used when primary target selection fails")
         public int maxAlternativeAttempts = 3;
+    }
+
+    // ================================================================
+    // DEATH SYSTEM
+    // ================================================================
+
+    public static class DeathSection extends OkaeriConfig {
+        @Comment("Controls how MMOSpawnPoint stores death locations when multiple")
+        @Comment("PlayerDeathEvents occur before the corresponding respawn.")
+        @Comment("")
+        @Comment("Normal servers:")
+        @Comment("  - You usually get exactly one PlayerDeathEvent → one respawn.")
+        @Comment("  - In that case this setting has no practical effect.")
+        @Comment("")
+        @Comment("Exotic setups (minigames / scripts / custom death flows):")
+        @Comment("  - Some plugins or scripts may fire multiple death-like events")
+        @Comment("    before the player actually respawns (fake deaths, arenas,")
+        @Comment("    repeated /msp simulate death, etc.).")
+        @Comment("  - In those cases you can choose whether to keep the very first")
+        @Comment("    recorded death location or always overwrite it with the last.")
+        @Comment("")
+        @Comment("false (default) = keep first death location until it is consumed")
+        @Comment("true            = always overwrite with the last location")
+        public boolean overwriteLastDeathLocation = false;
     }
 
     // ================================================================
