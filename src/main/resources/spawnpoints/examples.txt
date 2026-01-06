@@ -185,8 +185,9 @@
 #   Enable settings.debugMode=true in config.yml to see priority order and detailed logs
 #
 # - Party system:
-#   Use party:
-      respawnDisabled: true in PvP areas or other restricted zones
+#   In PvP/dungeon areas where party respawn must be disabled:
+#   party:
+#     respawnDisabled: true
 
 
 # ================================================================
@@ -338,7 +339,10 @@ spawns:
 #  - Overworld uses the strategy from settings.teleport.ySelection (mixed/highest/random).
 #  - Nether uses a solid-ground-with-2-air check within configured bounds.
 # - Fallback behavior:
-#   - If no whitelisted ground is found within settings.maxSafeLocationAttempts, the current implementation falls back (e.g., world spawn or area center). If you need “strict” behavior (no fallback), return null from the finder and handle it via waiting room timeout.
+#   - If no whitelisted ground is found within settings.maxSafeLocationAttempts
+#     and before asyncSearchTimeout is reached, the player stays in the waiting room.
+#   - There is no automatic teleport to world spawn here; you should provide
+#     an escape from the waiting room (NPC, command, portal).
 # - Tips:
 #   - Keep search areas reasonable in size.
 #   - Increase safeLocationRadius and/or maxSafeLocationAttempts if your whitelist is rare.
@@ -1487,4 +1491,5 @@ spawns:
       z: 750
       yaw: 0
       pitch: 0
-    partyRespawnDisabled: false
+    party:
+      respawnDisabled: false
