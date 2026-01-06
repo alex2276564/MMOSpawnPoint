@@ -55,13 +55,24 @@ public class MainConfigValidator {
             String raw = list.get(i);
             Material mat = Material.matchMaterial(raw);
             String path = pathBase + "[" + i + "]";
+
             if (mat == null) {
-                result.addError(path, "Unknown material: " + raw);
+                result.addError(
+                        path,
+                        "Unknown material: " + raw + ". This block type does not exist on your current Minecraft server version. " +
+                                "This often happens after upgrading/downgrading the server or copying configs between versions. " +
+                                "Please remove this entry or replace it with a valid material name for your version."
+                );
                 continue;
             }
             // Avoid Material.isLegacy(); use name heuristic instead
             if (mat.name().startsWith("LEGACY_")) {
-                result.addError(path, "Legacy material is not supported: " + raw);
+                result.addError(
+                        path,
+                        "Legacy material is not supported: " + raw + ". This name belongs to an old (LEGACY_) material " +
+                                "that was removed or renamed in modern Minecraft. Please update this entry to a non-LEGACY material name " +
+                                "appropriate for your server version."
+                );
             }
         }
     }

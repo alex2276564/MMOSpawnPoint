@@ -289,7 +289,7 @@ public class SpawnPointsConfigValidator {
                 if (expr != null && expr.trim().equals("*")) {
                     result.addError(
                             path,
-                            "Using \"*\" here is not allowed. OP and players with \"*\" already bypass all permission conditions " +
+                            "Using \"*\" here is not allowed. OP and players with \"*\" already bypass all permission conditions. " +
                                     "Remove this line or use a real permission expression instead."
                     );
                     continue;
@@ -343,6 +343,19 @@ public class SpawnPointsConfigValidator {
                         }
 
                         Validators.notBlank(result, ccp + ".value", cc.value, "Condition value cannot be empty");
+
+                        // forbid '*' as a permission expression here as well
+                        if ("permission".equalsIgnoreCase(cc.type)
+                                && cc.value != null
+                                && cc.value.trim().equals("*")) {
+                            result.addError(
+                                    ccp + ".value",
+                                    "Using \"*\" as a permission expression is not allowed here. " +
+                                            "OP and players with \"*\" already bypass all permission-based conditions. " +
+                                            "Remove this line or use a real permission expression instead."
+                            );
+                            continue;
+                        }
 
                         if (("placeholder".equalsIgnoreCase(cc.type) || "permission".equalsIgnoreCase(cc.type))
                                 && PlaceholderUtils.isInvalidLogicalExpression(cc.value)) {
@@ -403,6 +416,19 @@ public class SpawnPointsConfigValidator {
                         }
 
                         Validators.notBlank(result, ccp + ".value", cc.value, "Condition value cannot be empty");
+
+                        // forbid '*' here
+                        if ("permission".equalsIgnoreCase(cc.type)
+                                && cc.value != null
+                                && cc.value.trim().equals("*")) {
+                            result.addError(
+                                    ccp + ".value",
+                                    "Using \"*\" as a permission expression is not allowed here. " +
+                                            "OP and players with \"*\" already bypass all permission-based conditions. " +
+                                            "Remove this line or use a real permission expression instead."
+                            );
+                            continue;
+                        }
 
                         if (("placeholder".equalsIgnoreCase(cc.type) || "permission".equalsIgnoreCase(cc.type))
                                 && PlaceholderUtils.isInvalidLogicalExpression(cc.value)) {
@@ -514,6 +540,19 @@ public class SpawnPointsConfigValidator {
                 }
                 Validators.notBlank(result, wcp + ".value", wc.value, "Condition value cannot be empty");
 
+                // forbid '*' as permission expression in weightConditions
+                if ("permission".equalsIgnoreCase(wc.type)
+                        && wc.value != null
+                        && wc.value.trim().equals("*")) {
+                    result.addError(
+                            wcp + ".value",
+                            "Using \"*\" as a permission expression is not allowed here. " +
+                                    "OP and players with \"*\" already bypass all permission-based conditions. " +
+                                    "Remove this line or use a real permission expression instead."
+                    );
+                    continue;
+                }
+
                 if (("placeholder".equalsIgnoreCase(wc.type) || "permission".equalsIgnoreCase(wc.type))
                         && PlaceholderUtils.isInvalidLogicalExpression(wc.value)) {
                     result.addError(wcp + ".value", "Invalid logical expression: " + wc.value);
@@ -582,10 +621,21 @@ public class SpawnPointsConfigValidator {
                 String name = loc.groundWhitelist.get(i);
                 Material mat = Material.matchMaterial(name);
                 String path = prefix + ".groundWhitelist[" + i + "]";
+
                 if (mat == null) {
-                    result.addError(path, "Unknown material: " + name);
+                    result.addError(
+                            path,
+                            "Unknown material in groundWhitelist: " + name + ". This block type does not exist on your current " +
+                                    "Minecraft/Paper version. This often happens after upgrading/downgrading the server or copying configs " +
+                                    "between different versions. Please remove this entry or replace it with a valid material name."
+                    );
                 } else if (mat.name().startsWith("LEGACY_")) {
-                    result.addError(path, "Legacy material is not supported: " + name);
+                    result.addError(
+                            path,
+                            "Legacy material is not supported in groundWhitelist: " + name + ". This is an old (LEGACY_) material " +
+                                    "that was removed or renamed in modern Minecraft. Please replace it with a non-LEGACY material name " +
+                                    "that exists on your server version."
+                    );
                 }
             }
         }
