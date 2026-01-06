@@ -55,6 +55,11 @@ public class SafeLocationFinder {
     private static NetherMode netherMode = NetherMode.SCAN;
     private static boolean netherRespectRange = false;
 
+    // Custom (Environment.CUSTOM)
+    private static DimYMode customMode = DimYMode.MIXED;
+    private static MixedFirstGroup customFirst = MixedFirstGroup.HIGHEST;
+    private static double customShare = 0.6;
+
     private enum MixedFirstGroup {HIGHEST, RANDOM}
 
     // Stats (for snapshot)
@@ -224,6 +229,33 @@ public class SafeLocationFinder {
         }
     }
 
+    /**
+     * Configure CUSTOM-dimension Y selection strategy.
+     *
+     * @param mode       "mixed" | "highest_only" | "random_only"
+     * @param first      (for MIXED) "highest" | "random"
+     * @param firstShare (for MIXED) [0..1] share for the FIRST strategy
+     */
+    public static void configureCustomYSelection(String mode, String first, double firstShare) {
+        String m = mode == null ? "mixed" : mode.toLowerCase(Locale.ROOT);
+        customMode = switch (m) {
+            case "highest_only" -> DimYMode.HIGHEST_ONLY;
+            case "random_only" -> DimYMode.RANDOM_ONLY;
+            default -> DimYMode.MIXED;
+        };
+        String f = first == null ? "highest" : first.toLowerCase(Locale.ROOT);
+        customFirst = "random".equals(f) ? MixedFirstGroup.RANDOM : MixedFirstGroup.HIGHEST;
+        customShare = Double.isNaN(firstShare) || Double.isInfinite(firstShare)
+                ? 0.6
+                : Math.max(0.0, Math.min(1.0, firstShare));
+
+        if (debugCache) {
+            MMOSpawnPoint.getInstance().getLogger().info(
+                    "[SafeLocationFinder] Custom Y-selection: " + customMode
+                            + " first=" + customFirst + " share=" + customShare
+            );
+        }
+    }
 
     // --------------- Cache public helpers ----------------
 
@@ -286,7 +318,7 @@ public class SafeLocationFinder {
                     y = minY + ThreadLocalRandom.current().nextDouble(Math.max(1.0, (maxY - minY)));
                 }
             } else {
-                // Overworld or End: choose dimension policy
+                // Overworld / End / Custom: choose dimension policy
                 DimYMode dimMode;
                 MixedFirstGroup dimFirst;
                 double dimShare;
@@ -309,7 +341,26 @@ public class SafeLocationFinder {
                             }
                         }
                     }
+                } else if (env == World.Environment.CUSTOM) {
+                    dimMode = customMode; dimFirst = customFirst; dimShare = customShare;
+                    YSelectionOverride o = Y_OVERRIDE_TL.get();
+                    if (o != null && o.mode != null) {
+                        dimMode = switch (o.mode) {
+                            case "random_only" -> DimYMode.RANDOM_ONLY;
+                            case "mixed" -> DimYMode.MIXED;
+                            default -> DimYMode.HIGHEST_ONLY;
+                        };
+                        if (dimMode == DimYMode.MIXED) {
+                            if (o.first != null) {
+                                dimFirst = "random".equals(o.first) ? MixedFirstGroup.RANDOM : MixedFirstGroup.HIGHEST;
+                            }
+                            if (o.firstShare != null) {
+                                dimShare = Math.max(0.0, Math.min(1.0, o.firstShare));
+                            }
+                        }
+                    }
                 } else {
+                    // Overworld (NORMAL) and any other fallbacks
                     dimMode = owMode; dimFirst = owFirst; dimShare = owShare;
                     YSelectionOverride o = Y_OVERRIDE_TL.get();
                     if (o != null && o.mode != null) {
@@ -559,15 +610,27 @@ public class SafeLocationFinder {
             String first = (o != null && o.first != null) ? o.first : (endFirst == MixedFirstGroup.RANDOM ? "random" : "highest");
             double share = (o != null && o.firstShare != null) ? o.firstShare : endShare;
             return "e:" + mode + ";f=" + first + ";s=" + String.format(java.util.Locale.ROOT, "%.3f", share);
+        } else if (env == World.Environment.CUSTOM) {
+            String mode = (o != null && o.mode != null) ? o.mode : switch (customMode) {
+                case MIXED -> "mixed";
+                case HIGHEST_ONLY -> "highest_only";
+                case RANDOM_ONLY -> "random_only";
+            };
+            String first = (o != null && o.first != null) ? o.first
+                    : (customFirst == MixedFirstGroup.RANDOM ? "random" : "highest");
+            double share = (o != null && o.firstShare != null) ? o.firstShare : customShare;
+            return "cu:" + mode + ";f=" + first + ";s=" + String.format(Locale.ROOT, "%.3f", share);
         } else {
+            // Overworld / fallback
             String mode = (o != null && o.mode != null) ? o.mode : switch (owMode) {
                 case MIXED -> "mixed";
                 case HIGHEST_ONLY -> "highest_only";
                 case RANDOM_ONLY -> "random_only";
             };
-            String first = (o != null && o.first != null) ? o.first : (owFirst == MixedFirstGroup.RANDOM ? "random" : "highest");
+            String first = (o != null && o.first != null) ? o.first
+                    : (owFirst == MixedFirstGroup.RANDOM ? "random" : "highest");
             double share = (o != null && o.firstShare != null) ? o.firstShare : owShare;
-            return "ow:" + mode + ";f=" + first + ";s=" + String.format(java.util.Locale.ROOT, "%.3f", share);
+            return "ow:" + mode + ";f=" + first + ";s=" + String.format(Locale.ROOT, "%.3f", share);
         }
     }
 

@@ -379,7 +379,7 @@ public class MainConfig extends OkaeriConfig {
         @Comment("# 📏 DIMENSION-AWARE Y-LEVEL SELECTION")
         @Comment("# ----------------------------------------------------------------")
         @Comment("# Global Y-selection policy per dimension. Can be overridden per destination (spawnpoints).")
-        @Comment("# Overworld/End support: mixed | highest_only | random_only")
+        @Comment("# Overworld/End/Custom support: mixed | highest_only | random_only")
         @Comment("# Nether supports: scan | highest_only | random_only")
         @Comment("#   - scan: deterministic column scan for 'solid + 2 air' (recommended for generic Nether)")
         @Comment("#   - respectRange (Nether): if true, scan will be limited to the destination's Y-range (rects)")
@@ -398,6 +398,10 @@ public class MainConfig extends OkaeriConfig {
 
         @Comment("End policy (applies when world.environment == THE_END; can be overridden per destination)")
         public EndSection end = new EndSection();
+
+        @Comment("Custom-dimension policy (applies when world.environment == CUSTOM; can be overridden per destination)")
+        @Comment("By default behaves like overworld, but can be tuned separately for datapack/custom dimensions.")
+        public CustomSection custom = new CustomSection();
 
         public static class OverworldSection extends OkaeriConfig {
             @Comment("Y-selection mode in Overworld:")
@@ -445,6 +449,25 @@ public class MainConfig extends OkaeriConfig {
             @Comment("If true, the Nether 'scan' mode will be limited to the Y-range of the destination (if provided).")
             @Comment("This is useful for vertical dungeons or constrained regions.")
             public boolean respectRange = false;
+        }
+
+        public static class CustomSection extends OkaeriConfig {
+            @Comment("Y-selection mode in CUSTOM dimensions (world.environment == CUSTOM):")
+            @Comment("- mixed: hybrid strategy combining 'highest' and 'random'")
+            @Comment("- highest_only: always use highest block")
+            @Comment("- random_only: uniform random Y within allowed bounds")
+            @Comment("Recommendation:")
+            @Comment("- Start with mixed (like overworld), then tune per-dimension if needed.")
+            public String mode = "mixed";
+
+            @Comment("For mixed:")
+            @Comment("- highest: try 'highest' first, then 'random'")
+            @Comment("- random: try 'random' first, then 'highest'")
+            public String first = "highest";
+
+            @Comment("For mixed:")
+            @Comment("- firstShare ∈ [0..1], share of attempts allocated to the FIRST strategy")
+            public double firstShare = 0.6;
         }
     }
 

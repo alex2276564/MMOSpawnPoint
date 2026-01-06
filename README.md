@@ -455,6 +455,10 @@ Dimension-aware global policy (can be overridden per destination):
     * respectRange: true|false (for scan: whether to limit the scan to the destination Y-range)
 * End:
     * mode: mixed | highest_only | random_only (highest_only recommended)
+* Custom:
+    * mode: mixed | highest_only | random_only
+    * first: highest | random (for mixed)
+    * firstShare: 0.0..1.0
 
 Guidance:
 
@@ -463,6 +467,7 @@ Guidance:
 * Nether (generic): scan (deterministic "solid + 2 air" search) — recommended default
 * Nether (hand-made vertical content): per-destination ySelection override with random_only and an explicit Y range
 * End: highest_only or mixed(first=highest)
+* Custom dimensions (Environment.CUSTOM): start with the same settings as Overworld, then adjust per-dimension if needed (e.g., for void worlds, space dimensions, etc.).
 
 Per-destination override (spawnpoints/*.yml → destinations[].ySelection):
 

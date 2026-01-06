@@ -99,67 +99,87 @@ public class MainConfigValidator {
         }
 
         // Overworld
-        {
-            var ow = teleport.ySelection.overworld;
-            if (ow == null) {
-                result.addError("settings.teleport.ySelection.overworld", "Overworld ySelection cannot be null");
-            } else {
-                Set<String> modes = Set.of("mixed", "highest_only", "random_only");
-                String mode = ow.mode == null ? "" : ow.mode.toLowerCase();
-                if (!modes.contains(mode)) {
-                    result.addError("settings.teleport.ySelection.overworld.mode", "Invalid mode. Valid: mixed, highest_only, random_only");
+        var ow = teleport.ySelection.overworld;
+        if (ow == null) {
+            result.addError("settings.teleport.ySelection.overworld", "Overworld ySelection cannot be null");
+        } else {
+            Set<String> modes = Set.of("mixed", "highest_only", "random_only");
+            String mode = ow.mode == null ? "" : ow.mode.toLowerCase();
+            if (!modes.contains(mode)) {
+                result.addError("settings.teleport.ySelection.overworld.mode", "Invalid mode. Valid: mixed, highest_only, random_only");
+            }
+            if ("mixed".equals(mode)) {
+                Set<String> firsts = Set.of("highest", "random");
+                String first = ow.first == null ? "" : ow.first.toLowerCase();
+                if (!firsts.contains(first)) {
+                    result.addError("settings.teleport.ySelection.overworld.first", "Invalid first group. Valid: highest, random");
                 }
-                if ("mixed".equals(mode)) {
-                    Set<String> firsts = Set.of("highest", "random");
-                    String first = ow.first == null ? "" : ow.first.toLowerCase();
-                    if (!firsts.contains(first)) {
-                        result.addError("settings.teleport.ySelection.overworld.first", "Invalid first group. Valid: highest, random");
-                    }
-                    double share = ow.firstShare;
-                    if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
-                        result.addError("settings.teleport.ySelection.overworld.firstShare", "firstShare must be within [0.0 .. 1.0]");
-                    }
+                double share = ow.firstShare;
+                if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
+                    result.addError("settings.teleport.ySelection.overworld.firstShare", "firstShare must be within [0.0 .. 1.0]");
                 }
             }
         }
 
         // End
-        {
-            var en = teleport.ySelection.end;
-            if (en == null) {
-                result.addError("settings.teleport.ySelection.end", "End ySelection cannot be null");
-            } else {
-                Set<String> modes = Set.of("mixed", "highest_only", "random_only");
-                String mode = en.mode == null ? "" : en.mode.toLowerCase();
-                if (!modes.contains(mode)) {
-                    result.addError("settings.teleport.ySelection.end.mode", "Invalid mode. Valid: mixed, highest_only, random_only");
+        var en = teleport.ySelection.end;
+        if (en == null) {
+            result.addError("settings.teleport.ySelection.end", "End ySelection cannot be null");
+        } else {
+            Set<String> modes = Set.of("mixed", "highest_only", "random_only");
+            String mode = en.mode == null ? "" : en.mode.toLowerCase();
+            if (!modes.contains(mode)) {
+                result.addError("settings.teleport.ySelection.end.mode", "Invalid mode. Valid: mixed, highest_only, random_only");
+            }
+            if ("mixed".equals(mode)) {
+                Set<String> firsts = Set.of("highest", "random");
+                String first = en.first == null ? "" : en.first.toLowerCase();
+                if (!firsts.contains(first)) {
+                    result.addError("settings.teleport.ySelection.end.first", "Invalid first group. Valid: highest, random");
                 }
-                if ("mixed".equals(mode)) {
-                    Set<String> firsts = Set.of("highest", "random");
-                    String first = en.first == null ? "" : en.first.toLowerCase();
-                    if (!firsts.contains(first)) {
-                        result.addError("settings.teleport.ySelection.end.first", "Invalid first group. Valid: highest, random");
-                    }
-                    double share = en.firstShare;
-                    if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
-                        result.addError("settings.teleport.ySelection.end.firstShare", "firstShare must be within [0.0 .. 1.0]");
-                    }
+                double share = en.firstShare;
+                if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
+                    result.addError("settings.teleport.ySelection.end.firstShare", "firstShare must be within [0.0 .. 1.0]");
                 }
             }
         }
 
         // Nether
-        {
-            var ne = teleport.ySelection.nether;
-            if (ne == null) {
-                result.addError("settings.teleport.ySelection.nether", "Nether ySelection cannot be null");
-            } else {
-                Set<String> modes = Set.of("scan", "highest_only", "random_only");
-                String mode = ne.mode == null ? "" : ne.mode.toLowerCase();
-                if (!modes.contains(mode)) {
-                    result.addError("settings.teleport.ySelection.nether.mode", "Invalid mode. Valid: scan, highest_only, random_only");
+        var ne = teleport.ySelection.nether;
+        if (ne == null) {
+            result.addError("settings.teleport.ySelection.nether", "Nether ySelection cannot be null");
+        } else {
+            Set<String> modes = Set.of("scan", "highest_only", "random_only");
+            String mode = ne.mode == null ? "" : ne.mode.toLowerCase();
+            if (!modes.contains(mode)) {
+                result.addError("settings.teleport.ySelection.nether.mode", "Invalid mode. Valid: scan, highest_only, random_only");
+            }
+            // respectRange is boolean, no numeric validation needed
+        }
+
+        // Custom
+        var cu = teleport.ySelection.custom;
+        if (cu == null) {
+            result.addError("settings.teleport.ySelection.custom", "Custom ySelection cannot be null");
+        } else {
+            Set<String> modes = Set.of("mixed", "highest_only", "random_only");
+            String mode = cu.mode == null ? "" : cu.mode.toLowerCase();
+            if (!modes.contains(mode)) {
+                result.addError("settings.teleport.ySelection.custom.mode",
+                        "Invalid mode. Valid: mixed, highest_only, random_only");
+            }
+            if ("mixed".equals(mode)) {
+                Set<String> firsts = Set.of("highest", "random");
+                String first = cu.first == null ? "" : cu.first.toLowerCase();
+                if (!firsts.contains(first)) {
+                    result.addError("settings.teleport.ySelection.custom.first",
+                            "Invalid first group. Valid: highest, random");
                 }
-                // respectRange is boolean, no numeric validation needed
+                double share = cu.firstShare;
+                if (Double.isNaN(share) || Double.isInfinite(share) || share < 0.0 || share > 1.0) {
+                    result.addError("settings.teleport.ySelection.custom.firstShare",
+                            "firstShare must be within [0.0 .. 1.0]");
+                }
             }
         }
     }

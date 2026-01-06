@@ -351,6 +351,12 @@ public class MMOSpawnPointConfigManager {
                 ys.nether.mode,
                 ys.nether.respectRange
         );
+        // Custom
+        SafeLocationFinder.configureCustomYSelection(
+                ys.custom.mode,
+                ys.custom.first,
+                ys.custom.firstShare
+        );
 
         if (cfg.debugMode) {
             plugin.getLogger().info(
@@ -358,7 +364,8 @@ public class MMOSpawnPointConfigManager {
                             ", expiry=" + cacheConfig.expiryTime + "s, maxSize=" + cacheConfig.maxCacheSize +
                             ", ySelection={overworld=" + ys.overworld.mode + "/" + ys.overworld.first + "/" + ys.overworld.firstShare +
                             ", nether=" + ys.nether.mode + "/respectRange=" + ys.nether.respectRange +
-                            ", end=" + ys.end.mode + "/" + ys.end.first + "/" + ys.end.firstShare + "}"
+                            ", end=" + ys.end.mode + "/" + ys.end.first + "/" + ys.end.firstShare +
+                            ", custom=" + ys.custom.mode + "/" + ys.custom.first + "/" + ys.custom.firstShare + "}"
             );
         }
     }
