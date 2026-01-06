@@ -391,12 +391,17 @@ public class SpawnManager {
      * Run WAITING_ROOM phase once (if pending). Returns true if executed.
      */
     private boolean runWaitingRoomPhaseIfPending(Player player) {
-        PendingEntry wr = pendingWaitingRoomActions.remove(player.getUniqueId());
-        if (wr == null) return false;
-        // Safety: ensure player is still online
-        if (player.isOnline()) {
-            runPhaseForEntry(player, wr.loc, wr.global, SpawnPointsConfig.Phase.WAITING_ROOM);
+        UUID id = player.getUniqueId();
+        PendingEntry wr = pendingWaitingRoomActions.get(id);
+        if (wr == null) {
+            return false;
         }
+        if (!player.isOnline()) {
+            // Do not consume entry yet; let cleanupPlayerData or next attempt handle it.
+            return false;
+        }
+        pendingWaitingRoomActions.remove(id);
+        runPhaseForEntry(player, wr.loc, wr.global, SpawnPointsConfig.Phase.WAITING_ROOM);
         return true;
     }
 
