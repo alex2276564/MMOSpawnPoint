@@ -56,10 +56,25 @@ public class PlayerJoinListener implements Listener {
         // MSP spawn was already handled there (no post-join teleport)
         if (mainConfig.settings.teleport.useSetSpawnLocationForJoin
                 && plugin.isSpawnLocationJoinSupported()) {
+
             if (mainConfig.settings.debugMode) {
                 plugin.getLogger().info("Join spawn for " + player.getName()
                         + " is handled via PlayerSpawnLocationEvent (no post-join teleport)");
             }
+
+            // Handle all deferred join phases (BEFORE/WAITING_ROOM/AFTER) after the player has fully joined.
+            plugin.getRunner().runAtEntityLater(player, () -> {
+                if (!player.isOnline() || player.isDead()) {
+                    if (mainConfig.settings.debugMode) {
+                        plugin.getLogger().info("Skipping join phases for " + player.getName()
+                                + " because the player is no longer online or is dead.");
+                    }
+                    return;
+                }
+
+                plugin.getSpawnManager().runJoinPhasesAfterSpawn(player);
+            }, 1L);
+
             return;
         }
 
@@ -84,7 +99,7 @@ public class PlayerJoinListener implements Listener {
 
         // Send waiting message
         String waitingMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.waiting;
-            plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waiting", waitingMessage);
+        plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waiting", waitingMessage);
 
         // Move to waiting room if enabled
         if (plugin.getConfigManager().getMainConfig().join.useWaitingRoomForResourcePack) {

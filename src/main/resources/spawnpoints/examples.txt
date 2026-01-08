@@ -257,20 +257,36 @@ spawns:
                 - WAITING_ROOM
               # Note: This won't execute in this example because requireSafe=false
 
-# ================================================================
 # 📚 PHASES FLOW EXAMPLES:
 # ================================================================
-
-# Example A: requireSafe=false (immediate teleport)
-# Flow: BEFORE → teleport → AFTER
-# WAITING_ROOM phase is skipped
-
+#
+# Example A: requireSafe=false (immediate teleport, post-teleport flow)
+# Flow:
+#   BEFORE  → teleport → AFTER
+# Notes:
+#   - For join: this applies when settings.teleport.useSetSpawnLocationForJoin = false
+#     (post-join teleport handled by MSP).
+#
 # Example B: requireSafe=true (with safe location search)
-# Flow: BEFORE → move to waiting room → WAITING_ROOM → safe search → final teleport → AFTER
-# All three phases can be used
-
+# Generic conceptual flow:
+#   BEFORE  → move to waiting room → WAITING_ROOM → safe search → final teleport → AFTER
+#
+# Implementation details:
+#   - Death:
+#       * With useSetRespawnLocationForDeath = true, BEFORE is executed while the player
+#         is still at the death location, before vanilla respawn moves them.
+#   - Join:
+#       * With useSetSpawnLocationForJoin = false (post-teleport flow), BEFORE is executed
+#         before MSP teleports the player (placeholders reflect the pre-teleport location).
+#       * With useSetSpawnLocationForJoin = true (spawn-location event) and requireSafe = true,
+#         BEFORE and WAITING_ROOM are both executed while the player is already in the waiting room.
+#         This is intentional so that messages are actually visible to the player.
+#         In this mode, coordinate placeholders in BEFORE/WAITING_ROOM will point to the
+#         waiting room location, not to the original join location.
+#
 # Example C: Actions-only (no destinations)
-# Flow: AFTER only (no teleportation happens)
+# Flow:
+#   AFTER only (no teleportation happens)
 
 # ================================================================
 # 💡 PRACTICAL TIPS:
@@ -280,6 +296,11 @@ spawns:
 # • Use AFTER for: welcome messages, effects, rewards, completion sounds
 # • Most messages/commands should use AFTER (it's the default for a reason)
 # • WAITING_ROOM only makes sense when requireSafe=true
+# • If you need BEFORE to run strictly before any movement on join (with original coordinates),
+#   use settings.teleport.useSetSpawnLocationForJoin = false (post-join teleport flow).
+# • If you prefer smoother join without visible vanilla spawn (useSetSpawnLocationForJoin = true),
+#   be aware that for requireSafe=true the BEFORE and WAITING_ROOM phases will both run while the
+#   player is already in the waiting room.
 
 
 # ================================================================

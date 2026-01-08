@@ -399,7 +399,6 @@ public class MainConfig extends OkaeriConfig {
     }
 
     public static class TeleportYSelection extends OkaeriConfig {
-        @Comment("")
         @Comment("Overworld policy (applies when world.environment == NORMAL; can be overridden per destination)")
         public OverworldSection overworld = new OverworldSection();
 

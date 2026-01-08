@@ -61,20 +61,6 @@ public class PlayerSpawnLocationListener implements Listener {
 
             event.setSpawnLocation(resolved);
 
-            // AFTER-phase for non-waiting-room joins
-            plugin.getRunner().runAtEntityLater(player, () -> {
-                try {
-                    plugin.getSpawnManager().runAfterPhaseIfPending(player, "join");
-                } catch (Exception ex) {
-                    plugin.getLogger().severe(
-                            "Error running AFTER phase for join spawn of "
-                                    + player.getName() + ": " + ex.getMessage()
-                    );
-                    if (mainConfig.settings.debugMode) {
-                        ex.printStackTrace();
-                    }
-                }
-            }, 1L);
         } catch (Exception e) {
             plugin.getLogger().severe("Error in PlayerSpawnLocationListener: " + e.getMessage());
             if (plugin.getConfigManager().getMainConfig().settings.debugMode) {

@@ -27,7 +27,7 @@ import static uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder.resolveMinY;
 
 /**
  * SpawnManager (Runner + Folia-safe)
- *
+ * <p>
  * - Uses your Runner API for all scheduling/teleports
  * - Paper path: multiple attempts per tick within a time budget (main thread)
  * - Folia path: exactly one attempt per tick scheduled on the correct region thread via runAtLocation
@@ -43,7 +43,9 @@ public class SpawnManager {
     private final Map<UUID, Location> deathLocations = new ConcurrentHashMap<>();
 
     // Shared pending entry state for AFTER and WAITING_ROOM phases
-    private record PendingEntry(SpawnPointsConfig.Destination loc, SpawnPointsConfig.ActionsConfig global) {}
+    private record PendingEntry(SpawnPointsConfig.Destination loc, SpawnPointsConfig.ActionsConfig global) {
+    }
+
     private final Map<UUID, PendingEntry> pendingAfterActions = new ConcurrentHashMap<>();
     private final Map<UUID, PendingEntry> pendingWaitingRoomActions = new ConcurrentHashMap<>();
 
@@ -70,7 +72,8 @@ public class SpawnManager {
         for (SafeSearchJob job : activeSafeSearchJobs.values()) {
             try {
                 job.cancel();
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         activeSafeSearchJobs.clear();
         pendingWaitingRoomActions.clear();
@@ -345,10 +348,16 @@ public class SpawnManager {
                 plugin.getLogger().info("processEntry: using waiting room for eventType=" + eventType);
             }
 
-            // BEFORE strictly before any teleport
-            runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
+            // For join + setSpawnLocation flows, BEFORE messages sent inside PlayerSpawnLocationEvent
+            // are often not visible. In that case we defer BEFORE until the player is actually online.
+            final boolean deferBefore = shouldDeferBeforePhaseForJoin(eventType);
 
-            // Defer WAITING_ROOM phase until the player is actually in the waiting room
+            // Normal case: run BEFORE immediately
+            if (!deferBefore) {
+                runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
+            }
+
+            // Defer WAITING_ROOM (and possibly BEFORE) until the player is actually in the waiting room
             pendingWaitingRoomActions.put(player.getUniqueId(), new PendingEntry(selected, globalActions));
 
             // Start async safe search (now with hasMultipleDestinations flag)
@@ -362,28 +371,44 @@ public class SpawnManager {
                     eventType
             );
 
-            // For spawn-location based flows (death/join), schedule WAITING_ROOM phase a bit later,
+            // For spawn-location based flows (death/join), schedule phases a bit later,
             // and only consume pendingWaitingRoomActions when the player is actually online.
             if (shouldScheduleWaitingRoomPhase(eventType)) {
                 plugin.getRunner().runGlobalLater(() -> {
-                    if (player.isOnline()) {
-                        runWaitingRoomPhaseIfPending(player);
+                    if (!player.isOnline()) {
+                        return;
                     }
-                }, 2L);
+
+                    // For deferred join flows: run BEFORE now (player is finally online)
+                    if (deferBefore) {
+                        runBeforePhaseIfPending(player);
+                    }
+
+                    // Then run WAITING_ROOM (this will consume the PendingEntry)
+                    runWaitingRoomPhaseIfPending(player);
+                }, 1L);
             }
 
             // Waiting room location (PlayerRespawnEvent / PlayerSpawnLocationEvent will use this)
             return getBestWaitingRoom(selected.waitingRoom, entryWaitingRoom);
         }
 
-        // Non-safe destination → immediate final
-        runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
+        // === NON-SAFE DESTINATION (requireSafe=false) ===
+
+        // For join + setSpawnLocation flows, BEFORE inside PlayerSpawnLocationEvent is often invisible.
+        // In that case we defer BEFORE until after the player actually appears in the world.
+        boolean deferBeforeForJoin = shouldDeferBeforePhaseForJoin(eventType)
+                && "join".equalsIgnoreCase(eventType);
+
+        if (!deferBeforeForJoin) {
+            // Normal case: BEFORE runs immediately
+            runPhaseForEntry(player, selected, globalActions, SpawnPointsConfig.Phase.BEFORE);
+        }
 
         Location finalLoc = resolveNonSafeLocation(selected);
         if (finalLoc == null) return null;
 
-        // AFTER runs after final teleport (teleportPlayerWithDelay) or after vanilla respawn/spawn
-        // when useSetRespawnLocationForDeath/useSetSpawnLocationForJoin are enabled.
+        // AFTER (and possibly deferred BEFORE) runs later
         pendingAfterActions.put(player.getUniqueId(), new PendingEntry(selected, globalActions));
         return finalLoc;
     }
@@ -394,13 +419,43 @@ public class SpawnManager {
         if ("death".equalsIgnoreCase(eventType)) {
             return mainCfg.settings.teleport.useSetRespawnLocationForDeath;
         }
-        if ("join".equalsIgnoreCase(eventType)) {
-            // Only when we actually use PlayerSpawnLocationEvent for join,
-            // and resource-pack waiting is not enabled.
-            return mainCfg.settings.teleport.useSetSpawnLocationForJoin
-                    && !mainCfg.join.waitForResourcePack;
-        }
+
+        // For join we now handle waiting-room phases from PlayerJoinEvent,
+        // not from PlayerSpawnLocationEvent.
         return false;
+    }
+
+    /**
+     * For join + useSetSpawnLocationForJoin + requireSafe flows, BEFORE messages sent
+     * inside PlayerSpawnLocationEvent are often not visible to the player.
+     * In that case we defer BEFORE until the player is actually online.
+     */
+    private boolean shouldDeferBeforePhaseForJoin(String eventType) {
+        if (!"join".equalsIgnoreCase(eventType)) {
+            return false;
+        }
+        var mainCfg = plugin.getConfigManager().getMainConfig();
+        // We only defer when join spawn is handled via PlayerSpawnLocationEvent
+        return plugin.isSpawnLocationJoinSupported()
+                && mainCfg.settings.teleport.useSetSpawnLocationForJoin
+                && !mainCfg.join.waitForResourcePack;
+    }
+
+    /**
+     * Run BEFORE phase once (if pending) for waiting-room based flows.
+     * Does NOT consume the pending waiting-room entry (WAITING_ROOM will do that).
+     */
+    private boolean runBeforePhaseIfPending(Player player) {
+        UUID id = player.getUniqueId();
+        PendingEntry pe = pendingWaitingRoomActions.get(id);
+        if (pe == null) {
+            return false;
+        }
+        if (!player.isOnline()) {
+            return false;
+        }
+        runPhaseForEntry(player, pe.loc, pe.global, SpawnPointsConfig.Phase.BEFORE);
+        return true;
     }
 
     /**
@@ -520,7 +575,10 @@ public class SpawnManager {
 
         activeSafeSearchJobs.compute(pid, (id, old) -> {
             if (old != null) {
-                try { old.cancel(); } catch (Exception ignored) {}
+                try {
+                    old.cancel();
+                } catch (Exception ignored) {
+                }
             }
             return newJob;
         });
@@ -530,7 +588,10 @@ public class SpawnManager {
 
     private void cancelSafeSearchJob(UUID playerId) {
         activeSafeSearchJobs.computeIfPresent(playerId, (id, old) -> {
-            try { old.cancel(); } catch (Exception ignored) {}
+            try {
+                old.cancel();
+            } catch (Exception ignored) {
+            }
             return null;
         });
     }
@@ -539,9 +600,9 @@ public class SpawnManager {
      * One async search job per player while they are in the waiting room.
      * <p>
      * Paper:
-     *  - Multiple attempts per tick on the main thread within timeBudgetNs
+     * - Multiple attempts per tick on the main thread within timeBudgetNs
      * Folia:
-     *  - Exactly one attempt per tick; we schedule that attempt on the region owning the candidate location (runAtLocation)
+     * - Exactly one attempt per tick; we schedule that attempt on the region owning the candidate location (runAtLocation)
      */
     private final class SafeSearchJob {
 
@@ -689,45 +750,48 @@ public class SpawnManager {
                     return;
                 }
 
-            if (plugin.getRunner().isFolia()) {
-                // Folia: do one attempt per tick on the proper region thread
-                if (attemptInProgress) return;
-                attemptInProgress = true;
-                attemptCount++;
-
-                // Choose candidate location (no world access on global thread)
-                final Location candidateRegionLoc = chooseCandidateRegionLocation();
-
-                plugin.getRunner().runAtLocation(candidateRegionLoc, () -> {
-                    try {
-                        Location found = singleAttemptInRegion(candidateRegionLoc);
-                        if (found != null) {
-                            plugin.getRunner().runGlobal(() -> finish(found, true));
-                        }
-                    } finally {
-                        attemptInProgress = false;
-                    }
-                });
-
-            } else {
-                // Paper: burst multiple attempts within the time budget on main thread
-                long endBy = System.nanoTime() + timeBudgetNs;
-                int attemptsThisTick = 0;
-
-                while (attemptsThisTick < attemptsPerTick && System.nanoTime() < endBy) {
-                    attemptsThisTick++;
+                if (plugin.getRunner().isFolia()) {
+                    // Folia: do one attempt per tick on the proper region thread
+                    if (attemptInProgress) return;
+                    attemptInProgress = true;
                     attemptCount++;
 
-                    Location found = singleAttemptLocal();
-                    if (found != null) {
-                        finish(found, true);
-                        return;
+                    // Choose candidate location (no world access on global thread)
+                    final Location candidateRegionLoc = chooseCandidateRegionLocation();
+
+                    plugin.getRunner().runAtLocation(candidateRegionLoc, () -> {
+                        try {
+                            Location found = singleAttemptInRegion(candidateRegionLoc);
+                            if (found != null) {
+                                plugin.getRunner().runGlobal(() -> finish(found, true));
+                            }
+                        } finally {
+                            attemptInProgress = false;
+                        }
+                    });
+
+                } else {
+                    // Paper: burst multiple attempts within the time budget on main thread
+                    long endBy = System.nanoTime() + timeBudgetNs;
+                    int attemptsThisTick = 0;
+
+                    while (attemptsThisTick < attemptsPerTick && System.nanoTime() < endBy) {
+                        attemptsThisTick++;
+                        attemptCount++;
+
+                        Location found = singleAttemptLocal();
+                        if (found != null) {
+                            finish(found, true);
+                            return;
+                        }
                     }
                 }
-            }
             } catch (Throwable t) {
                 plugin.getLogger().severe("[SafeSearchJob] tick fatal: " + t.getMessage());
-                try { finish(null, false); } catch (Exception ignored) {}
+                try {
+                    finish(null, false);
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -780,7 +844,8 @@ public class SpawnManager {
 
                 // Ensure chunk is loaded
                 if (!world.isChunkLoaded(base.getBlockX() >> 4, base.getBlockZ() >> 4)) {
-                    PaperLib.getChunkAtAsync(base, true).thenRun(() -> {});
+                    PaperLib.getChunkAtAsync(base, true).thenRun(() -> {
+                    });
                     return null;
                 }
 
@@ -835,7 +900,8 @@ public class SpawnManager {
                     double px = (cx << 4) + 8.0;
                     double pz = (cz << 4) + 8.0;
                     Location probe = new Location(world, px, regionLoc.getY(), pz);
-                    PaperLib.getChunkAtAsync(probe, true).thenRun(() -> {});
+                    PaperLib.getChunkAtAsync(probe, true).thenRun(() -> {
+                    });
                     return null;
                 }
 
@@ -868,7 +934,8 @@ public class SpawnManager {
                     double px = (cx << 4) + 8.0;
                     double pz = (cz << 4) + 8.0;
                     Location probe = new Location(world, px, regionLoc.getY(), pz);
-                    PaperLib.getChunkAtAsync(probe, true).thenRun(() -> {});
+                    PaperLib.getChunkAtAsync(probe, true).thenRun(() -> {
+                    });
                     return null;
                 }
 
@@ -982,7 +1049,8 @@ public class SpawnManager {
                 double px = (cx << 4) + 8.0;
                 double pz = (cz << 4) + 8.0;
                 Location loadProbe = new Location(world, px, rect.minY(), pz);
-                PaperLib.getChunkAtAsync(loadProbe, true).thenRun(() -> {});
+                PaperLib.getChunkAtAsync(loadProbe, true).thenRun(() -> {
+                });
                 return null;
             }
 
@@ -1059,7 +1127,10 @@ public class SpawnManager {
          * Finalize job: cancel, remove from registry, teleport with min-stay logic, run AFTER actions.
          */
         private void finish(Location found, boolean success) {
-            try { cancel(); } catch (Exception ignored) {}
+            try {
+                cancel();
+            } catch (Exception ignored) {
+            }
             activeSafeSearchJobs.remove(playerId);
 
             if (!success || found == null) return;
@@ -1071,9 +1142,15 @@ public class SpawnManager {
             int requiredTicks = (int) Math.ceil(requiredMs / 50.0);
             int finalDelay = Math.max(1, Math.max(delayConfig, requiredTicks));
 
-            Runnable afterTeleport = () ->
-                    runPhaseForEntry(player, option, globalActions, SpawnPointsConfig.Phase.AFTER);
+            Runnable afterTeleport = () -> {
+                // AFTER phase for safe destination
+                runPhaseForEntry(player, option, globalActions, SpawnPointsConfig.Phase.AFTER);
 
+                // Generic join message for all requireSafe join flows
+                if ("join".equalsIgnoreCase(eventType)) {
+                    sendTeleportMessage(player, "join");
+                }
+            };
             teleportCore(player, found, eventType, finalDelay, afterTeleport);
         }
 
@@ -1121,8 +1198,11 @@ public class SpawnManager {
         loc.setPitch(pitch);
     }
 
-    private record Rect(double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {}
-    private record RegionSpec(double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {}
+    private record Rect(double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {
+    }
+
+    private record RegionSpec(double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {
+    }
 
     private List<Rect> toRects(List<SpawnPointsConfig.RectSpec> list, World world) {
         if (list == null || list.isEmpty()) return Collections.emptyList();
@@ -1258,7 +1338,8 @@ public class SpawnManager {
                 for (Rect ex : exclude) {
                     if (isInsideRect(loc, ex)) {
                         insideEx = true;
-                        break; }
+                        break;
+                    }
                 }
                 if (insideEx) continue;
             }
@@ -1273,8 +1354,8 @@ public class SpawnManager {
      * Runtime validation is intentional:
      * - The list is optional in config (may be null/empty).
      * - Unknown or legacy materials are silently skipped here, because:
-     *   • config validators already report them on reload/startup;
-     *   • at runtime we just want a safe, minimal set for fast lookups.
+     * • config validators already report them on reload/startup;
+     * • at runtime we just want a safe, minimal set for fast lookups.
      */
     private Set<Material> toMaterialSet(List<String> names) {
         if (names == null || names.isEmpty()) return Collections.emptySet();
@@ -1400,7 +1481,7 @@ public class SpawnManager {
                                 + " phase=" + phase + " command=" + cmd.command);
                     }
                     executeCommand(player, cmd.command);
-                }  else if (isDebug()) {
+                } else if (isDebug()) {
                     plugin.getLogger().info("runPhaseForActions: skipped command due to chance for " + player.getName()
                             + " phase=" + phase + " command=" + cmd.command);
                 }
@@ -1512,7 +1593,7 @@ public class SpawnManager {
         }
 
         String message = plugin.getConfigManager().getMessagesConfig().join.teleportedOnJoin;
-            plugin.getMessageManager().sendMessageKeyed(player, "join.teleportedOnJoin", message);
+        plugin.getMessageManager().sendMessageKeyed(player, "join.teleportedOnJoin", message);
     }
 
     private String processPlaceholders(Player player, String text) {
@@ -1541,7 +1622,7 @@ public class SpawnManager {
      * <p>
      * Runtime world==null fallback is intentional:
      * - If the configured waiting room world does not exist, we fall back to the
-     *   default world spawn instead of throwing.
+     * default world spawn instead of throwing.
      */
     private Location getBestWaitingRoom(SpawnPointsConfig.WaitingRoomConfig local, SpawnPointsConfig.WaitingRoomConfig entry) {
         SpawnPointsConfig.WaitingRoomConfig target = (local != null) ? local : entry;
@@ -1562,17 +1643,29 @@ public class SpawnManager {
      */
     public void runAfterPhaseIfPending(Player player, String eventType) {
         try {
-            PendingEntry pending = pendingAfterActions.remove(player.getUniqueId());
+            UUID id = player.getUniqueId();
+            PendingEntry pending = pendingAfterActions.remove(id);
             if (pending == null) {
-                if (isDebug())
+                if (isDebug()) {
                     plugin.getLogger().info("runAfterPhaseIfPending: no pending entry for " + player.getName());
+                }
                 return; // nothing to do
             }
 
+            boolean deferBeforeForJoin = shouldDeferBeforePhaseForJoin(eventType)
+                    && "join".equalsIgnoreCase(eventType);
+
             if (isDebug()) {
-                plugin.getLogger().info("runAfterPhaseIfPending: running AFTER for "
-                        + player.getName() + " event=" + eventType
+                plugin.getLogger().info("runAfterPhaseIfPending: running "
+                        + (deferBeforeForJoin ? "BEFORE+AFTER" : "AFTER")
+                        + " for " + player.getName()
+                        + " event=" + eventType
                         + " destWorld=" + pending.loc.world);
+            }
+
+            // If BEFORE was deferred for join+spawn-location, run it now (after join spawn, but before AFTER)
+            if (deferBeforeForJoin) {
+                runPhaseForEntry(player, pending.loc, pending.global, SpawnPointsConfig.Phase.BEFORE);
             }
 
             // Execute AFTER for the resolved entry
@@ -1585,6 +1678,35 @@ public class SpawnManager {
         } catch (Exception e) {
             if (isDebug()) {
                 plugin.getLogger().warning("Error while running AFTER phase for " + player.getName() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Runs all join-related phases after the player has fully joined:
+     * - For requireSafe=true + spawn-location join:
+     * BEFORE + WAITING_ROOM are deferred and stored in pendingWaitingRoomActions;
+     * AFTER is handled later by SafeSearchJob.finish().
+     * - For requireSafe=false + spawn-location join:
+     * BEFORE + AFTER are deferred in pendingAfterActions and handled here.
+     */
+    public void runJoinPhasesAfterSpawn(Player player) {
+        try {
+            // 1) Waiting-room flows (requireSafe=true + spawn-location join):
+            //    BEFORE and WAITING_ROOM were deferred into pendingWaitingRoomActions.
+            //    runBeforePhaseIfPending does NOT consume the entry; WAITING_ROOM does.
+            runBeforePhaseIfPending(player);
+            runWaitingRoomPhaseIfPending(player);
+
+            // 2) Non-waiting-room spawn-location join (requireSafe=false):
+            //    BEFORE + AFTER are deferred into pendingAfterActions.
+            //    runAfterPhaseIfPending will handle both (BEFORE+AFTER) for join
+            //    and also send join.teleportedOnJoin.
+            runAfterPhaseIfPending(player, "join");
+        } catch (Exception e) {
+            if (isDebug()) {
+                plugin.getLogger().warning("Error while running join phases for " + player.getName() + ": " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -1627,8 +1749,7 @@ public class SpawnManager {
         if (type == null || value == null) return false;
 
         return switch (type.toLowerCase(Locale.ROOT)) {
-            case "permission" ->
-                    PlaceholderUtils.evaluatePermissionExpression(player, value, bypassPermissions);
+            case "permission" -> PlaceholderUtils.evaluatePermissionExpression(player, value, bypassPermissions);
             case "placeholder" ->
                     plugin.isPlaceholderAPIEnabled() && PlaceholderUtils.checkPlaceholderCondition(player, value);
             default -> false;
