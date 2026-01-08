@@ -1,0 +1,184 @@
+// ================================================================
+// 🔄 Renovate Configuration
+// ================================================================
+// This config is for:
+// - Gradle dependencies
+// - Gradle Wrapper
+// - GitHub Actions
+//
+// Behavior:
+// - Runs weekly on Monday before 06:00 UTC
+// - Auto-merges patch, minor and security updates (after CI passes)
+// - Major updates always require manual review
+// - WorldGuard (Bukkit) only updates on major
+// ================================================================
+
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // ================================================================
+  // 🎯 CORE CONFIGURATION
+  // ================================================================
+  // Base preset with recommended defaults
+  // ================================================================
+
+  "extends": [
+    "config:recommended"
+  ],
+
+  // ================================================================
+  // ⏰ SCHEDULE & TIMING
+  // ================================================================
+  // Control when Renovate checks for updates
+  // ================================================================
+
+  // Check for updates every Monday before 6 AM UTC
+  "schedule": [
+    "before 6am on monday"
+  ],
+
+  // Timezone for schedule (UTC recommended for consistency)
+  "timezone": "UTC",
+
+  // ================================================================
+  // 🎛️ RATE LIMITING
+  // ================================================================
+  // Prevent PR spam and control update flow
+  // ================================================================
+
+  // Maximum concurrent PRs (10 = balanced, lower if you prefer less noise)
+  "prConcurrentLimit": 10,
+
+  // Hourly PR limit (0 = unlimited within concurrent limit)
+  "prHourlyLimit": 0,
+
+  // ================================================================
+  // 🔧 PACKAGE MANAGERS
+  // ================================================================
+  // Enable only what you need for better performance
+  // ================================================================
+
+  "enabledManagers": [
+    "gradle",          // Gradle dependencies (build.gradle, build.gradle.kts)
+    "gradle-wrapper",  // Gradle Wrapper (gradlew, gradle-wrapper.properties)
+    "github-actions"   // GitHub Actions (.github/workflows/*.yml)
+  ],
+
+  // ================================================================
+  // 🤖 AUTO-MERGE GLOBAL DEFAULTS
+  // ================================================================
+  // Global defaults (overridden per update type below)
+  // ================================================================
+
+  // Don't auto-merge by default (use packageRules for selective auto-merge)
+  "automerge": false,
+
+  // Use GitHub's native auto-merge feature (waits for CI checks!)
+  // ⚠️ Requires "Allow auto-merge" enabled in repo settings
+  // ⚠️ Requires Branch Protection with required status checks
+  "platformAutomerge": true,
+
+  // Don't merge if tests fail (safety first!)
+  "ignoreTests": false,
+
+  // ================================================================
+  // 📦 DEPENDENCY UPDATE RULES
+  // ================================================================
+  // Fine-grained control per dependency type and version bump
+  // ================================================================
+
+  "packageRules": [
+
+    // ----------------------------------------------------------------
+    // 🛡️ SPECIAL DEPENDENCIES (Custom Rules)
+    // ----------------------------------------------------------------
+
+    {
+      "description": "🛡️ WorldGuard: ignore patch and minor (only major updates)",
+      "matchManagers": [
+        "gradle"
+      ],
+      "matchPackageNames": [
+        "com.sk89q.worldguard:worldguard-bukkit"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ],
+      // Disable patch/minor updates for WorldGuard (you want to know about breaking changes)
+      "enabled": false
+    },
+
+    // ----------------------------------------------------------------
+    // 🔄 UPDATE CHANNELS (Patch/Minor/Major)
+    // ----------------------------------------------------------------
+
+    {
+      "description": "🟢 Patch updates: auto-merge (bug fixes, safe updates)",
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      // Auto-merge patch updates (e.g., 1.2.3 → 1.2.4)
+      "automerge": true
+    },
+
+    {
+      "description": "🟡 Minor updates: auto-merge (new features, backwards-compatible)",
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      // Auto-merge minor updates (e.g., 1.2.0 → 1.3.0)
+      "automerge": true
+    },
+
+    {
+      "description": "🔴 Major updates: manual review (breaking changes possible)",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      // Don't auto-merge major updates (e.g., 1.0.0 → 2.0.0)
+      // You want to review breaking changes manually
+      "automerge": false
+    },
+
+    // ----------------------------------------------------------------
+    // 💬 COMMIT MESSAGE FORMATTING
+    // ----------------------------------------------------------------
+
+    {
+      "description": "💬 Gradle: custom commit prefix",
+      "matchManagers": [
+        "gradle",
+        "gradle-wrapper"
+      ],
+      // Use [Gradle] prefix instead of chore(deps):
+      "commitMessagePrefix": "[Gradle] ",
+      // Disable semantic commits (conventional commits format)
+      "semanticCommits": "disabled"
+    },
+
+    {
+      "description": "💬 GitHub Actions: custom commit prefix",
+      "matchManagers": [
+        "github-actions"
+      ],
+      // Use [GitHub Actions] prefix instead of chore(deps):
+      "commitMessagePrefix": "[GitHub Actions] ",
+      // Disable semantic commits (conventional commits format)
+      "semanticCommits": "disabled"
+    }
+  ],
+
+  // ================================================================
+  // 🔐 SECURITY UPDATES
+  // ================================================================
+  // Auto-merge security vulnerability fixes
+  // ================================================================
+
+  "vulnerabilityAlerts": {
+    // Enable security vulnerability detection
+    "enabled": true,
+    // Auto-merge security updates (safety > stability)
+    "automerge": true
+  }
+}
