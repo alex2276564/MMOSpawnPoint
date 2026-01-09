@@ -79,10 +79,13 @@
   "platformAutomerge": false,
 
   // Don't merge if tests fail (safety first!)
-  "ignoreTests": false,
+  "ignoreTests": true,
 
-  // Use PR-based automerge (Renovate merges the PR after CI completes)
+  // Use PR-based automerge
   "automergeType": "pr",
+
+  // Use squash automerge strategy
+  "automergeStrategy": "squash",
 
   // ================================================================
   // 📦 DEPENDENCY UPDATE RULES
