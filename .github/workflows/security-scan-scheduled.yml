@@ -98,5 +98,6 @@ jobs:
     with:
       fail-on-vuln: true
       scan-args: |-
+        --config=osv-scanner.toml
         --recursive
         ./

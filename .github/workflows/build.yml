@@ -173,6 +173,7 @@ jobs:
     with:
       fail-on-vuln: true
       scan-args: |-
+        --config=osv-scanner.toml
         --recursive
         ./
 
@@ -189,7 +190,7 @@ jobs:
     with:
       fail-on-vuln: true
       scan-args: |-
-        --allow-no-lockfiles
+        --config=osv-scanner.toml
         --recursive
         ./
 
