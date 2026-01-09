@@ -60,7 +60,6 @@ jobs:
         uses: DavidAnson/markdownlint-cli2-action@main
         with:
           globs: '**/*.md'
-          fix: true # automatically fixes simple problems
           config: '.markdownlint.jsonc'
 
   security-scan:
