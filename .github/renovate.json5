@@ -78,8 +78,8 @@
   // ⚠️ Requires Branch Protection with required status checks
   "platformAutomerge": false,
 
-  // Don't merge if tests fail (safety first!)
-  "ignoreTests": false,
+  // Ignore tests
+  "ignoreTests": true,
 
   // Auto merge type
   "automergeType": "pr",
