@@ -98,6 +98,5 @@ jobs:
     with:
       fail-on-vuln: true
       scan-args: |-
-        --allow-no-lockfiles
         --recursive
         ./
