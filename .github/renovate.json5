@@ -73,18 +73,18 @@
   // Don't auto-merge by default (use packageRules for selective auto-merge)
   "automerge": false,
 
-  // Use GitHub's native auto-merge feature (waits for CI checks!)
+  // GitHub's native auto-merge feature (waits for CI checks!)
   // ⚠️ Requires "Allow auto-merge" enabled in repo settings
   // ⚠️ Requires Branch Protection with required status checks
   "platformAutomerge": false,
 
   // Don't merge if tests fail (safety first!)
-  "ignoreTests": true,
+  "ignoreTests": false,
 
-  // Use PR-based automerge
+  // Auto merge type
   "automergeType": "pr",
 
-  // Use squash automerge strategy
+  // Auto merge strategy
   "automergeStrategy": "squash",
 
   // ================================================================
