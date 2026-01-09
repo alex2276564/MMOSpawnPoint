@@ -34,7 +34,7 @@
 
   // Check for updates every Monday before 6 AM UTC
   "schedule": [
-    "before 6am on monday"
+    "at any time"
   ],
 
   // Timezone for schedule (UTC recommended for consistency)
