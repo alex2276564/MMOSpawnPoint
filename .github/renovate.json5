@@ -76,10 +76,13 @@
   // Use GitHub's native auto-merge feature (waits for CI checks!)
   // ⚠️ Requires "Allow auto-merge" enabled in repo settings
   // ⚠️ Requires Branch Protection with required status checks
-  "platformAutomerge": true,
+  "platformAutomerge": false,
 
   // Don't merge if tests fail (safety first!)
   "ignoreTests": false,
+
+  // Use PR-based automerge (Renovate merges the PR after CI completes)
+  "automergeType": "pr",
 
   // ================================================================
   // 📦 DEPENDENCY UPDATE RULES
