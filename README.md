@@ -37,8 +37,6 @@
 * [WorldGuard](https://dev.bukkit.org/projects/worldguard) - For region-based spawn points
 * [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) - For condition-based spawn points
 
-4. **Restart:** Restart your server to load the plugin.
-
 ## 📜 Commands & Permissions
 
 MMOSpawnPoint supports both the full command `/mmospawnpoint` and the shorter alias `/msp` for all commands (requires `mmospawnpoint.command` permission).
@@ -977,15 +975,15 @@ If you encounter issues with the plugin:
 
 ## 🛠️ Compatibility
 
-- **Minecraft Versions:** 1.16.5 to the latest release
-- **Server Software:**
-  - ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
-  - ⚠️ [Folia](https://papermc.io/software/folia) - **Partially Supported** with optimized region-aware scheduling
-  - ❌ Spigot - Not supported
-- **Java Version:** Java 17 or higher
-- **Optional Dependencies:**
-  - WorldGuard 7.0.5+ (for region-based spawns)
-  - PlaceholderAPI latest version (for condition-based spawns)
+* **Minecraft Versions:** 1.16.5 to the latest release
+* **Server Software:**
+  * ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
+  * ⚠️ [Folia](https://papermc.io/software/folia) - **Partially Supported** with optimized region-aware scheduling
+  * ❌ Spigot - Not supported
+* **Java Version:** Java 17 or higher
+* **Optional Dependencies:**
+  * WorldGuard 7.0.5+ (for region-based spawns)
+  * PlaceholderAPI latest version (for condition-based spawns)
 
 ## 📦 Other Plugins
 
