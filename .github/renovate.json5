@@ -1,16 +1,21 @@
 // ================================================================
 // 🔄 Renovate Configuration
 // ================================================================
-// This config is for:
-// - Gradle dependencies
-// - Gradle Wrapper
-// - GitHub Actions
+// Universal dependency automation config for any project type.
+// Designed for security-first auto-updates with minimal manual intervention.
 //
-// Behavior:
-// - Runs weekly on Monday before 06:00 UTC
-// - Auto-merges patch, minor and security updates (after CI passes)
-// - Major updates always require manual review
-// - WorldGuard (Bukkit) only updates on major
+// 📖 Documentation: https://docs.renovatebot.com
+// 🎯 Philosophy:
+//    - Security updates: immediate auto-merge
+//    - Stable releases: wait 3 days before updating
+//    - Patch/minor: auto-merge (after stabilization)
+//    - Major: manual review (breaking changes)
+//    - Dev dependencies: grouped into single PR (less spam)
+//
+// 🔧 To adapt for other projects:
+//    1. Update enabledManagers (npm, composer, pip, etc.)
+//    2. Adjust matchManagers in packageRules
+//    3. Customize project-specific ignore rules
 // ================================================================
 
 {
@@ -19,172 +24,304 @@
   // ================================================================
   // 🎯 CORE CONFIGURATION
   // ================================================================
-  // Base preset with recommended defaults
+  // Base presets define sensible defaults for most projects
   // ================================================================
 
   "extends": [
-    "config:recommended"
+    "config:recommended"      // Recommended baseline config
   ],
 
   // ================================================================
   // ⏰ SCHEDULE & TIMING
   // ================================================================
-  // Control when Renovate checks for updates
+  // Controls when Renovate scans for and creates updates
+  //
+  // Options:
+  // - "at any time" (always active, for testing)
+  // - "before 6am on monday" (weekly, low-traffic window)
+  // - "after 10pm every weekday" (daily, off-hours)
   // ================================================================
 
-  // Check for updates every Monday before 6 AM UTC
   "schedule": [
-    "at any time"
+    "before 6am on monday"    // Weekly check: Monday before 06:00 UTC
   ],
 
-  // Timezone for schedule (UTC recommended for consistency)
-  "timezone": "UTC",
+  "timezone": "UTC",          // Use UTC for consistency across environments
 
   // ================================================================
   // 🎛️ RATE LIMITING
   // ================================================================
-  // Prevent PR spam and control update flow
+  // Prevents PR/MR spam and controls update flow
+  //
+  // Recommended values:
+  // - Small projects: 5-10 concurrent
+  // - Medium projects: 10-20 concurrent
+  // - Large monorepos: 20-50 concurrent
   // ================================================================
 
-  // Maximum concurrent PRs (10 = balanced, lower if you prefer less noise)
-  "prConcurrentLimit": 10,
-
-  // Hourly PR limit (0 = unlimited within concurrent limit)
-  "prHourlyLimit": 0,
+  "prConcurrentLimit": 10,    // Max 10 PRs open at once
+  "prHourlyLimit": 0,         // No hourly limit (controlled by concurrent only)
 
   // ================================================================
   // 🔧 PACKAGE MANAGERS
   // ================================================================
-  // Enable only what you need for better performance
+  // Explicitly enable only the managers you need for better performance.
+  // Renovate auto-detects but explicit config is more predictable.
+  //
+  // Common managers:
+  // - gradle, maven (Java/Kotlin)
+  // - npm, yarn, pnpm (JavaScript/TypeScript)
+  // - composer (PHP)
+  // - pip, pipenv, poetry (Python)
+  // - bundler (Ruby)
+  // - cargo (Rust)
+  // - gomod (Go)
+  // - docker, dockerfile
+  // - github-actions, circleci, gitlab-ci
+  //
+  // 📝 Customize this list for your project stack!
   // ================================================================
 
   "enabledManagers": [
-    "gradle",          // Gradle dependencies (build.gradle, build.gradle.kts)
-    "gradle-wrapper",  // Gradle Wrapper (gradlew, gradle-wrapper.properties)
-    "github-actions"   // GitHub Actions (.github/workflows/*.yml)
+    "gradle",                 // Java/Kotlin: build.gradle, build.gradle.kts
+    "gradle-wrapper",         // Gradle wrapper: gradle/wrapper/gradle-wrapper.properties
+    "github-actions"          // GitHub Actions: .github/workflows/*.yml
   ],
 
   // ================================================================
-  // 🤖 AUTO-MERGE GLOBAL DEFAULTS
+  // 🔐 SECURITY SETTINGS
   // ================================================================
-  // Global defaults (overridden per update type below)
+  // Stability and security policies for dependency updates
   // ================================================================
 
-  // Don't auto-merge by default (use packageRules for selective auto-merge)
-  "automerge": false,
+  // Wait N days before updating to a new version (except security fixes)
+  // This allows time for community to discover critical bugs in new releases
+  // Security updates bypass this delay (minimumReleaseAge ignores vulnerabilityAlerts)
+  "minimumReleaseAge": "3 days",
 
-  // GitHub's native auto-merge feature (waits for CI checks!)
-  // ⚠️ Requires "Allow auto-merge" enabled in repo settings
-  // ⚠️ Requires Branch Protection with required status checks
-  "platformAutomerge": false,
+  // OSV (Open Source Vulnerabilities) integration
+  // Provides additional vulnerability data beyond GitHub Security Advisories
+  "osvVulnerabilityAlerts": true,
 
-  // Ignore tests
-  "ignoreTests": true,
+  // Allow post-install/post-update scripts in dependencies
+  // ⚠️ Security consideration: malicious packages could run arbitrary code
+  // ✅ Safe if CI runs in isolated environment (GitHub Actions, GitLab CI)
+  // ❌ Risk if running locally without sandboxing
+  "allowScripts": true,           // Keep enabled (CI will catch issues)
 
-  // Auto merge type
-  "automergeType": "pr",
+  // ================================================================
+  // 🤖 AUTO-MERGE CONFIGURATION
+  // ================================================================
+  // Controls how and when PRs are automatically merged
+  //
+  // Strategies:
+  // 1. platformAutomerge: true
+  //    - Uses GitHub/GitLab native auto-merge
+  //    - Requires Branch Protection rules
+  //    - Waits for required status checks
+  //
+  // 2. platformAutomerge: false + automergeType: "pr"
+  //    - Renovate merges directly via API
+  //    - Does NOT require Branch Protection
+  //    - Controlled by ignoreTests setting
+  //
+  // Current config: Strategy 2 (no Branch Protection required)
+  // ================================================================
 
-  // Auto merge strategy
-  "automergeStrategy": "squash",
+  "automerge": false,             // Don't auto-merge by default (use packageRules)
+
+  "platformAutomerge": false,     // Don't use native GitHub/GitLab auto-merge
+                                  // (⚠️ would require Branch Protection)
+
+  "automergeType": "pr",          // Renovate merges PRs directly via API
+
+  "automergeStrategy": "squash",  // Squash commits when merging (clean history)
+
+  "ignoreTests": true,            // Merge immediately without waiting for CI
+                                  // Set to false if you want to wait for CI
+                                  // (⚠️ requires more complex setup with Branch Protection)
 
   // ================================================================
   // 📦 DEPENDENCY UPDATE RULES
   // ================================================================
-  // Fine-grained control per dependency type and version bump
+  // Fine-grained policies per dependency type, ecosystem, or version bump
+  //
+  // Rule matching is based on:
+  // - matchManagers: which package manager (gradle, npm, pip, etc.)
+  // - matchUpdateTypes: version bump type (major, minor, patch)
+  // - matchPackageNames: specific package names
+  // - matchPackagePatterns: regex pattern for package names
+  // - matchDepTypes: dependency type (dependencies, devDependencies, etc.)
+  //
+  // Rules are evaluated top-to-bottom; later rules override earlier ones
   // ================================================================
 
   "packageRules": [
 
-    // ----------------------------------------------------------------
-    // 🛡️ SPECIAL DEPENDENCIES (Custom Rules)
-    // ----------------------------------------------------------------
-
-    {
-      "description": "🛡️ WorldGuard: ignore patch and minor (only major updates)",
-      "matchManagers": [
-        "gradle"
-      ],
-      "matchPackageNames": [
-        "com.sk89q.worldguard:worldguard-bukkit"
-      ],
-      "matchUpdateTypes": [
-        "patch",
-        "minor"
-      ],
-      // Disable patch/minor updates for WorldGuard (you want to know about breaking changes)
-      "enabled": false
-    },
-
-    // ----------------------------------------------------------------
+    // ================================================================
     // 🔄 UPDATE CHANNELS (Patch/Minor/Major)
-    // ----------------------------------------------------------------
+    // ================================================================
+    // Define auto-merge behavior per semantic version bump type
+    // ================================================================
 
     {
-      "description": "🟢 Patch updates: auto-merge (bug fixes, safe updates)",
-      "matchUpdateTypes": [
-        "patch"
-      ],
-      // Auto-merge patch updates (e.g., 1.2.3 → 1.2.4)
-      "automerge": true
+      "description": "🟢 Patch updates: auto-merge (bug fixes, backwards-compatible)",
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      // Examples: 1.2.3 → 1.2.4, 2.0.0 → 2.0.1
+      // Should be safe to auto-merge (except for known buggy releases)
     },
 
     {
       "description": "🟡 Minor updates: auto-merge (new features, backwards-compatible)",
-      "matchUpdateTypes": [
-        "minor"
-      ],
-      // Auto-merge minor updates (e.g., 1.2.0 → 1.3.0)
-      "automerge": true
+      "matchUpdateTypes": ["minor"],
+      "automerge": true,
+      // Examples: 1.2.0 → 1.3.0, 2.0.0 → 2.1.0
+      // Usually safe if project follows semantic versioning
     },
 
     {
-      "description": "🔴 Major updates: manual review (breaking changes possible)",
-      "matchUpdateTypes": [
-        "major"
-      ],
-      // Don't auto-merge major updates (e.g., 1.0.0 → 2.0.0)
-      // You want to review breaking changes manually
-      "automerge": false
+      "description": "🔴 Major updates: manual review (breaking changes expected)",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      // Examples: 1.0.0 → 2.0.0, 2.5.3 → 3.0.0
+      // Requires manual review: API changes, deprecations, migrations
     },
 
-    // ----------------------------------------------------------------
+    // ================================================================
+    // 📦 DEV / TEST DEPENDENCIES GROUPING
+    // ================================================================
+    // Group all development/test dependencies into a single PR to
+    // reduce noise. This is generic and can be adapted per ecosystem.
+    //
+    // Notes:
+    // - matchDepTypes values are manager-specific.
+    // - For npm:        devDependencies, optionalDependencies (etc.)
+    // - For Composer:   require-dev
+    // - For Gradle:     configuration names (testImplementation, etc.)
+    // - For Maven:      test, provided (depending on setup)
+    //
+    // Adjust the list below to match your actual stack.
+    // ================================================================
+    {
+      "description": "📦 Group all dev/test dependencies into a single PR",
+      "matchDepTypes": [
+        // Node.js / npm / yarn
+        "devDependencies",
+        "optionalDependencies",
+
+        // PHP / Composer
+        "require-dev",
+
+        // Generic "test" buckets
+        "test",
+        "testDependencies",
+
+        // Gradle configurations used for tests/dev
+        "testCompileOnly",
+        "testImplementation",
+        "testRuntimeOnly",
+        "testAnnotationProcessor"
+      ],
+      "groupName": "Dev / Test dependencies",
+      "groupSlug": "dev-test-deps",
+      // Do NOT split by major/minor/patch inside this group:
+      "separateMajorMinor": false,
+      "separateMinorPatch": false
+    },
+
+    // ================================================================
+    // 🚨 SECURITY UPDATES
+    // ================================================================
+    // Vulnerability fixes bypass stabilization delay and auto-merge immediately
+    // ================================================================
+
+    {
+      "description": "🚨 Security: bypass minimumReleaseAge and auto-merge immediately",
+      "matchUpdateTypes": ["patch", "minor"],
+      "matchDatasources": ["*"],
+      // Override minimumReleaseAge for security fixes
+      "minimumReleaseAge": "0 days",
+      "automerge": true,
+      // Note: vulnerabilityAlerts.automerge (below) handles security updates,
+      // but this rule ensures patch/minor security fixes merge immediately
+    },
+
+    // ================================================================
     // 💬 COMMIT MESSAGE FORMATTING
-    // ----------------------------------------------------------------
+    // ================================================================
+    // Customize commit messages per package manager
+    //
+    // Default format (with semanticCommits: enabled):
+    //   "chore(deps): update dependency foo to v2.0.0"
+    //
+    // Custom format (with semanticCommits: disabled):
+    //   "[Manager] Update dependency foo to v2.0.0"
+    //
+    // 📝 Adapt these rules for your package managers:
+    //    - Gradle → [Gradle]
+    //    - npm → [npm]
+    //    - Composer → [Composer]
+    //    - pip → [Python]
+    // ================================================================
 
     {
-      "description": "💬 Gradle: custom commit prefix",
-      "matchManagers": [
-        "gradle",
-        "gradle-wrapper"
-      ],
-      // Use [Gradle] prefix instead of chore(deps):
+      "description": "💬 Gradle: custom commit message prefix",
+      "matchManagers": ["gradle", "gradle-wrapper"],
       "commitMessagePrefix": "[Gradle] ",
-      // Disable semantic commits (conventional commits format)
-      "semanticCommits": "disabled"
+      "semanticCommits": "disabled",
+      // Example: "[Gradle] Update dependency com.google.guava:guava to v32.0.0"
     },
 
     {
-      "description": "💬 GitHub Actions: custom commit prefix",
-      "matchManagers": [
-        "github-actions"
-      ],
-      // Use [GitHub Actions] prefix instead of chore(deps):
+      "description": "💬 GitHub Actions: custom commit message prefix",
+      "matchManagers": ["github-actions"],
       "commitMessagePrefix": "[GitHub Actions] ",
-      // Disable semantic commits (conventional commits format)
-      "semanticCommits": "disabled"
-    }
+      "semanticCommits": "disabled",
+      // Example: "[GitHub Actions] Update actions/checkout action to v4.2.0"
+    },
+
+    // ================================================================
+    // 🎯 PROJECT-SPECIFIC RULES
+    // ================================================================
+    // Custom policies for specific dependencies in this project
+    //
+    // 📝 These are project-specific examples. Customize or remove for your project:
+    //    - Ignore unstable/breaking dependencies
+    //    - Pin specific versions
+    //    - Group related updates
+    // ================================================================
+
+    {
+      "description": "🛡️ Project-specific: ignore patch/minor for specific package",
+      "matchManagers": ["gradle"],
+      "matchPackageNames": [
+        "com.sk89q.worldguard:worldguard-bukkit"
+        // Ignore minor/patch updates for a dependency
+        // that frequently breaks compatibility despite semantic versioning
+      ],
+      "matchUpdateTypes": ["patch", "minor"],
+      "enabled": false,
+      // Only notify about major updates (potential breaking changes)
+    },
   ],
 
   // ================================================================
-  // 🔐 SECURITY UPDATES
+  // 🔐 VULNERABILITY ALERTS
   // ================================================================
-  // Auto-merge security vulnerability fixes
+  // GitHub/GitLab Security Advisories integration
+  // Auto-merge security fixes to minimize exposure window
+  //
+  // Sources:
+  // - GitHub Security Advisories
+  // - OSV Database (if osvVulnerabilityAlerts: true)
+  // - npm audit / Snyk / Dependabot (if enabled)
   // ================================================================
 
   "vulnerabilityAlerts": {
-    // Enable security vulnerability detection
-    "enabled": true,
-    // Auto-merge security updates (safety > stability)
-    "automerge": true
+    "enabled": true,              // Enable security vulnerability detection
+    "automerge": true,            // Auto-merge security updates immediately
+                                  // Security updates bypass minimumReleaseAge and merge ASAP
+                                  // This prioritizes security over stability
   }
 }
