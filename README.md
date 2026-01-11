@@ -30,9 +30,13 @@
 
 1. **Download:** Download the latest version of MMOSpawnPoint from the [Releases](https://github.com/alex2276564/MMOSpawnPoint/releases) page.
 2. **Install:** Place the `.jar` file into your server's `plugins` folder.
-3. **Optional Dependencies:**
-  * [WorldGuard](https://dev.bukkit.org/projects/worldguard) - For region-based spawn points
-  * [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) - For condition-based spawn points
+3. **Restart:** Restart your server to load the plugin.
+
+**Optional Dependencies:**
+
+* [WorldGuard](https://dev.bukkit.org/projects/worldguard) - For region-based spawn points
+* [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) - For condition-based spawn points
+
 4. **Restart:** Restart your server to load the plugin.
 
 ## 📜 Commands & Permissions
@@ -964,9 +968,7 @@ You can use the [MiniMessage Web Editor](https://webui.advntr.dev/) to test and 
 If you encounter issues with the plugin:
 
 1. **Check your configuration:** Validate your YAML syntax using [YAMLLint](http://www.yamllint.com/)
-2. **Enable debug modes:**
-  * Set `settings.debugMode: true` in config.yml for detailed logs
-  * Set `settings.safeLocationCache.advanced.debugCache: true` for cache debugging
+2. **Enable debug modes:** Set `settings.debugMode: true` in config.yml for detailed logs, and `settings.safeLocationCache.advanced.debugCache: true` for cache debugging
 3. **Use simulation tools:** Test your spawn points with `/msp simulate death` and `/msp simulate join`
 4. **Check cache performance:** Monitor cache statistics with `/msp cache stats`
 5. **Verify dependencies:** Make sure you have the correct versions of WorldGuard and PlaceholderAPI if using those features
@@ -975,15 +977,15 @@ If you encounter issues with the plugin:
 
 ## 🛠️ Compatibility
 
-* **Minecraft Versions:** 1.16.5 to the latest release
-* **Server Software:**
-  * ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
-  * ⚠️ [Folia](https://papermc.io/software/folia) - **Partially Supported** with optimized region-aware scheduling
-  * ❌ Spigot - Not supported
-* **Java Version:** Java 17 or higher
-* **Optional Dependencies:**
-  * WorldGuard 7.0.5+ (for region-based spawns)
-  * PlaceholderAPI latest version (for condition-based spawns)
+- **Minecraft Versions:** 1.16.5 to the latest release
+- **Server Software:**
+  - ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
+  - ⚠️ [Folia](https://papermc.io/software/folia) - **Partially Supported** with optimized region-aware scheduling
+  - ❌ Spigot - Not supported
+- **Java Version:** Java 17 or higher
+- **Optional Dependencies:**
+  - WorldGuard 7.0.5+ (for region-based spawns)
+  - PlaceholderAPI latest version (for condition-based spawns)
 
 ## 📦 Other Plugins
 
