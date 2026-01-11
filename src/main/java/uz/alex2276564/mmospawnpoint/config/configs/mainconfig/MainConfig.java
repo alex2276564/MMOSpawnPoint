@@ -319,7 +319,9 @@ public class MainConfig extends OkaeriConfig {
         @Comment("- destinations[].cache.playerSpecific can override this per-destination.")
         public boolean playerSpecific;
 
-        public CacheTypeSection() {}
+        @SuppressWarnings("unused")
+        public CacheTypeSection() {
+        }
 
         public CacheTypeSection(boolean enabled, boolean playerSpecific) {
             this.enabled = enabled;

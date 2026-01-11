@@ -83,7 +83,7 @@ repositories {
 
     maven {
         name = 'okaeri'
-        url = 'https://storehouse.okaeri.eu/repository/maven-public/'
+        url = 'https://repo.okaeri.cloud/releases'
     }
 
     maven {
@@ -187,6 +187,7 @@ shadowJar {
     // 📦 Library relocations (prevent conflicts)
     // ----------------------------------------------------------------
     relocate 'eu.okaeri.configs', 'uz.alex2276564.mmospawnpoint.libs.okaeri.configs'
+    relocate 'org.yaml.snakeyaml', 'uz.alex2276564.mmospawnpoint.libs.snakeyaml'
     relocate 'com.google.gson', 'uz.alex2276564.mmospawnpoint.libs.gson'
     relocate 'io.papermc.lib', 'uz.alex2276564.mmospawnpoint.libs.paperlib'
     relocate 'com.github.benmanes.caffeine', 'uz.alex2276564.mmospawnpoint.libs.caffeine'
