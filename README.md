@@ -31,8 +31,8 @@
 1. **Download:** Download the latest version of MMOSpawnPoint from the [Releases](https://github.com/alex2276564/MMOSpawnPoint/releases) page.
 2. **Install:** Place the `.jar` file into your server's `plugins` folder.
 3. **Optional Dependencies:**
-    - [WorldGuard](https://dev.bukkit.org/projects/worldguard) - For region-based spawn points
-    - [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) - For condition-based spawn points
+  * [WorldGuard](https://dev.bukkit.org/projects/worldguard) - For region-based spawn points
+  * [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) - For condition-based spawn points
 4. **Restart:** Restart your server to load the plugin.
 
 ## 📜 Commands & Permissions
@@ -138,8 +138,8 @@ Once the AI has this context, you can ask it to draft spawnpoints tailored to yo
 * Prefer explicit rules over regex unless truly necessary.
 * Ask it to include: priority, requireSafe, waitingRoom, rects/excludeRects, weightConditions (permission/placeholder), and actions with phases (BEFORE/WAITING_ROOM/AFTER).
 * Always validate the result:
-    * YAML: [yamllint.com](http://www.yamllint.com/)
-    * In-game: /msp simulate death and /msp simulate join
+  * YAML: [yamllint.com](http://www.yamllint.com/)
+  * In-game: /msp simulate death and /msp simulate join
 * Keep a low-priority global fallback only if it's needed to catch edge cases.
 
 ## 🏗️ Why Traditional Spawn Plugins Are Outdated
@@ -177,11 +177,11 @@ You might wonder: *"Why are things so bad?"*
 
 We wonder too. We can only guess at the reasons:
 
-- Support for very old Minecraft versions
-- Support for outdated Spigot/CraftBukkit (not Paper)
-- Unwillingness to change API/behavior (too many existing tutorials)
-- Unwillingness to rewrite legacy code (+ all those economy/kits/homes integrations)
-- Unwillingness to break thousands of existing server setups
+* Support for very old Minecraft versions
+* Support for outdated Spigot/CraftBukkit (not Paper)
+* Unwillingness to change API/behavior (too many existing tutorials)
+* Unwillingness to rewrite legacy code (+ all those economy/kits/homes integrations)
+* Unwillingness to break thousands of existing server setups
 
 In short: **they probably have their reasons** (backward compatibility = prison), and we have ours.
 
@@ -389,24 +389,24 @@ The logic remains the same, except for the fallback behavior:
 **MMOSpawnPoint** (priority-based logic) works completely differently:
 
 * 👥 Party first (if enabled)
-    * If the party system is enabled and conditions are met, the player can be teleported to a party member before any spawn rules are checked.
+  * If the party system is enabled and conditions are met, the player can be teleported to a party member before any spawn rules are checked.
 
 * 🧠 Priority decides everything next
-    * The plugin collects all spawn entries that match the current event (death/join/both), the player's location, and your conditions (permissions/placeholders).
-    * It then sorts those entries by priority (highest → lowest) and uses the first one that matches.
-    * There is no hard-coded "type order." Only priority matters.
+  * The plugin collects all spawn entries that match the current event (death/join/both), the player's location, and your conditions (permissions/placeholders).
+  * It then sorts those entries by priority (highest → lowest) and uses the first one that matches.
+  * There is no hard-coded "type order." Only priority matters.
 
 * ⚙️ Default priorities (from config.yml → settings.defaultPriorities)
-    * coordinate: 100
-    * region: 50
-    * world: 10
+  * coordinate: 100
+  * region: 50
+  * world: 10
 
 By default this "feels like": coordinate (100) → region (50) → world (10). You can change these values or set explicit priorities per entry.
 
 * 🎯 Destination selection (inside a matched entry)
-    * If there is only one destination, it's used.
-    * If there are multiple, weights (and weightConditions) decide which one is picked.
-    * If requireSafe: true, a waiting room is used while the plugin searches for a safe spot.
+  * If there is only one destination, it's used.
+  * If there are multiple, weights (and weightConditions) decide which one is picked.
+  * If requireSafe: true, a waiting room is used while the plugin searches for a safe spot.
 
 * 🧭 Easy flow (at a glance)
 
@@ -418,14 +418,14 @@ Player dies/joins
 → ❌ If nothing matched → Vanilla respawn
 
 * 🔧 Want "regions first" (or any other order)?
-    * Just give region entries higher priorities than coordinate/world.
-    * Example:
-        * region rules: 800+
-        * coordinate rules: 300–700
-        * world rules: 10–200
+  * Just give region entries higher priorities than coordinate/world.
+  * Example:
+    * region rules: 800+
+    * coordinate rules: 300–700
+    * world rules: 10–200
 
 * 🛟 Fallback
-    * If no MMOSpawnPoint entries match, the game falls back to Vanilla behavior (anchor/bed/world spawn).
+  * If no MMOSpawnPoint entries match, the game falls back to Vanilla behavior (anchor/bed/world spawn).
 
 ### Triggering MSP without death/join events
 
@@ -447,18 +447,18 @@ The `requireSafe` option should be set to `false` for known safe locations to im
 Dimension-aware global policy (can be overridden per destination):
 
 * Overworld:
-    * mode: mixed | highest_only | random_only
-    * first: highest | random (for mixed)
-    * firstShare: 0.0..1.0
+  * mode: mixed | highest_only | random_only
+  * first: highest | random (for mixed)
+  * firstShare: 0.0..1.0
 * Nether:
-    * mode: scan | highest_only | random_only
-    * respectRange: true|false (for scan: whether to limit the scan to the destination Y-range)
+  * mode: scan | highest_only | random_only
+  * respectRange: true|false (for scan: whether to limit the scan to the destination Y-range)
 * End:
-    * mode: mixed | highest_only | random_only (highest_only recommended)
+  * mode: mixed | highest_only | random_only (highest_only recommended)
 * Custom:
-    * mode: mixed | highest_only | random_only
-    * first: highest | random (for mixed)
-    * firstShare: 0.0..1.0
+  * mode: mixed | highest_only | random_only
+  * first: highest | random (for mixed)
+  * firstShare: 0.0..1.0
 
 Guidance:
 
@@ -537,21 +537,21 @@ This prevents party members from being teleported to death traps while still all
 ### Rects vs legacy axes: when to use and how to keep configs sane
 
 * Prefer legacy axes for simple shapes:
-    * Use x/y/z axis specs whenever a single rectangle is enough. It keeps files shorter, easier to read, and easier to reason about.
+  * Use x/y/z axis specs whenever a single rectangle is enough. It keeps files shorter, easier to read, and easier to reason about.
 * Don't glue far-apart areas into one entry:
-    * Two distant boss rooms? Don't hack them into one entry via rects. Make one entry per room (using legacy axes), each with its own priority and actions.
+  * Two distant boss rooms? Don't hack them into one entry via rects. Make one entry per room (using legacy axes), each with its own priority and actions.
 * The more rects, the harder the debugging:
-    * Complex rect lists increase mental load and the chance of mistakes. Keep rect counts low; split logic into multiple entries if needed.
+  * Complex rect lists increase mental load and the chance of mistakes. Keep rect counts low; split logic into multiple entries if needed.
 * Use single-line rects for readability:
-    * x: { min: 1000, max: 2000 } is much easier to scan in large YAMLs than expanded multi-line fields.
+  * x: { min: 1000, max: 2000 } is much easier to scan in large YAMLs than expanded multi-line fields.
 * Keep rects close to each other:
-    * If rects are far apart (different wings/levels), it's usually a sign you need separate entries.
+  * If rects are far apart (different wings/levels), it's usually a sign you need separate entries.
 * ASCII diagrams help humans:
-    * For non-trivial shapes, include an ASCII map at the top of the file with a legend and coordinate ticks.
-    * If you iterate a lot, ask your AI assistant to redraw the diagram whenever rects change. Not mandatory for simple cases, but very helpful for complex layouts.
+  * For non-trivial shapes, include an ASCII map at the top of the file with a legend and coordinate ticks.
+  * If you iterate a lot, ask your AI assistant to redraw the diagram whenever rects change. Not mandatory for simple cases, but very helpful for complex layouts.
 * Test and iterate:
-    * Always include a low-priority fallback and validate with /msp simulate death/join.
-    * Keep a "boss room" entry with a higher priority than the surrounding area (or disable party respawn there).
+  * Always include a low-priority fallback and validate with /msp simulate death/join.
+  * Keep a "boss room" entry with a higher priority than the surrounding area (or disable party respawn there).
 
 Example pyramid.yml (diagram at the top and 2 entries)
 
@@ -965,8 +965,8 @@ If you encounter issues with the plugin:
 
 1. **Check your configuration:** Validate your YAML syntax using [YAMLLint](http://www.yamllint.com/)
 2. **Enable debug modes:**
-    * Set `settings.debugMode: true` in config.yml for detailed logs
-    * Set `settings.safeLocationCache.advanced.debugCache: true` for cache debugging
+  * Set `settings.debugMode: true` in config.yml for detailed logs
+  * Set `settings.safeLocationCache.advanced.debugCache: true` for cache debugging
 3. **Use simulation tools:** Test your spawn points with `/msp simulate death` and `/msp simulate join`
 4. **Check cache performance:** Monitor cache statistics with `/msp cache stats`
 5. **Verify dependencies:** Make sure you have the correct versions of WorldGuard and PlaceholderAPI if using those features
@@ -977,13 +977,13 @@ If you encounter issues with the plugin:
 
 * **Minecraft Versions:** 1.16.5 to the latest release
 * **Server Software:**
-    * ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
-    * ⚠️ [Folia](https://papermc.io/software/folia) - **Partially Supported** with optimized region-aware scheduling
-    * ❌ Spigot - Not supported
+  * ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
+  * ⚠️ [Folia](https://papermc.io/software/folia) - **Partially Supported** with optimized region-aware scheduling
+  * ❌ Spigot - Not supported
 * **Java Version:** Java 17 or higher
 * **Optional Dependencies:**
-    * WorldGuard 7.0.5+ (for region-based spawns)
-    * PlaceholderAPI latest version (for condition-based spawns)
+  * WorldGuard 7.0.5+ (for region-based spawns)
+  * PlaceholderAPI latest version (for condition-based spawns)
 
 ## 📦 Other Plugins
 
