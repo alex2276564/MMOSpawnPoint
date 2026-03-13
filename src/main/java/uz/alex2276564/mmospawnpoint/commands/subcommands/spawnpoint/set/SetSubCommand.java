@@ -17,7 +17,7 @@ import java.util.*;
 
 public class SetSubCommand implements NestedSubCommandProvider {
 
-    private enum Mode { NONE, PLAYER, WORLD }
+    private enum Mode {NONE, PLAYER, WORLD}
 
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
@@ -25,15 +25,19 @@ public class SetSubCommand implements NestedSubCommandProvider {
                 .permission("mmospawnpoint.spawnpoint.set")
                 .description("Set player's bed/anchor spawn with conditions")
 
+                // NOTE about flags:
+                // - Flags (--if-has, --if-missing, etc.) are accepted in any position (SpawnpointFlags parses raw args).
+                // - For UX reasons, tab-completion suggests flags only on the last argument (when world - z_or_yaw_or_flag, else yaw_or_pitch_or_flag).
+                // - Earlier arguments still have "*_or_flag" in their names because flags are syntactically allowed there,
+                //   but we intentionally do not offer them via tab-complete.
+
                 // ARG 0: player | world | flag
                 .argument(new ArgumentBuilder<>("player_or_world_or_flag", ArgumentType.STRING)
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
                             List<String> out = new ArrayList<>();
-                            // flags (filtered)
-                            addFlagSuggestions(out, partial, soFar);
-
                             String p = norm(partial);
+
                             // players
                             for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
                                 String name = online.getName();
@@ -52,7 +56,6 @@ public class SetSubCommand implements NestedSubCommandProvider {
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
                             List<String> out = new ArrayList<>();
-                            addFlagSuggestions(out, partial, soFar);
 
                             Mode mode = detectMode(soFar);
                             String p = norm(partial);
@@ -71,7 +74,7 @@ public class SetSubCommand implements NestedSubCommandProvider {
                             } else if (mode == Mode.WORLD) {
                                 addXSuggestions(sender, out, partial);
                             } else { // NONE
-                                // still no non-flag token: propose players/worlds
+                                // still suggest players/worlds
                                 for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
                                     String name = online.getName();
                                     if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
@@ -89,7 +92,6 @@ public class SetSubCommand implements NestedSubCommandProvider {
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
                             List<String> out = new ArrayList<>();
-                            addFlagSuggestions(out, partial, soFar);
 
                             Mode mode = detectMode(soFar);
                             String p = norm(partial);
@@ -97,7 +99,6 @@ public class SetSubCommand implements NestedSubCommandProvider {
                             if (mode == Mode.PLAYER) {
                                 World givenWorld = detectWorld(soFar, mode);
                                 if (givenWorld == null) {
-                                    // still missing world -> suggest worlds
                                     for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
                                         String name = w.getName();
                                         if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
@@ -108,7 +109,6 @@ public class SetSubCommand implements NestedSubCommandProvider {
                             } else if (mode == Mode.WORLD) {
                                 addYSuggestions(sender, out, partial);
                             } else {
-                                // NONE: still propose players/worlds
                                 for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
                                     String name = online.getName();
                                     if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
@@ -126,7 +126,6 @@ public class SetSubCommand implements NestedSubCommandProvider {
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
                             List<String> out = new ArrayList<>();
-                            addFlagSuggestions(out, partial, soFar);
 
                             Mode mode = detectMode(soFar);
                             if (mode == Mode.PLAYER) {
@@ -146,13 +145,13 @@ public class SetSubCommand implements NestedSubCommandProvider {
                         .optional(null)
                         .dynamicSuggestions((sender, partial, soFar) -> {
                             List<String> out = new ArrayList<>();
-                            addFlagSuggestions(out, partial, soFar);
 
                             Mode mode = detectMode(soFar);
                             if (mode == Mode.PLAYER) {
                                 addZSuggestions(sender, out, partial);
                             } else if (mode == Mode.WORLD) {
                                 addYawSuggestions(sender, out, partial);
+                                addFlagSuggestions(out, partial, soFar);
                             } else {
                                 addZSuggestions(sender, out, partial);
                                 addYawSuggestions(sender, out, partial);
@@ -236,7 +235,8 @@ public class SetSubCommand implements NestedSubCommandProvider {
         for (String s : base) if (s.toLowerCase(Locale.ROOT).startsWith(p)) out.add(s);
     }
 
-    private enum Axis { X, Y, Z }
+    private enum Axis {X, Y, Z}
+
     private static void addCoordSuggestions(CommandSender sender, List<String> out, String partial, Axis axis) {
         String p = norm(partial);
         List<String> base = new ArrayList<>(Arrays.asList("0", "64", "100", "-100"));
@@ -272,11 +272,10 @@ public class SetSubCommand implements NestedSubCommandProvider {
         if (mode == Mode.WORLD) {
             return Bukkit.getWorld(nonFlags.get(0));
         }
-        if (mode == Mode.PLAYER) {
-            if (nonFlags.size() >= 2) {
-                return Bukkit.getWorld(nonFlags.get(1));
-            }
+        if (mode == Mode.PLAYER && nonFlags.size() >= 2) {
+            return Bukkit.getWorld(nonFlags.get(1));
         }
+
         return null;
     }
 
@@ -297,7 +296,7 @@ public class SetSubCommand implements NestedSubCommandProvider {
         String[] pos = SpawnpointFlags.stripFlags(raw);
 
         if (pos.length == 0) {
-            plugin.getMessageManager().sendMessageKeyed(sender,"commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
+            plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
             return;
         }
 
@@ -306,7 +305,7 @@ public class SetSubCommand implements NestedSubCommandProvider {
         World world;
 
         Player p0 = Bukkit.getPlayerExact(pos[0]);
-        World  w0 = Bukkit.getWorld(pos[0]);
+        World w0 = Bukkit.getWorld(pos[0]);
 
         if (p0 != null) {
             // expected: [player] <world> <x> <y> <z> [yaw] [pitch]
@@ -332,7 +331,7 @@ public class SetSubCommand implements NestedSubCommandProvider {
                 return;
             }
             target = self;
-            world  = w0;
+            world = w0;
             i = 1;
         } else {
             // first token — player name (not online) or garbage → show normal error
