@@ -269,6 +269,7 @@ MMOSpawnPoint revolutionizes player respawning with features like:
 
 ```text
 mmospawnpoint.command
+mmospawnpoint.party
 mmospawnpoint.party.accept
 mmospawnpoint.party.deny
 mmospawnpoint.party.leave
@@ -486,6 +487,12 @@ About cache "near" searches:
 
 * For fixed-point requireSafe=true searches (near X/Z), the cache key does not include the radius and also ignores the base Y. This increases cache hit rate across repeated lookups around the same X/Z.
 * The effective Y-selection signature (dimension-aware policy) and groundWhitelist hash are still included in the cache key to prevent incorrect reuse across different spawn configurations.
+
+> Note on "near" searches (fixed-point requireSafe=true):
+
+* In the Nether, near-search respects the same Y-selection policy as area searches (`scan` / `highest_only` / `random_only`).
+* In the Overworld, End, and CUSTOM dimensions, near-search intentionally uses `highest_only` (surface-first) behavior, regardless of the global `mixed/random_only` settings.
+  This keeps near-search predictable and avoids surprising vertical jumps when respawning near a fixed point.
 
 **Region Entry vs Respawn:**
 
@@ -728,7 +735,7 @@ spawns:
 
 **Note:** If using this approach, ensure players can't repeatedly trigger the join spawn by returning to that area, unless your actions are safe to execute multiple times.
 
-**Important Note on First-Join Handling:** MMOSpawnPoint does not include a default firstjoin listener—only a standard join listener. If you need to handle first-join spawns (e.g., for new players), it's recommended to configure this separately through your world manager, such as Multiverse-Core, or by setting the world spawn point (e.g., via `/setworldspawnpoint` in the world where players appear). This approach is more appropriate and avoids potential conflicts, as MSP focuses on death and subsequent join spawns. Always ensure that your firstjoin setup doesn't interfere with MSP's functionality.
+**Important Note on First-Join Handling:** MMOSpawnPoint does not include a default firstjoin listener—only a standard join listener. If you need to handle first-join spawns (e.g., for new players), it's recommended to configure this separately through your world manager, such as Multiverse-Core, or by setting the world spawn point (e.g., via `/setworldspawn` in the world where players appear). This approach is more appropriate and avoids potential conflicts, as MSP focuses on death and subsequent join spawns. Always ensure that your firstjoin setup doesn't interfere with MSP's functionality.
 
 ### Dungeon Plugin Compatibility
 

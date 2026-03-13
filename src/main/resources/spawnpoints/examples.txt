@@ -357,8 +357,9 @@ spawns:
 # - Fixed-point search: if x/z are fixed values and requireSafe is true, the plugin searches around that point within settings.safeLocationRadius (expands radius mid-way if needed).
 # - Area search: if x/z are ranges and requireSafe is true, the plugin searches INSIDE the specified rectangle.
 # - Y selection:
-#  - Overworld uses the strategy from settings.teleport.ySelection (mixed/highest/random).
-#  - Nether uses a solid-ground-with-2-air check within configured bounds.
+#   - Area/range safe search uses the configured dimension-aware policy from settings.teleport.ySelection.
+#   - Fixed-point near-search in Overworld/End/Custom currently uses a surface-first/highest-style lookup.
+#   - Nether near-search and area search use Nether-specific logic (scan/highest/random depending on config).
 # - Fallback behavior:
 #   - If no whitelisted ground is found within settings.maxSafeLocationAttempts
 #     and before asyncSearchTimeout is reached, the player stays in the waiting room.
@@ -463,7 +464,7 @@ spawns:
 # Notes:
 # - Placeholder expressions require: hooks.usePlaceholderAPI=true and PlaceholderAPI installed
 # - YAML: strings with expressions must be quoted: "!mmospawnpoint.vip"
-# - With actionExecutionMode: instead, only the local actions (destination.actions) will run for the specified phase (AFTER), and global actions are skipped.
+# - With actionExecutionMode: instead, only the local destination actions run for the matching phase, and the entry/global actions are skipped for that phase.
 
 # ================================================================
 # ✅ Example 5: Regex patterns for flexible matching
@@ -879,7 +880,7 @@ spawns:
                 - WAITING_ROOM
 
 # Notes:
-# - Legacy x/y/z axes on destinations or triggerAreas are internally mapped to a single rect at runtime.
+# - Legacy x/y/z axes on destinations or triggerAreas are internally mapped to a single rect at runtime (without excludeRects support).
 # - If you use a lot of rects, it is recommended to write them in a single line format like "x: { min: 1000, max: 1160 }" for easy reading of yml.
 
 # ================================================================
