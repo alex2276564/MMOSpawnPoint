@@ -998,6 +998,9 @@ public class SpawnManager {
             double rzMinZ = Math.min(rect.minZ(), rect.maxZ());
             double rzMaxZ = Math.max(rect.minZ(), rect.maxZ());
 
+            String tag = getCacheTypeTag();
+            Predicate<Location> notExcluded = l -> isOutsideAny(l, exclude);
+
             // 1) Pending chunk already requested
             if (waitingChunkLoad) {
                 if (!world.isChunkLoaded(pendingChunkX, pendingChunkZ)) {
@@ -1022,16 +1025,19 @@ public class SpawnManager {
                     return null;
                 }
 
-                String tag = getCacheTypeTag();
-                Predicate<Location> notExcluded = l -> isOutsideAny(l, exclude);
-
-                // no need to re-check exclude here because validated() already enforced it
                 return SafeLocationFinder.withYSelectionOverride(yov, () ->
-                        cacheEnabled
-                                ? SafeLocationFinder.cachedFindSafeInAreaValidated(
-                                world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
-                                wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
-                                : SafeLocationFinder.attemptSafeInAreaOnce(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl)
+                        SafeLocationFinder.cachedFindSafeInAreaValidated(
+                                world,
+                                minX, maxX,
+                                rect.minY(), rect.maxY(),
+                                minZ, maxZ,
+                                wl,
+                                playerId,
+                                cachePlayerSpecific,
+                                cacheEnabled,
+                                tag,
+                                notExcluded
+                        )
                 );
             }
 
@@ -1068,15 +1074,19 @@ public class SpawnManager {
                 return null;
             }
 
-            String tag = getCacheTypeTag();
-            Predicate<Location> notExcluded = l -> isOutsideAny(l, exclude);
-
             return SafeLocationFinder.withYSelectionOverride(yov, () ->
-                    cacheEnabled
-                            ? SafeLocationFinder.cachedFindSafeInAreaValidated(
-                            world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ,
-                            wl, playerId, cachePlayerSpecific, true, tag, notExcluded)
-                            : SafeLocationFinder.attemptSafeInAreaOnce(world, minX, maxX, rect.minY(), rect.maxY(), minZ, maxZ, wl)
+                    SafeLocationFinder.cachedFindSafeInAreaValidated(
+                            world,
+                            minX, maxX,
+                            rect.minY(), rect.maxY(),
+                            minZ, maxZ,
+                            wl,
+                            playerId,
+                            cachePlayerSpecific,
+                            cacheEnabled,
+                            tag,
+                            notExcluded
+                    )
             );
         }
 
