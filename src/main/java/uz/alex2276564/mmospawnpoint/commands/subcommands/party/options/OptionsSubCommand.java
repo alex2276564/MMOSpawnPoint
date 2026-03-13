@@ -7,6 +7,7 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder
 import uz.alex2276564.mmospawnpoint.commands.subcommands.party.options.mode.ModeSubCommand;
 import uz.alex2276564.mmospawnpoint.commands.subcommands.party.options.target.TargetSubCommand;
 import uz.alex2276564.mmospawnpoint.party.Party;
+import uz.alex2276564.mmospawnpoint.party.PartyManager;
 
 public class OptionsSubCommand implements NestedSubCommandProvider {
 
@@ -47,12 +48,91 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
 
                     // Display current options
                     var options = plugin.getConfigManager().getMessagesConfig().party.options;
-                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.header", options.header);
-                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.respawnMode", options.respawnMode, "mode", party.getRespawnMode().name());
-                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.respawnTarget", options.respawnTarget, "target", getRespawnTargetDisplayName(party));
-                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.separator", options.separator);
-                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.modeHelp", options.modeHelp);
-                    plugin.getMessageManager().sendMessageKeyed(player, "party.options.targetHelp", options.targetHelp);
+
+                    plugin.getMessageManager().sendMessageKeyed(player,
+                            "party.options.header",
+                            options.header);
+
+                    plugin.getMessageManager().sendMessageKeyed(player,
+                            "party.options.respawnMode",
+                            options.respawnMode,
+                            "mode", party.getRespawnMode().name());
+
+                    if (party.getRespawnTarget() == null) {
+                        plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.respawnTargetNoneLine",
+                                options.respawnTargetNoneLine);
+                    } else {
+                        Player targetPlayer = party.getRespawnTargetPlayer();
+                        if (targetPlayer != null) {
+                            plugin.getMessageManager().sendMessageKeyed(player,
+                                    "party.options.respawnTarget",
+                                    options.respawnTarget,
+                                    "target", targetPlayer.getName());
+                        } else {
+                            plugin.getMessageManager().sendMessageKeyed(player,
+                                    "party.options.respawnTargetNotFoundLine",
+                                    options.respawnTargetNotFoundLine);
+                        }
+                    }
+
+                    PartyManager.PersonalWalkingSpawnPointStatus personalWalkingStatus =
+                            plugin.getPartyManager().getPersonalWalkingSpawnPointStatus(player);
+
+                    switch (personalWalkingStatus) {
+                        case ACTIVE -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.walkingSpawnPointActive",
+                                options.walkingSpawnPointActive);
+                        case INACTIVE_MODE_NORMAL -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.walkingSpawnPointInactiveModeNormal",
+                                options.walkingSpawnPointInactiveModeNormal);
+                        case UNAVAILABLE_GLOBAL_DISABLED -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.walkingSpawnPointUnavailableGlobal",
+                                options.walkingSpawnPointUnavailableGlobal);
+                        case UNAVAILABLE_NO_PERMISSION -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.walkingSpawnPointUnavailableNoPermission",
+                                options.walkingSpawnPointUnavailableNoPermission);
+                    }
+
+                    PartyManager.TargetWalkingSpawnPointStatus targetWalkingStatus =
+                            plugin.getPartyManager().getTargetWalkingSpawnPointStatus(player);
+
+                    switch (targetWalkingStatus) {
+                        case ACTIVE -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.targetWalkingSpawnPointActive",
+                                options.targetWalkingSpawnPointActive);
+                        case INACTIVE_MODE_NORMAL -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.targetWalkingSpawnPointInactiveModeNormal",
+                                options.targetWalkingSpawnPointInactiveModeNormal);
+                        case UNAVAILABLE_GLOBAL_DISABLED -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.targetWalkingSpawnPointUnavailableGlobal",
+                                options.targetWalkingSpawnPointUnavailableGlobal);
+                        case UNAVAILABLE_NO_PERMISSION -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.targetWalkingSpawnPointUnavailableNoPermission",
+                                options.targetWalkingSpawnPointUnavailableNoPermission);
+                        case NO_TARGET -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.targetWalkingSpawnPointNoTarget",
+                                options.targetWalkingSpawnPointNoTarget);
+                        case TARGET_NOT_FOUND -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.targetWalkingSpawnPointTargetMissing",
+                                options.targetWalkingSpawnPointTargetMissing);
+                    }
+
+                    plugin.getMessageManager().sendMessageKeyed(player,
+                            "party.options.separator",
+                            options.separator);
+
+                    plugin.getMessageManager().sendMessageKeyed(player,
+                            "party.options.modeHelp",
+                            options.modeHelp);
+
+                    plugin.getMessageManager().sendMessageKeyed(player,
+                            "party.options.targetHelp",
+                            options.targetHelp);
+                    
+                    plugin.getMessageManager().sendMessageKeyed(player,
+                            "party.options.walkingSafetyNote",
+                            options.walkingSafetyNote);
                 });
 
         // Register nested options subcommands
@@ -60,13 +140,5 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
         new TargetSubCommand().build(optionsBuilder);
 
         return optionsBuilder;
-    }
-
-    private String getRespawnTargetDisplayName(Party party) {
-        if (party.getRespawnTarget() == null) {
-            return "None";
-        }
-        Player targetPlayer = party.getRespawnTargetPlayer();
-        return targetPlayer != null ? targetPlayer.getName() : MMOSpawnPoint.getInstance().getConfigManager().getMessagesConfig().party.options.respawnTargetNotFound;
     }
 }

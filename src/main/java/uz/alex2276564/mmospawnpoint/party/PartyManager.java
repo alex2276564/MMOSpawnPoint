@@ -26,6 +26,22 @@ public class PartyManager {
         ALREADY_INVITED
     }
 
+    public enum PersonalWalkingSpawnPointStatus {
+        ACTIVE,
+        INACTIVE_MODE_NORMAL,
+        UNAVAILABLE_GLOBAL_DISABLED,
+        UNAVAILABLE_NO_PERMISSION
+    }
+
+    public enum TargetWalkingSpawnPointStatus {
+        ACTIVE,
+        NO_TARGET,
+        TARGET_NOT_FOUND,
+        INACTIVE_MODE_NORMAL,
+        UNAVAILABLE_GLOBAL_DISABLED,
+        UNAVAILABLE_NO_PERMISSION
+    }
+
     private final MMOSpawnPoint plugin;
     private final Map<UUID, Party> parties = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> playerPartyMap = new ConcurrentHashMap<>();
@@ -279,6 +295,53 @@ public class PartyManager {
         return parties.get(partyId);
     }
 
+    public PersonalWalkingSpawnPointStatus getPersonalWalkingSpawnPointStatus(Player player) {
+        var cfg = plugin.getConfigManager().getMainConfig().party.deathLocationSpawn;
+
+        if (!cfg.enabled) {
+            return PersonalWalkingSpawnPointStatus.UNAVAILABLE_GLOBAL_DISABLED;
+        }
+
+        if (!player.hasPermission(cfg.permission)) {
+            return PersonalWalkingSpawnPointStatus.UNAVAILABLE_NO_PERMISSION;
+        }
+
+        Party party = getPlayerParty(player.getUniqueId());
+        if (party == null || party.getRespawnMode() != Party.RespawnMode.PARTY_MEMBER) {
+            return PersonalWalkingSpawnPointStatus.INACTIVE_MODE_NORMAL;
+        }
+
+        return PersonalWalkingSpawnPointStatus.ACTIVE;
+    }
+
+    public TargetWalkingSpawnPointStatus getTargetWalkingSpawnPointStatus(Player viewer) {
+        Party party = getPlayerParty(viewer.getUniqueId());
+        if (party == null || party.getRespawnTarget() == null) {
+            return TargetWalkingSpawnPointStatus.NO_TARGET;
+        }
+
+        Player targetPlayer = party.getRespawnTargetPlayer();
+        if (targetPlayer == null) {
+            return TargetWalkingSpawnPointStatus.TARGET_NOT_FOUND;
+        }
+
+        var cfg = plugin.getConfigManager().getMainConfig().party.deathLocationSpawn;
+
+        if (!cfg.enabled) {
+            return TargetWalkingSpawnPointStatus.UNAVAILABLE_GLOBAL_DISABLED;
+        }
+
+        if (!targetPlayer.hasPermission(cfg.permission)) {
+            return TargetWalkingSpawnPointStatus.UNAVAILABLE_NO_PERMISSION;
+        }
+
+        if (party.getRespawnMode() != Party.RespawnMode.PARTY_MEMBER) {
+            return TargetWalkingSpawnPointStatus.INACTIVE_MODE_NORMAL;
+        }
+
+        return TargetWalkingSpawnPointStatus.ACTIVE;
+    }
+    
     public Party getParty(UUID partyId) {
         return parties.get(partyId);
     }

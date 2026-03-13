@@ -423,6 +423,7 @@ public class MessagesConfig extends OkaeriConfig {
         @Comment("# 📋 PARTY LIST DISPLAY")
         @Comment("# ----------------------------------------------------------------")
         @Comment("# Used by /msp party list command")
+        @Comment("# Also reused as a read-only party summary after /msp party accept")
         @Comment("# ----------------------------------------------------------------")
         @Comment("")
         public String listHeader = "<dark_gray>[<red>Bound Souls<dark_gray>]";
@@ -434,6 +435,16 @@ public class MessagesConfig extends OkaeriConfig {
         public String listSettingsHeader = "<dark_gray>[<red>Death Circle Settings<dark_gray>]";
         public String listRespawnMode = "<gray>Soul Binding: <red><mode>";
         public String listNoAnchor = "<gray>Soul Anchor: <red>None";
+        public String listWalkingSpawnPointActive = "<gray>Your Walking Spawn Point: <green>Active";
+        public String listWalkingSpawnPointInactiveModeNormal = "<gray>Your Walking Spawn Point: <yellow>Inactive <gray>(party mode is NORMAL)";
+        public String listWalkingSpawnPointUnavailableGlobal = "<gray>Your Walking Spawn Point: <red>Unavailable <gray>(disabled globally)";
+        public String listWalkingSpawnPointUnavailableNoPermission = "<gray>Your Walking Spawn Point: <red>Unavailable <gray>(missing permission)";
+        public String listTargetWalkingSpawnPointActive = "<gray>Target Walking Spawn Point: <green>Available";
+        public String listTargetWalkingSpawnPointInactiveModeNormal = "<gray>Target Walking Spawn Point: <yellow>Inactive <gray>(party mode is NORMAL)";
+        public String listTargetWalkingSpawnPointUnavailableGlobal = "<gray>Target Walking Spawn Point: <red>Unavailable <gray>(disabled globally)";
+        public String listTargetWalkingSpawnPointUnavailableNoPermission = "<gray>Target Walking Spawn Point: <red>Unavailable <gray>(target lacks permission)";
+        public String listTargetWalkingSpawnPointNoTarget = "<gray>Target Walking Spawn Point: <red>No target selected";
+        public String listTargetWalkingSpawnPointTargetMissing = "<gray>Target Walking Spawn Point: <red>Target not found";
         public String listSeparator = "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
 
         @Comment("")
@@ -448,10 +459,22 @@ public class MessagesConfig extends OkaeriConfig {
             public String header = "<dark_gray>[<red>Death Circle Options<dark_gray>]";
             public String respawnMode = "<gray>Soul Binding Mode: <red><mode>";
             public String respawnTarget = "<gray>Soul Target: <red><target>";
-            public String respawnTargetNotFound = "<gray>(Wandering in the void)</gray>";
+            public String respawnTargetNoneLine = "<gray>Soul Target: <red>None";
+            public String respawnTargetNotFoundLine = "<gray>Soul Target: <gray>(Wandering in the void)</gray>";
+            public String walkingSpawnPointActive = "<gray>Your Walking Spawn Point: <green>Active";
+            public String walkingSpawnPointInactiveModeNormal = "<gray>Your Walking Spawn Point: <yellow>Inactive <gray>(party mode is NORMAL)";
+            public String walkingSpawnPointUnavailableGlobal = "<gray>Your Walking Spawn Point: <red>Unavailable <gray>(disabled globally)";
+            public String walkingSpawnPointUnavailableNoPermission = "<gray>Your Walking Spawn Point: <red>Unavailable <gray>(missing permission)";
+            public String targetWalkingSpawnPointActive = "<gray>Target Walking Spawn Point: <green>Available";
+            public String targetWalkingSpawnPointInactiveModeNormal = "<gray>Target Walking Spawn Point: <yellow>Inactive <gray>(party mode is NORMAL)";
+            public String targetWalkingSpawnPointUnavailableGlobal = "<gray>Target Walking Spawn Point: <red>Unavailable <gray>(disabled globally)";
+            public String targetWalkingSpawnPointUnavailableNoPermission = "<gray>Target Walking Spawn Point: <red>Unavailable <gray>(target lacks permission)";
+            public String targetWalkingSpawnPointNoTarget = "<gray>Target Walking Spawn Point: <red>No target selected";
+            public String targetWalkingSpawnPointTargetMissing = "<gray>Target Walking Spawn Point: <red>Target not found";
             public String separator = "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
             public String modeHelp = "<gray>Use <white>/msp party options mode <red><normal|party_member><gray> to change binding";
             public String targetHelp = "<gray>Use <white>/msp party options target <red><soul><gray> to set target soul";
+            public String walkingSafetyNote = "<gray>Tip: If Walking Spawn Point would trap your party in lava, the void, or another dangerous area, temporarily switch to <white>/msp party options mode normal</white><gray>.";
         }
 
         public static class PartyHelpSection extends OkaeriConfig {

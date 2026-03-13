@@ -5,6 +5,7 @@ import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.party.Party;
+import uz.alex2276564.mmospawnpoint.party.PartyManager;
 
 import java.util.List;
 
@@ -52,7 +53,9 @@ public class ListSubCommand implements NestedSubCommandProvider {
                     }
 
                     List<Player> onlineMembers = party.getOnlineMembers();
-                    onlineMembers.remove(leader);
+                    if (leader != null) {
+                        onlineMembers.remove(leader);
+                    }
 
                     for (Player member : onlineMembers) {
                         if (party.getRespawnTarget() != null && party.getRespawnTarget().equals(member.getUniqueId())) {
@@ -86,6 +89,48 @@ public class ListSubCommand implements NestedSubCommandProvider {
                     } else {
                         plugin.getMessageManager().sendMessageKeyed(player, "party.listNoAnchor",
                                 plugin.getConfigManager().getMessagesConfig().party.listNoAnchor);
+                    }
+
+                    PartyManager.PersonalWalkingSpawnPointStatus personalWalkingStatus =
+                            plugin.getPartyManager().getPersonalWalkingSpawnPointStatus(player);
+
+                    switch (personalWalkingStatus) {
+                        case ACTIVE -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listWalkingSpawnPointActive",
+                                plugin.getConfigManager().getMessagesConfig().party.listWalkingSpawnPointActive);
+                        case INACTIVE_MODE_NORMAL -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listWalkingSpawnPointInactiveModeNormal",
+                                plugin.getConfigManager().getMessagesConfig().party.listWalkingSpawnPointInactiveModeNormal);
+                        case UNAVAILABLE_GLOBAL_DISABLED -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listWalkingSpawnPointUnavailableGlobal",
+                                plugin.getConfigManager().getMessagesConfig().party.listWalkingSpawnPointUnavailableGlobal);
+                        case UNAVAILABLE_NO_PERMISSION -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listWalkingSpawnPointUnavailableNoPermission",
+                                plugin.getConfigManager().getMessagesConfig().party.listWalkingSpawnPointUnavailableNoPermission);
+                    }
+
+                    PartyManager.TargetWalkingSpawnPointStatus targetWalkingStatus =
+                            plugin.getPartyManager().getTargetWalkingSpawnPointStatus(player);
+
+                    switch (targetWalkingStatus) {
+                        case ACTIVE -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listTargetWalkingSpawnPointActive",
+                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointActive);
+                        case INACTIVE_MODE_NORMAL -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listTargetWalkingSpawnPointInactiveModeNormal",
+                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointInactiveModeNormal);
+                        case UNAVAILABLE_GLOBAL_DISABLED -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listTargetWalkingSpawnPointUnavailableGlobal",
+                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointUnavailableGlobal);
+                        case UNAVAILABLE_NO_PERMISSION -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listTargetWalkingSpawnPointUnavailableNoPermission",
+                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointUnavailableNoPermission);
+                        case NO_TARGET -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listTargetWalkingSpawnPointNoTarget",
+                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointNoTarget);
+                        case TARGET_NOT_FOUND -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listTargetWalkingSpawnPointTargetMissing",
+                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointTargetMissing);
                     }
 
                     plugin.getMessageManager().sendMessageKeyed(player, "party.listSeparator",

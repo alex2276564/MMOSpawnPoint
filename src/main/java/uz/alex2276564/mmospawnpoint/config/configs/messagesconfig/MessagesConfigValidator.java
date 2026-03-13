@@ -221,6 +221,16 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.listSettingsHeader", party.listSettingsHeader, "List settings header cannot be empty");
         Validators.notBlank(result, "party.listRespawnMode", party.listRespawnMode, "List respawn mode cannot be empty");
         Validators.notBlank(result, "party.listNoAnchor", party.listNoAnchor, "List no anchor cannot be empty");
+        Validators.notBlank(result, "party.listWalkingSpawnPointActive", party.listWalkingSpawnPointActive, "List walking spawn point active cannot be empty");
+        Validators.notBlank(result, "party.listWalkingSpawnPointInactiveModeNormal", party.listWalkingSpawnPointInactiveModeNormal, "List walking spawn point inactive (mode normal) cannot be empty");
+        Validators.notBlank(result, "party.listWalkingSpawnPointUnavailableGlobal", party.listWalkingSpawnPointUnavailableGlobal, "List walking spawn point unavailable (global) cannot be empty");
+        Validators.notBlank(result, "party.listWalkingSpawnPointUnavailableNoPermission", party.listWalkingSpawnPointUnavailableNoPermission, "List walking spawn point unavailable (no permission) cannot be empty");
+        Validators.notBlank(result, "party.listTargetWalkingSpawnPointActive", party.listTargetWalkingSpawnPointActive, "List target walking spawn point active cannot be empty");
+        Validators.notBlank(result, "party.listTargetWalkingSpawnPointInactiveModeNormal", party.listTargetWalkingSpawnPointInactiveModeNormal, "List target walking spawn point inactive (mode normal) cannot be empty");
+        Validators.notBlank(result, "party.listTargetWalkingSpawnPointUnavailableGlobal", party.listTargetWalkingSpawnPointUnavailableGlobal, "List target walking spawn point unavailable (global) cannot be empty");
+        Validators.notBlank(result, "party.listTargetWalkingSpawnPointUnavailableNoPermission", party.listTargetWalkingSpawnPointUnavailableNoPermission, "List target walking spawn point unavailable (no permission) cannot be empty");
+        Validators.notBlank(result, "party.listTargetWalkingSpawnPointNoTarget", party.listTargetWalkingSpawnPointNoTarget, "List target walking spawn point no target cannot be empty");
+        Validators.notBlank(result, "party.listTargetWalkingSpawnPointTargetMissing", party.listTargetWalkingSpawnPointTargetMissing, "List target walking spawn point target missing cannot be empty");
         Validators.notBlank(result, "party.listSeparator", party.listSeparator, "List separator cannot be empty");
 
         if (!party.listLeader.contains("<player>")) {
@@ -247,10 +257,32 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.options.header", options.header, "Options header cannot be empty");
         Validators.notBlank(result, "party.options.respawnMode", options.respawnMode, "Options respawn mode cannot be empty");
         Validators.notBlank(result, "party.options.respawnTarget", options.respawnTarget, "Options respawn target cannot be empty");
-        Validators.notBlank(result, "party.options.respawnTargetNotFound", options.respawnTargetNotFound, "Options respawn target not found cannot be empty");
+        Validators.notBlank(result, "party.options.respawnTargetNoneLine", options.respawnTargetNoneLine, "Options respawn target none line cannot be empty");
+        Validators.notBlank(result, "party.options.respawnTargetNotFoundLine", options.respawnTargetNotFoundLine, "Options respawn target not found line cannot be empty");
+
+        Validators.notBlank(result, "party.options.walkingSpawnPointActive", options.walkingSpawnPointActive, "Options walking spawn point active cannot be empty");
+        Validators.notBlank(result, "party.options.walkingSpawnPointInactiveModeNormal", options.walkingSpawnPointInactiveModeNormal, "Options walking spawn point inactive (mode normal) cannot be empty");
+        Validators.notBlank(result, "party.options.walkingSpawnPointUnavailableGlobal", options.walkingSpawnPointUnavailableGlobal, "Options walking spawn point unavailable (global) cannot be empty");
+        Validators.notBlank(result, "party.options.walkingSpawnPointUnavailableNoPermission", options.walkingSpawnPointUnavailableNoPermission, "Options walking spawn point unavailable (no permission) cannot be empty");
+
+        Validators.notBlank(result, "party.options.targetWalkingSpawnPointActive", options.targetWalkingSpawnPointActive, "Options target walking spawn point active cannot be empty");
+        Validators.notBlank(result, "party.options.targetWalkingSpawnPointInactiveModeNormal", options.targetWalkingSpawnPointInactiveModeNormal, "Options target walking spawn point inactive (mode normal) cannot be empty");
+        Validators.notBlank(result, "party.options.targetWalkingSpawnPointUnavailableGlobal", options.targetWalkingSpawnPointUnavailableGlobal, "Options target walking spawn point unavailable (global) cannot be empty");
+        Validators.notBlank(result, "party.options.targetWalkingSpawnPointUnavailableNoPermission", options.targetWalkingSpawnPointUnavailableNoPermission, "Options target walking spawn point unavailable (no permission) cannot be empty");
+        Validators.notBlank(result, "party.options.targetWalkingSpawnPointNoTarget", options.targetWalkingSpawnPointNoTarget, "Options target walking spawn point no target cannot be empty");
+        Validators.notBlank(result, "party.options.targetWalkingSpawnPointTargetMissing", options.targetWalkingSpawnPointTargetMissing, "Options target walking spawn point target missing cannot be empty");
+
         Validators.notBlank(result, "party.options.separator", options.separator, "Options separator cannot be empty");
         Validators.notBlank(result, "party.options.modeHelp", options.modeHelp, "Options mode help cannot be empty");
         Validators.notBlank(result, "party.options.targetHelp", options.targetHelp, "Options target help cannot be empty");
+        Validators.notBlank(result, "party.options.walkingSafetyNote", options.walkingSafetyNote, "Options walking safety note cannot be empty");
+
+        if (!options.respawnMode.contains("<mode>")) {
+            result.addError("party.options.respawnMode", "Options respawn mode must contain <mode> placeholder");
+        }
+        if (!options.respawnTarget.contains("<target>")) {
+            result.addError("party.options.respawnTarget", "Options respawn target must contain <target> placeholder");
+        }
     }
 
     private static void validatePartyHelpSection(ValidationResult result, MessagesConfig.PartySection.PartyHelpSection help) {
