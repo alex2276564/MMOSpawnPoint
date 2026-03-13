@@ -8,7 +8,7 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandP
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
 
-import java.util.List;
+import java.util.*;
 
 public class InviteSubCommand implements NestedSubCommandProvider {
 
@@ -19,27 +19,34 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                 .description("Invite a player to your party")
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
                         .dynamicSuggestions((sender, partial, soFar) -> {
-                            if (!(sender instanceof Player p)) return List.of();
-                            var pm = MMOSpawnPoint.getInstance().getPartyManager();
-                            var party = (pm != null ? pm.getPlayerParty(p.getUniqueId()) : null);
-
-                            String needle = partial == null ? "" : partial.toLowerCase();
-
-                            if (party == null) {
-                                // not in party -> suggest all online + yourself
-                                return MMOSpawnPoint.getInstance().getServer().getOnlinePlayers().stream()
-                                        .map(Player::getName)
-                                        .filter(name -> name.toLowerCase().startsWith(needle))
-                                        .toList();
-                            } else {
-                                // in party -> suggest NON-members + yourself
-                                var memberIds = party.getMembers(); // Set<UUID>
-                                return MMOSpawnPoint.getInstance().getServer().getOnlinePlayers().stream()
-                                        .filter(pl -> pl.getUniqueId().equals(p.getUniqueId()) || !memberIds.contains(pl.getUniqueId()))
-                                        .map(Player::getName)
-                                        .filter(name -> name.toLowerCase().startsWith(needle))
-                                        .toList();
+                            if (!(sender instanceof Player self)) {
+                                return List.of();
                             }
+
+                            MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+                            PartyManager pm = plugin.getPartyManager();
+
+                            String needle = (partial == null ? "" : partial.toLowerCase(Locale.ROOT));
+
+                            // Collect current party members, if the sender is already in a party.
+                            // This allows tab completion to hide players who are already in the same party.
+                            Set<UUID> memberIds = null;
+                            if (pm != null && pm.isInParty(self.getUniqueId())) {
+                                var party = pm.getPlayerParty(self.getUniqueId());
+                                if (party != null) {
+                                    memberIds = new HashSet<>(party.getMembers());
+                                }
+                            }
+                            final Set<UUID> finalMemberIds = memberIds;
+
+                            return plugin.getServer().getOnlinePlayers().stream()
+                                    // If the sender is already in a party, do not suggest players
+                                    // who are already members of that same party.
+                                    // This automatically hides the sender as well, because they are a party member too.
+                                    .filter(target -> finalMemberIds == null || !finalMemberIds.contains(target.getUniqueId()))
+                                    .map(Player::getName)
+                                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(needle))
+                                    .toList();
                         }))
                 .executor((sender, context) -> {
                     var plugin = MMOSpawnPoint.getInstance();
@@ -66,6 +73,20 @@ public class InviteSubCommand implements NestedSubCommandProvider {
 
                     PartyManager partyManager = plugin.getPartyManager();
 
+                    // Self-invite as the invite-success flow
+                    if (targetPlayer.getUniqueId().equals(player.getUniqueId())) {
+                        if (!partyManager.isInParty(player.getUniqueId())) {
+                            partyManager.createParty(player);
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.joinedParty",
+                                    plugin.getConfigManager().getMessagesConfig().party.joinedParty);
+                            return;
+                        }
+
+                        plugin.getMessageManager().sendMessageKeyed(player, "party.inviteFailedAlreadyInParty",
+                                plugin.getConfigManager().getMessagesConfig().party.inviteFailedAlreadyInParty);
+                        return;
+                    }
+
                     // Auto-create party if player is not in one
                     if (!partyManager.isInParty(player.getUniqueId())) {
                         partyManager.createParty(player);
@@ -85,14 +106,17 @@ public class InviteSubCommand implements NestedSubCommandProvider {
                             String sent = plugin.getConfigManager().getMessagesConfig().party.inviteSent;
                             plugin.getMessageManager().sendMessageKeyed(player, "party.inviteSent", sent, "player", targetPlayer.getName());
                         }
-                        case TARGET_ALREADY_IN_PARTY -> plugin.getMessageManager().sendMessageKeyed(player, "party.inviteFailedAlreadyInParty",
-                                plugin.getConfigManager().getMessagesConfig().party.inviteFailedAlreadyInParty);
-                        case PARTY_FULL -> plugin.getMessageManager().sendMessageKeyed(player, "party.inviteFailedPartyFull",
-                                plugin.getConfigManager().getMessagesConfig().party.inviteFailedPartyFull);
+                        case TARGET_ALREADY_IN_PARTY ->
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.inviteFailedAlreadyInParty",
+                                        plugin.getConfigManager().getMessagesConfig().party.inviteFailedAlreadyInParty);
+                        case PARTY_FULL ->
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.inviteFailedPartyFull",
+                                        plugin.getConfigManager().getMessagesConfig().party.inviteFailedPartyFull);
                         case NOT_LEADER -> plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
                                 plugin.getConfigManager().getMessagesConfig().party.notLeader);
-                        case LEADER_NOT_IN_PARTY -> plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
-                                plugin.getConfigManager().getMessagesConfig().party.notInParty);
+                        case LEADER_NOT_IN_PARTY ->
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
+                                        plugin.getConfigManager().getMessagesConfig().party.notInParty);
                         default -> plugin.getMessageManager().sendMessageKeyed(player, "party.errorOccurred",
                                 plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
                     }
