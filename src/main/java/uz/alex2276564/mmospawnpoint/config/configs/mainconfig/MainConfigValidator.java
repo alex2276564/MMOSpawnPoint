@@ -271,7 +271,7 @@ public class MainConfigValidator {
     }
 
     private static void validateTargetSelection(ValidationResult result, MainConfig.TargetSelectionSection targetSelection) {
-        Set<String> validStrategies = Set.of("closest_same_world", "any_world", "most_members_world",
+        Set<String> validStrategies = Set.of("closest_same_world", "closest_prefer_same_world_or_any", "most_members_world",
                 "most_members_region", "random", "leader_priority", "specific_target_only");
 
         if (!validStrategies.contains(targetSelection.primaryStrategy)) {

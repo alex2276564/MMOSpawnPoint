@@ -341,7 +341,7 @@ public class PartyManager {
 
         return TargetWalkingSpawnPointStatus.ACTIVE;
     }
-    
+
     public Party getParty(UUID partyId) {
         return parties.get(partyId);
     }
@@ -602,8 +602,8 @@ public class PartyManager {
         switch (strategy.toLowerCase(Locale.ROOT)) {
             case "closest_same_world":
                 return findClosestInSameWorld(candidates, deathLocation);
-            case "any_world":
-                return findClosestAnyWorld(candidates, deathLocation);
+            case "closest_prefer_same_world_or_any":
+                return findSameWorldClosestOrFallbackAny(candidates, deathLocation);
             case "most_members_world":
                 return findTargetInMostPopulatedWorld(candidates);
             case "most_members_region":
@@ -633,8 +633,8 @@ public class PartyManager {
         switch (strategy.toLowerCase(Locale.ROOT)) {
             case "closest_same_world":
                 return findClosestInSameWorldForJoin(candidates, ref);
-            case "any_world":
-                return findClosestAnyWorldForJoin(candidates, ref);
+            case "closest_prefer_same_world_or_any":
+                return findSameWorldClosestOrFallbackAnyForJoin(candidates, ref);
             case "most_members_world":
                 return findTargetInMostPopulatedWorld(candidates);
             case "most_members_region":
@@ -670,7 +670,7 @@ public class PartyManager {
         return closest;
     }
 
-    private Player findClosestAnyWorld(List<Player> candidates, Location deathLocation) {
+    private Player findSameWorldClosestOrFallbackAny(List<Player> candidates, Location deathLocation) {
         var sel = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetSelection;
         if (sel.preferSameWorld) {
             Player p = findClosestInSameWorld(candidates, deathLocation);
@@ -706,7 +706,7 @@ public class PartyManager {
         return closest;
     }
 
-    private Player findClosestAnyWorldForJoin(List<Player> candidates, Location ref) {
+    private Player findSameWorldClosestOrFallbackAnyForJoin(List<Player> candidates, Location ref) {
         var sel = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetSelection;
         if (sel.preferSameWorld) {
             Player p = findClosestInSameWorldForJoin(candidates, ref);

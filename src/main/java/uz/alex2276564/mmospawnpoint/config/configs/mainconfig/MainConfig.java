@@ -698,7 +698,7 @@ public class MainConfig extends OkaeriConfig {
     public static class TargetSelectionSection extends OkaeriConfig {
         @Comment("🎯 Primary target selection strategy:")
         @Comment("• closest_same_world: nearest party member in same world")
-        @Comment("• any_world: nearest party member anywhere")
+        @Comment("• closest_prefer_same_world_or_any: Prefer the closest party member in the same world. If none are available, fall back to any other online party member in another world.")
         @Comment("• most_members_world: world with most party members")
         @Comment("• most_members_region: region with most party members")
         @Comment("• random: random party member")
@@ -709,7 +709,7 @@ public class MainConfig extends OkaeriConfig {
         @Comment("")
         @Comment("🔄 Fallback strategy if primary fails")
         @Comment("Same options as primaryStrategy")
-        public String fallbackStrategy = "any_world";
+        public String fallbackStrategy = "most_members_world";
 
         @Comment("")
         @Comment("🌍 Prefer players in same world over cross-world teleports")
