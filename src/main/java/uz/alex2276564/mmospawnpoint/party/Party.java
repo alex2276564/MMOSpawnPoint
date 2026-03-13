@@ -58,6 +58,10 @@ public class Party {
         boolean wasLeader = playerId.equals(this.leader);
         this.members.remove(playerId);
 
+        // TODO - fix long cooldown bypass with this after rewrite clean player party data in playerquitlistener
+        this.respawnCooldowns.remove(playerId);
+        this.invitations.remove(playerId);
+
         // Reset target if it was this player
         if (playerId.equals(this.respawnTarget)) {
             this.respawnTarget = null;
