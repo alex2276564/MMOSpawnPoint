@@ -445,17 +445,16 @@ public class SpawnManager {
      * Run BEFORE phase once (if pending) for waiting-room based flows.
      * Does NOT consume the pending waiting-room entry (WAITING_ROOM will do that).
      */
-    private boolean runBeforePhaseIfPending(Player player) {
+    private void runBeforePhaseIfPending(Player player) {
         UUID id = player.getUniqueId();
         PendingEntry pe = pendingWaitingRoomActions.get(id);
         if (pe == null) {
-            return false;
+            return;
         }
         if (!player.isOnline()) {
-            return false;
+            return;
         }
         runPhaseForEntry(player, pe.loc, pe.global, SpawnPointsConfig.Phase.BEFORE);
-        return true;
     }
 
     /**
