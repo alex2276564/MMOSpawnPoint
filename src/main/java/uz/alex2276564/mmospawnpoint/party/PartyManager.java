@@ -414,11 +414,11 @@ public class PartyManager {
         boolean targetRestricted = targetReason != RestrictionReason.NONE;
 
         if (deathRestricted && targetRestricted) {
-            return handleBothRestricted(player, deathReason);
+            return handleBothRestricted(player, deathLocation, deathReason);
         } else if (deathRestricted) {
             return handleDeathRestricted(player, target, deathReason);
         } else if (targetRestricted) {
-            return handleTargetRestricted(player, party, targetReason);
+            return handleTargetRestricted(player, party, deathLocation, targetReason);
         }
 
         // Max distance restriction
@@ -839,12 +839,12 @@ public class PartyManager {
         }
     }
 
-    private Location handleBothRestricted(Player player, RestrictionReason reason) {
+    private Location handleBothRestricted(Player player, Location deathLocation, RestrictionReason reason) {
         String behavior = plugin.getConfigManager().getMainConfig().party.respawnBehavior.bothRestrictedBehavior.toLowerCase(Locale.ROOT);
         switch (behavior) {
             case "allow":
                 Party party = getPlayerParty(player.getUniqueId());
-                Player target = findBestTarget(party, player, player.getLocation(), false);
+                Player target = findBestTarget(party, player, deathLocation, false);
                 return target != null ? target.getLocation() : null;
             case "fallback_to_normal_spawn":
                 return null;
@@ -866,11 +866,11 @@ public class PartyManager {
         };
     }
 
-    private Location handleTargetRestricted(Player player, Party party, RestrictionReason targetReason) {
+    private Location handleTargetRestricted(Player player, Party party, Location deathLocation, RestrictionReason targetReason) {
         String behavior = plugin.getConfigManager().getMainConfig().party.respawnBehavior.targetRestrictedBehavior.toLowerCase(Locale.ROOT);
         return switch (behavior) {
             case "allow" -> {
-                Player t = findBestTarget(party, player, player.getLocation(), false);
+                Player t = findBestTarget(party, player, deathLocation, false);
                 yield t != null ? t.getLocation() : null;
             }
             case "find_other_member" -> {
