@@ -387,6 +387,10 @@ public class MessagesConfig extends OkaeriConfig {
         public String errorOccurred = "<prefix> <red>Dark forces interfered with the ritual. Try again";
 
         @Comment("")
+        @Comment("Shown when a player tries to accept another party too quickly. Placeholder: <time> = seconds remaining")
+        public String membershipChangeCooldown = "<prefix> <gray>You must wait <red><time> <gray>seconds before joining another death party.";
+
+        @Comment("")
         @Comment("# ----------------------------------------------------------------")
         @Comment("# 👑 LEADERSHIP & OPTIONS")
         @Comment("# ----------------------------------------------------------------")
@@ -428,9 +432,13 @@ public class MessagesConfig extends OkaeriConfig {
         @Comment("")
         public String listHeader = "<dark_gray>[<red>Bound Souls<dark_gray>]";
         public String listLeader = "<red>👑 <player> <gray>(Death Lord)";
+        public String listLeaderOffline = "<red>👑 <player> <gray>(Death Lord, offline)";
         public String listLeaderMissing = "<red>👑 <gray>(Death Lord lost in the void)";
         public String listMember = "<gray>☠ <player>";
+        public String listMemberOffline = "<dark_gray>☠ <player> <gray>(offline)";
+        public String listMemberMissing = "<gray>☠ <red>(Unknown member)";
         public String listAnchor = "<dark_red>🔄 <player> <gray>(Soul Anchor)";
+        public String listAnchorOffline = "<dark_red>🔄 <player> <gray>(Soul Anchor, offline)";
         public String listAnchorMissing = "<gray>Soul Anchor: <red>(Lost in darkness)";
         public String listSettingsHeader = "<dark_gray>[<red>Death Circle Settings<dark_gray>]";
         public String listRespawnMode = "<gray>Soul Binding: <red><mode>";
@@ -444,6 +452,7 @@ public class MessagesConfig extends OkaeriConfig {
         public String listTargetWalkingSpawnPointUnavailableGlobal = "<gray>Target Walking Spawn Point: <red>Unavailable <gray>(disabled globally)";
         public String listTargetWalkingSpawnPointUnavailableNoPermission = "<gray>Target Walking Spawn Point: <red>Unavailable <gray>(target lacks permission)";
         public String listTargetWalkingSpawnPointNoTarget = "<gray>Target Walking Spawn Point: <red>No target selected";
+        public String listTargetWalkingSpawnPointTargetOffline = "<gray>Target Walking Spawn Point: <yellow>Unknown <gray>(target is offline)";
         public String listTargetWalkingSpawnPointTargetMissing = "<gray>Target Walking Spawn Point: <red>Target not found";
         public String listSeparator = "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
 
@@ -460,6 +469,7 @@ public class MessagesConfig extends OkaeriConfig {
             public String respawnMode = "<gray>Soul Binding Mode: <red><mode>";
             public String respawnTarget = "<gray>Soul Target: <red><target>";
             public String respawnTargetNoneLine = "<gray>Soul Target: <red>None";
+            public String respawnTargetOfflineLine = "<gray>Soul Target: <yellow><player> <gray>(offline)";
             public String respawnTargetNotFoundLine = "<gray>Soul Target: <gray>(Wandering in the void)</gray>";
             public String walkingSpawnPointActive = "<gray>Your Walking Spawn Point: <green>Active";
             public String walkingSpawnPointInactiveModeNormal = "<gray>Your Walking Spawn Point: <yellow>Inactive <gray>(party mode is NORMAL)";
@@ -470,6 +480,7 @@ public class MessagesConfig extends OkaeriConfig {
             public String targetWalkingSpawnPointUnavailableGlobal = "<gray>Target Walking Spawn Point: <red>Unavailable <gray>(disabled globally)";
             public String targetWalkingSpawnPointUnavailableNoPermission = "<gray>Target Walking Spawn Point: <red>Unavailable <gray>(target lacks permission)";
             public String targetWalkingSpawnPointNoTarget = "<gray>Target Walking Spawn Point: <red>No target selected";
+            public String targetWalkingSpawnPointTargetOffline = "<gray>Target Walking Spawn Point: <yellow>Unknown <gray>(target is offline)";
             public String targetWalkingSpawnPointTargetMissing = "<gray>Target Walking Spawn Point: <red>Target not found";
             public String separator = "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
             public String modeHelp = "<gray>Use <white>/msp party options mode <red><normal|party_member><gray> to change binding";

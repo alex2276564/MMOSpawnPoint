@@ -1,5 +1,6 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.party.list;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
@@ -7,7 +8,7 @@ import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder
 import uz.alex2276564.mmospawnpoint.party.Party;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
 
-import java.util.List;
+import java.util.UUID;
 
 public class ListSubCommand implements NestedSubCommandProvider {
 
@@ -38,57 +39,93 @@ public class ListSubCommand implements NestedSubCommandProvider {
                     }
 
                     Party party = plugin.getPartyManager().getPlayerParty(player.getUniqueId());
+                    var messages = plugin.getConfigManager().getMessagesConfig().party;
 
-                    plugin.getMessageManager().sendMessageKeyed(player, "party.listHeader",
-                            plugin.getConfigManager().getMessagesConfig().party.listHeader);
+                    plugin.getMessageManager().sendMessageKeyed(player, "party.listHeader", messages.listHeader);
 
-                    Player leader = party.getLeaderPlayer();
-                    if (leader != null) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.listLeader",
-                                plugin.getConfigManager().getMessagesConfig().party.listLeader,
-                                "player", leader.getName());
+                    UUID leaderId = party.getLeader();
+                    UUID targetId = party.getRespawnTarget();
+
+                    var leaderOffline = Bukkit.getOfflinePlayer(leaderId);
+                    String leaderName = leaderOffline.getName();
+
+                    if (leaderName != null) {
+                        if (leaderOffline.isOnline()) {
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.listLeader",
+                                    messages.listLeader, "player", leaderName);
+                        } else {
+                            plugin.getMessageManager().sendMessageKeyed(player, "party.listLeaderOffline",
+                                    messages.listLeaderOffline, "player", leaderName);
+                        }
                     } else {
                         plugin.getMessageManager().sendMessageKeyed(player, "party.listLeaderMissing",
-                                plugin.getConfigManager().getMessagesConfig().party.listLeaderMissing);
+                                messages.listLeaderMissing);
                     }
 
-                    List<Player> onlineMembers = party.getOnlineMembers();
-                    if (leader != null) {
-                        onlineMembers.remove(leader);
-                    }
+                    for (UUID memberId : party.getMembers()) {
+                        if (memberId.equals(leaderId)) {
+                            continue;
+                        }
 
-                    for (Player member : onlineMembers) {
-                        if (party.getRespawnTarget() != null && party.getRespawnTarget().equals(member.getUniqueId())) {
-                            plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchor",
-                                    plugin.getConfigManager().getMessagesConfig().party.listAnchor,
-                                    "player", member.getName());
+                        boolean isTarget = targetId != null && targetId.equals(memberId);
+                        var offlineMember = Bukkit.getOfflinePlayer(memberId);
+                        String memberName = offlineMember.getName();
+
+                        if (memberName == null) {
+                            if (isTarget) {
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchorMissing",
+                                        messages.listAnchorMissing);
+                            } else {
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.listMemberMissing",
+                                        messages.listMemberMissing);
+                            }
+                            continue;
+                        }
+
+                        if (isTarget) {
+                            if (offlineMember.isOnline()) {
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchor",
+                                        messages.listAnchor, "player", memberName);
+                            } else {
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchorOffline",
+                                        messages.listAnchorOffline, "player", memberName);
+                            }
                         } else {
-                            plugin.getMessageManager().sendMessageKeyed(player, "party.listMember",
-                                    plugin.getConfigManager().getMessagesConfig().party.listMember,
-                                    "player", member.getName());
+                            if (offlineMember.isOnline()) {
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.listMember",
+                                        messages.listMember, "player", memberName);
+                            } else {
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.listMemberOffline",
+                                        messages.listMemberOffline, "player", memberName);
+                            }
                         }
                     }
 
                     plugin.getMessageManager().sendMessageKeyed(player, "party.listSettingsHeader",
-                            plugin.getConfigManager().getMessagesConfig().party.listSettingsHeader);
+                            messages.listSettingsHeader);
 
                     plugin.getMessageManager().sendMessageKeyed(player, "party.listRespawnMode",
-                            plugin.getConfigManager().getMessagesConfig().party.listRespawnMode,
-                            "mode", party.getRespawnMode().name());
+                            messages.listRespawnMode, "mode", party.getRespawnMode().name());
 
-                    if (party.getRespawnTarget() != null) {
-                        Player target = party.getRespawnTargetPlayer();
-                        if (target != null) {
-                            plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchor",
-                                    plugin.getConfigManager().getMessagesConfig().party.listAnchor,
-                                    "player", target.getName());
+                    if (targetId != null) {
+                        var targetOffline = Bukkit.getOfflinePlayer(targetId);
+                        String targetName = targetOffline.getName();
+
+                        if (targetName != null) {
+                            if (targetOffline.isOnline()) {
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchor",
+                                        messages.listAnchor, "player", targetName);
+                            } else {
+                                plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchorOffline",
+                                        messages.listAnchorOffline, "player", targetName);
+                            }
                         } else {
                             plugin.getMessageManager().sendMessageKeyed(player, "party.listAnchorMissing",
-                                    plugin.getConfigManager().getMessagesConfig().party.listAnchorMissing);
+                                    messages.listAnchorMissing);
                         }
                     } else {
                         plugin.getMessageManager().sendMessageKeyed(player, "party.listNoAnchor",
-                                plugin.getConfigManager().getMessagesConfig().party.listNoAnchor);
+                                messages.listNoAnchor);
                     }
 
                     PartyManager.PersonalWalkingSpawnPointStatus personalWalkingStatus =
@@ -97,16 +134,16 @@ public class ListSubCommand implements NestedSubCommandProvider {
                     switch (personalWalkingStatus) {
                         case ACTIVE -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listWalkingSpawnPointActive",
-                                plugin.getConfigManager().getMessagesConfig().party.listWalkingSpawnPointActive);
+                                messages.listWalkingSpawnPointActive);
                         case INACTIVE_MODE_NORMAL -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listWalkingSpawnPointInactiveModeNormal",
-                                plugin.getConfigManager().getMessagesConfig().party.listWalkingSpawnPointInactiveModeNormal);
+                                messages.listWalkingSpawnPointInactiveModeNormal);
                         case UNAVAILABLE_GLOBAL_DISABLED -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listWalkingSpawnPointUnavailableGlobal",
-                                plugin.getConfigManager().getMessagesConfig().party.listWalkingSpawnPointUnavailableGlobal);
+                                messages.listWalkingSpawnPointUnavailableGlobal);
                         case UNAVAILABLE_NO_PERMISSION -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listWalkingSpawnPointUnavailableNoPermission",
-                                plugin.getConfigManager().getMessagesConfig().party.listWalkingSpawnPointUnavailableNoPermission);
+                                messages.listWalkingSpawnPointUnavailableNoPermission);
                     }
 
                     PartyManager.TargetWalkingSpawnPointStatus targetWalkingStatus =
@@ -115,26 +152,29 @@ public class ListSubCommand implements NestedSubCommandProvider {
                     switch (targetWalkingStatus) {
                         case ACTIVE -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listTargetWalkingSpawnPointActive",
-                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointActive);
+                                messages.listTargetWalkingSpawnPointActive);
                         case INACTIVE_MODE_NORMAL -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listTargetWalkingSpawnPointInactiveModeNormal",
-                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointInactiveModeNormal);
+                                messages.listTargetWalkingSpawnPointInactiveModeNormal);
                         case UNAVAILABLE_GLOBAL_DISABLED -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listTargetWalkingSpawnPointUnavailableGlobal",
-                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointUnavailableGlobal);
+                                messages.listTargetWalkingSpawnPointUnavailableGlobal);
                         case UNAVAILABLE_NO_PERMISSION -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listTargetWalkingSpawnPointUnavailableNoPermission",
-                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointUnavailableNoPermission);
+                                messages.listTargetWalkingSpawnPointUnavailableNoPermission);
                         case NO_TARGET -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listTargetWalkingSpawnPointNoTarget",
-                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointNoTarget);
+                                messages.listTargetWalkingSpawnPointNoTarget);
+                        case TARGET_OFFLINE -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.listTargetWalkingSpawnPointTargetOffline",
+                                messages.listTargetWalkingSpawnPointTargetOffline);
                         case TARGET_NOT_FOUND -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.listTargetWalkingSpawnPointTargetMissing",
-                                plugin.getConfigManager().getMessagesConfig().party.listTargetWalkingSpawnPointTargetMissing);
+                                messages.listTargetWalkingSpawnPointTargetMissing);
                     }
 
                     plugin.getMessageManager().sendMessageKeyed(player, "party.listSeparator",
-                            plugin.getConfigManager().getMessagesConfig().party.listSeparator);
+                            messages.listSeparator);
                 });
     }
 }

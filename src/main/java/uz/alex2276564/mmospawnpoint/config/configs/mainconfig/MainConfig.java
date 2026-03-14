@@ -599,6 +599,26 @@ public class MainConfig extends OkaeriConfig {
         public int invitationExpiry = 120;
 
         @Comment("")
+        @Comment("🚪 Remove players from their party when they disconnect")
+        @Comment("false = MMO-friendly behavior (recommended): party membership survives relog/offline time")
+        @Comment("true  = session-style behavior: quitting the server immediately removes the player from the party")
+        @Comment("⚠ Enabling this is usually NOT recommended for MMO-style servers")
+        public boolean removePlayerOnQuit = false;
+
+        @Comment("")
+        @Comment("⏳ Cooldown before a player can join another party again (seconds, 0 = none)")
+        @Comment("Checked when using /msp party accept and refreshed after membership changes")
+        @Comment("Can reduce fast party-hopping and some cooldown-bypass patterns on servers that use party respawn cooldowns")
+        public int membershipChangeCooldownSeconds = 0;
+
+        @Comment("")
+        @Comment("🧹 Clear this party's respawn cooldown entry when a player leaves or is removed")
+        @Comment("false = recommended; if the player rejoins the SAME still-existing party, the old cooldown remains")
+        @Comment("true  = more permissive; leaving/removal clears the cooldown entry from that party immediately")
+        @Comment("Note: respawn cooldowns are stored per Party object, not globally across all parties")
+        public boolean clearRespawnCooldownOnLeave = false;
+
+        @Comment("")
         @Comment("# ----------------------------------------------------------------")
         @Comment("# 🚶 WALKING SPAWN POINT")
         @Comment("# ----------------------------------------------------------------")

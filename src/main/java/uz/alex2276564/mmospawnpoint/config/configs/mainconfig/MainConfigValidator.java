@@ -223,6 +223,9 @@ public class MainConfigValidator {
         Validators.min(result, "party.respawnCooldown", party.respawnCooldown, 0, "Party respawn cooldown cannot be negative");
         Validators.min(result, "party.invitationExpiry", party.invitationExpiry, 1, "Party invitation expiry must be at least 1 second");
 
+        Validators.min(result, "party.membershipChangeCooldownSeconds", party.membershipChangeCooldownSeconds, 0, "Party membership change cooldown cannot be negative");
+        Validators.max(result, "party.membershipChangeCooldownSeconds", party.membershipChangeCooldownSeconds, 86400, "Party membership change cooldown cannot exceed 86400 seconds (24 hours)");
+
         // Validate death location spawn settings
         if (party.deathLocationSpawn != null) {
             Validators.notBlank(result, "party.deathLocationSpawn.permission", party.deathLocationSpawn.permission, "Death location spawn permission cannot be empty");

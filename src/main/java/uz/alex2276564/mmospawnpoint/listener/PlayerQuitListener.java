@@ -26,10 +26,13 @@ public class PlayerQuitListener implements Listener {
         // Clean up spawn manager data
         plugin.getSpawnManager().cleanupPlayerData(player.getUniqueId());
 
-        // Clean up party data if party system is enabled
-        if (plugin.getConfigManager().getMainConfig().party.enabled && plugin.getPartyManager() != null) {
+        // Clean up party data only if configured
+        if (plugin.getConfigManager().getMainConfig().party.enabled
+                && plugin.getPartyManager() != null
+                && plugin.getConfigManager().getMainConfig().party.removePlayerOnQuit) {
             plugin.getPartyManager().cleanupPlayerData(player.getUniqueId());
         }
+
 
         // Clean up resource pack listener data
         PlayerResourcePackListener resourcePackListener = plugin.getResourcePackListener();

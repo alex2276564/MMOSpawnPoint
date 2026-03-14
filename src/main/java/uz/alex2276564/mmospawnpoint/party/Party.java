@@ -58,8 +58,6 @@ public class Party {
         boolean wasLeader = playerId.equals(this.leader);
         this.members.remove(playerId);
 
-        // TODO - fix long cooldown bypass with this after rewrite clean player party data in playerquitlistener
-        this.respawnCooldowns.remove(playerId);
         this.invitations.remove(playerId);
 
         // Reset target if it was this player
@@ -73,7 +71,15 @@ public class Party {
     }
 
     private void pickNewLeaderAfterRemoval() {
-        // Deterministic: the oldest remaining member becomes leader
+        for (UUID memberId : this.members) {
+            Player player = Bukkit.getPlayer(memberId);
+            if (player != null && player.isOnline()) {
+                this.leader = memberId;
+                return;
+            }
+        }
+
+        // Fallback: oldest remaining member, even if offline
         if (!this.members.isEmpty()) {
             this.leader = this.members.iterator().next();
         }
@@ -141,5 +147,9 @@ public class Party {
         long cooldownEnd = respawnCooldowns.get(playerId);
         long remaining = cooldownEnd - System.currentTimeMillis();
         return Math.max(0, remaining / 1000); // Convert to seconds
+    }
+
+    public void clearRespawnCooldown(UUID playerId) {
+        this.respawnCooldowns.remove(playerId);
     }
 }

@@ -36,6 +36,7 @@ public class PartyManager {
     public enum TargetWalkingSpawnPointStatus {
         ACTIVE,
         NO_TARGET,
+        TARGET_OFFLINE,
         TARGET_NOT_FOUND,
         INACTIVE_MODE_NORMAL,
         UNAVAILABLE_GLOBAL_DISABLED,
@@ -46,6 +47,7 @@ public class PartyManager {
     private final Map<UUID, Party> parties = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> playerPartyMap = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> pendingInvitations = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> membershipChangeCooldowns = new ConcurrentHashMap<>();
 
     @Getter
     private final int maxPartySize;
@@ -77,11 +79,13 @@ public class PartyManager {
         parties.clear();
         playerPartyMap.clear();
         pendingInvitations.clear();
+        membershipChangeCooldowns.clear();
     }
 
     private void cleanupParties() {
         // Remove empty parties
         parties.entrySet().removeIf(e -> e.getValue().isEmpty());
+
         // Rebuild player->party map
         playerPartyMap.clear();
         for (Party p : parties.values()) {
@@ -89,6 +93,9 @@ public class PartyManager {
                 playerPartyMap.put(memberId, p.getId());
             }
         }
+
+        // Remove expired membership cooldowns
+        cleanupMembershipChangeCooldowns();
     }
 
     private void cleanupInvitations() {
@@ -119,13 +126,22 @@ public class PartyManager {
             if (isInParty(playerId)) {
                 Party party = getPlayerParty(playerId);
                 if (party != null) {
+                    UUID previousLeaderId = party.getLeader();
+
                     party.removeMember(playerId);
+                    maybeClearRespawnCooldownOnLeave(party, playerId);
+                    startMembershipChangeCooldown(playerId);
+
                     playerPartyMap.remove(playerId);
+
                     if (party.isEmpty()) {
                         parties.remove(party.getId());
+                    } else {
+                        notifyLeaderChangedIfNeeded(party, previousLeaderId);
                     }
                 }
             }
+
             pendingInvitations.remove(playerId);
             for (Party p : parties.values()) {
                 p.getInvitations().remove(playerId);
@@ -195,9 +211,12 @@ public class PartyManager {
             pendingInvitations.remove(playerId);
             return false;
         }
+
         party.addMember(playerId);
         playerPartyMap.put(playerId, partyId);
         pendingInvitations.remove(playerId);
+
+        startMembershipChangeCooldown(playerId);
         return true;
     }
 
@@ -219,7 +238,12 @@ public class PartyManager {
         if (!isInParty(playerId)) return false;
 
         Party party = getPlayerParty(playerId);
+        UUID previousLeaderId = party.getLeader();
+
         party.removeMember(playerId);
+        maybeClearRespawnCooldownOnLeave(party, playerId);
+        startMembershipChangeCooldown(playerId);
+
         playerPartyMap.remove(playerId);
 
         // If disbanded
@@ -227,7 +251,10 @@ public class PartyManager {
             parties.remove(party.getId());
             String msg = plugin.getConfigManager().getMessagesConfig().party.partyDisbanded;
             plugin.getMessageManager().sendMessageKeyed(player, "party.partyDisbanded", msg);
+        } else {
+            notifyLeaderChangedIfNeeded(party, previousLeaderId);
         }
+
         return true;
     }
 
@@ -240,7 +267,12 @@ public class PartyManager {
         if (!party.isLeader(leaderId)) return false;
         if (!party.isMember(targetId)) return false;
 
+        UUID previousLeaderId = party.getLeader();
+
         party.removeMember(targetId);
+        maybeClearRespawnCooldownOnLeave(party, targetId);
+        startMembershipChangeCooldown(targetId);
+
         playerPartyMap.remove(targetId);
 
         if (party.isEmpty()) {
@@ -249,7 +281,10 @@ public class PartyManager {
             if (leader.isOnline()) {
                 plugin.getMessageManager().sendMessageKeyed(leader, "party.partyDisbanded", msg);
             }
+        } else {
+            notifyLeaderChangedIfNeeded(party, previousLeaderId);
         }
+
         return true;
     }
 
@@ -320,23 +355,28 @@ public class PartyManager {
             return TargetWalkingSpawnPointStatus.NO_TARGET;
         }
 
-        Player targetPlayer = party.getRespawnTargetPlayer();
-        if (targetPlayer == null) {
-            return TargetWalkingSpawnPointStatus.TARGET_NOT_FOUND;
-        }
-
         var cfg = plugin.getConfigManager().getMainConfig().party.deathLocationSpawn;
 
         if (!cfg.enabled) {
             return TargetWalkingSpawnPointStatus.UNAVAILABLE_GLOBAL_DISABLED;
         }
 
-        if (!targetPlayer.hasPermission(cfg.permission)) {
-            return TargetWalkingSpawnPointStatus.UNAVAILABLE_NO_PERMISSION;
-        }
-
         if (party.getRespawnMode() != Party.RespawnMode.PARTY_MEMBER) {
             return TargetWalkingSpawnPointStatus.INACTIVE_MODE_NORMAL;
+        }
+
+        UUID targetId = party.getRespawnTarget();
+        Player targetPlayer = plugin.getServer().getPlayer(targetId);
+
+        if (targetPlayer == null) {
+            var offline = plugin.getServer().getOfflinePlayer(targetId);
+            return (offline.getName() != null)
+                    ? TargetWalkingSpawnPointStatus.TARGET_OFFLINE
+                    : TargetWalkingSpawnPointStatus.TARGET_NOT_FOUND;
+        }
+
+        if (!targetPlayer.hasPermission(cfg.permission)) {
+            return TargetWalkingSpawnPointStatus.UNAVAILABLE_NO_PERMISSION;
         }
 
         return TargetWalkingSpawnPointStatus.ACTIVE;
@@ -348,6 +388,57 @@ public class PartyManager {
 
     public UUID getPendingInvitation(UUID playerId) {
         return pendingInvitations.get(playerId);
+    }
+
+    public boolean isOnMembershipChangeCooldown(UUID playerId) {
+        Long end = membershipChangeCooldowns.get(playerId);
+        return end != null && System.currentTimeMillis() < end;
+    }
+
+    public long getRemainingMembershipChangeCooldown(UUID playerId) {
+        Long end = membershipChangeCooldowns.get(playerId);
+        if (end == null) {
+            return 0L;
+        }
+        return Math.max(0L, (end - System.currentTimeMillis()) / 1000L);
+    }
+
+    public void startMembershipChangeCooldown(UUID playerId) {
+        int seconds = plugin.getConfigManager().getMainConfig().party.membershipChangeCooldownSeconds;
+        if (seconds <= 0) {
+            return;
+        }
+        membershipChangeCooldowns.put(playerId, System.currentTimeMillis() + (seconds * 1000L));
+    }
+
+    private void cleanupMembershipChangeCooldowns() {
+        long now = System.currentTimeMillis();
+        membershipChangeCooldowns.entrySet().removeIf(e -> e.getValue() <= now);
+    }
+
+    private void maybeClearRespawnCooldownOnLeave(Party party, UUID playerId) {
+        if (party != null && plugin.getConfigManager().getMainConfig().party.clearRespawnCooldownOnLeave) {
+            party.clearRespawnCooldown(playerId);
+        }
+    }
+
+    private void notifyLeaderChangedIfNeeded(Party party, UUID previousLeaderId) {
+        if (party == null || previousLeaderId == null || party.isEmpty()) {
+            return;
+        }
+
+        UUID currentLeaderId = party.getLeader();
+        if (currentLeaderId == null || currentLeaderId.equals(previousLeaderId)) {
+            return;
+        }
+
+        Player newLeader = party.getLeaderPlayer();
+        String newLeaderName = (newLeader != null) ? newLeader.getName() : currentLeaderId.toString();
+
+        String message = plugin.getConfigManager().getMessagesConfig().party.newLeaderAssigned;
+        for (Player member : party.getOnlineMembers()) {
+            plugin.getMessageManager().sendMessageKeyed(member, "party.newLeaderAssigned", message, "player", newLeaderName);
+        }
     }
 
     // ============================= RESPAWN LOGIC =============================

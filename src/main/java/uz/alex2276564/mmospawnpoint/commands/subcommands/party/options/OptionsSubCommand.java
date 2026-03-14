@@ -1,5 +1,6 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.party.options;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
@@ -8,6 +9,8 @@ import uz.alex2276564.mmospawnpoint.commands.subcommands.party.options.mode.Mode
 import uz.alex2276564.mmospawnpoint.commands.subcommands.party.options.target.TargetSubCommand;
 import uz.alex2276564.mmospawnpoint.party.Party;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
+
+import java.util.UUID;
 
 public class OptionsSubCommand implements NestedSubCommandProvider {
 
@@ -58,21 +61,29 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
                             options.respawnMode,
                             "mode", party.getRespawnMode().name());
 
-                    if (party.getRespawnTarget() == null) {
+                    UUID targetId = party.getRespawnTarget();
+                    if (targetId == null) {
                         plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.options.respawnTargetNoneLine",
                                 options.respawnTargetNoneLine);
                     } else {
-                        Player targetPlayer = party.getRespawnTargetPlayer();
-                        if (targetPlayer != null) {
-                            plugin.getMessageManager().sendMessageKeyed(player,
-                                    "party.options.respawnTarget",
-                                    options.respawnTarget,
-                                    "target", targetPlayer.getName());
-                        } else {
+                        var offlineTarget = Bukkit.getOfflinePlayer(targetId);
+                        String targetName = offlineTarget.getName();
+
+                        if (targetName == null) {
                             plugin.getMessageManager().sendMessageKeyed(player,
                                     "party.options.respawnTargetNotFoundLine",
                                     options.respawnTargetNotFoundLine);
+                        } else if (offlineTarget.isOnline()) {
+                            plugin.getMessageManager().sendMessageKeyed(player,
+                                    "party.options.respawnTarget",
+                                    options.respawnTarget,
+                                    "target", targetName);
+                        } else {
+                            plugin.getMessageManager().sendMessageKeyed(player,
+                                    "party.options.respawnTargetOfflineLine",
+                                    options.respawnTargetOfflineLine,
+                                    "player", targetName);
                         }
                     }
 
@@ -113,6 +124,9 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
                         case NO_TARGET -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.options.targetWalkingSpawnPointNoTarget",
                                 options.targetWalkingSpawnPointNoTarget);
+                        case TARGET_OFFLINE -> plugin.getMessageManager().sendMessageKeyed(player,
+                                "party.options.targetWalkingSpawnPointTargetOffline",
+                                options.targetWalkingSpawnPointTargetOffline);
                         case TARGET_NOT_FOUND -> plugin.getMessageManager().sendMessageKeyed(player,
                                 "party.options.targetWalkingSpawnPointTargetMissing",
                                 options.targetWalkingSpawnPointTargetMissing);
@@ -129,7 +143,7 @@ public class OptionsSubCommand implements NestedSubCommandProvider {
                     plugin.getMessageManager().sendMessageKeyed(player,
                             "party.options.targetHelp",
                             options.targetHelp);
-                    
+
                     plugin.getMessageManager().sendMessageKeyed(player,
                             "party.options.walkingSafetyNote",
                             options.walkingSafetyNote);

@@ -179,6 +179,12 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.invalidRespawnMode", party.invalidRespawnMode, "Invalid respawn mode message cannot be empty");
         Validators.notBlank(result, "party.errorOccurred", party.errorOccurred, "Error occurred message cannot be empty");
 
+        Validators.notBlank(result, "party.membershipChangeCooldown", party.membershipChangeCooldown, "Membership change cooldown message cannot be empty");
+
+        if (!party.membershipChangeCooldown.contains("<time>")) {
+            result.addError("party.membershipChangeCooldown", "Membership change cooldown message must contain <time> placeholder");
+        }
+
         // Leader / Options
         Validators.notBlank(result, "party.newLeaderAssigned", party.newLeaderAssigned, "New leader assigned message cannot be empty");
         Validators.notBlank(result, "party.respawnModeChanged", party.respawnModeChanged, "Respawn mode changed message cannot be empty");
@@ -215,6 +221,10 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.listHeader", party.listHeader, "List header cannot be empty");
         Validators.notBlank(result, "party.listLeader", party.listLeader, "List leader cannot be empty");
         Validators.notBlank(result, "party.listLeaderMissing", party.listLeaderMissing, "List leader missing cannot be empty");
+        Validators.notBlank(result, "party.listLeaderOffline", party.listLeaderOffline, "List leader offline cannot be empty");
+        Validators.notBlank(result, "party.listMemberOffline", party.listMemberOffline, "List member offline cannot be empty");
+        Validators.notBlank(result, "party.listMemberMissing", party.listMemberMissing, "List member missing cannot be empty");
+        Validators.notBlank(result, "party.listAnchorOffline", party.listAnchorOffline, "List anchor offline cannot be empty");
         Validators.notBlank(result, "party.listMember", party.listMember, "List member cannot be empty");
         Validators.notBlank(result, "party.listAnchor", party.listAnchor, "List anchor cannot be empty");
         Validators.notBlank(result, "party.listAnchorMissing", party.listAnchorMissing, "List anchor missing cannot be empty");
@@ -231,6 +241,7 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.listTargetWalkingSpawnPointUnavailableNoPermission", party.listTargetWalkingSpawnPointUnavailableNoPermission, "List target walking spawn point unavailable (no permission) cannot be empty");
         Validators.notBlank(result, "party.listTargetWalkingSpawnPointNoTarget", party.listTargetWalkingSpawnPointNoTarget, "List target walking spawn point no target cannot be empty");
         Validators.notBlank(result, "party.listTargetWalkingSpawnPointTargetMissing", party.listTargetWalkingSpawnPointTargetMissing, "List target walking spawn point target missing cannot be empty");
+        Validators.notBlank(result, "party.listTargetWalkingSpawnPointTargetOffline", party.listTargetWalkingSpawnPointTargetOffline, "List target walking spawn point target offline cannot be empty");
         Validators.notBlank(result, "party.listSeparator", party.listSeparator, "List separator cannot be empty");
 
         if (!party.listLeader.contains("<player>")) {
@@ -244,6 +255,16 @@ public class MessagesConfigValidator {
         }
         if (!party.listRespawnMode.contains("<mode>")) {
             result.addError("party.listRespawnMode", "List respawn mode must contain <mode> placeholder");
+        }
+
+        if (!party.listLeaderOffline.contains("<player>")) {
+            result.addError("party.listLeaderOffline", "List leader offline must contain <player> placeholder");
+        }
+        if (!party.listMemberOffline.contains("<player>")) {
+            result.addError("party.listMemberOffline", "List member offline must contain <player> placeholder");
+        }
+        if (!party.listAnchorOffline.contains("<player>")) {
+            result.addError("party.listAnchorOffline", "List anchor offline must contain <player> placeholder");
         }
 
         // Validate options section
@@ -271,6 +292,8 @@ public class MessagesConfigValidator {
         Validators.notBlank(result, "party.options.targetWalkingSpawnPointUnavailableNoPermission", options.targetWalkingSpawnPointUnavailableNoPermission, "Options target walking spawn point unavailable (no permission) cannot be empty");
         Validators.notBlank(result, "party.options.targetWalkingSpawnPointNoTarget", options.targetWalkingSpawnPointNoTarget, "Options target walking spawn point no target cannot be empty");
         Validators.notBlank(result, "party.options.targetWalkingSpawnPointTargetMissing", options.targetWalkingSpawnPointTargetMissing, "Options target walking spawn point target missing cannot be empty");
+        Validators.notBlank(result, "party.options.respawnTargetOfflineLine", options.respawnTargetOfflineLine, "Options respawn target offline line cannot be empty");
+        Validators.notBlank(result, "party.options.targetWalkingSpawnPointTargetOffline", options.targetWalkingSpawnPointTargetOffline, "Options target walking spawn point target offline cannot be empty");
 
         Validators.notBlank(result, "party.options.separator", options.separator, "Options separator cannot be empty");
         Validators.notBlank(result, "party.options.modeHelp", options.modeHelp, "Options mode help cannot be empty");
@@ -282,6 +305,10 @@ public class MessagesConfigValidator {
         }
         if (!options.respawnTarget.contains("<target>")) {
             result.addError("party.options.respawnTarget", "Options respawn target must contain <target> placeholder");
+        }
+        
+        if (!options.respawnTargetOfflineLine.contains("<player>")) {
+            result.addError("party.options.respawnTargetOfflineLine", "Options respawn target offline line must contain <player> placeholder");
         }
     }
 
