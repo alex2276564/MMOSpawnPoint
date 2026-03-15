@@ -71,8 +71,30 @@ public class PlaceholderUtils {
 
         try {
             ExpressionEngine engine = new ExpressionEngine();
-            engine.parseToRPN(expression); // parse only
-            return false;
+            List<String> rpn = engine.parseToRPN(expression);
+
+            Set<String> binaryOperators = Set.of("&&", "||", "==", "!=", ">", "<", ">=", "<=");
+            int stackSize = 0;
+
+            for (String token : rpn) {
+                if ("!".equals(token)) {
+                    if (stackSize < 1) {
+                        return true;
+                    }
+                    // consumes 1, produces 1 -> stack size unchanged
+                } else if (binaryOperators.contains(token)) {
+                    if (stackSize < 2) {
+                        return true;
+                    }
+                    // consumes 2, produces 1
+                    stackSize--;
+                } else {
+                    // operand
+                    stackSize++;
+                }
+            }
+
+            return stackSize != 1;
         } catch (Exception e) {
             return true;
         }
@@ -114,7 +136,7 @@ public class PlaceholderUtils {
      * - variables resolved via provided resolver
      * - precedence: ! > comparisons > && > ||
      */
-    private static class ExpressionEngine {
+    public static class ExpressionEngine {
 
         private static final Set<String> OPERATORS = Set.of("!", "&&", "||", "==", "!=", ">", "<", ">=", "<=");
         private static final Map<String, Integer> PRECEDENCE = Map.of(
