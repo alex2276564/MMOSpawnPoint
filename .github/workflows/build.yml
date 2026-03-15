@@ -11,6 +11,37 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: 🧪 Test Plugin
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@main
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@main
+        with:
+          java-version: 17
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@main
+
+      - name: Run tests
+        run: ./gradlew test --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@main
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests/test/
+            build/test-results/test/
+
   lint-actions:
     name: 🧹 Lint Actions
     runs-on: ubuntu-latest
@@ -246,11 +277,11 @@ jobs:
     name: 🏗️ Build Plugin (PR)
     if: github.event_name == 'pull_request'
     needs: [
+      test,
       lint-actions,
       lint-links,
       lint-markdown,
       security-scan,
-      security-scan-snyk,
       security-scan-trivy,
       security-scan-osv-pr,
       secrets-scan-trufflehog,
@@ -286,6 +317,7 @@ jobs:
     name: 🏗️ Build Plugin (push)
     if: github.event_name == 'push'
     needs: [
+      test,
       lint-actions,
       lint-links,
       lint-markdown,

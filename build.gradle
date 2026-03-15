@@ -137,6 +137,22 @@ dependencies {
 
     // Folia compatibility layer
     implementation 'com.tcoded:FoliaLib:0.5.1'
+
+    // ----------------------------------------------------------------
+    // 🧪 Testing
+    // ----------------------------------------------------------------
+    // JUnit (Jupiter) - modern testing framework
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:6.0.3'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:6.0.3'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Mockito - for mocking and static API calls
+    testImplementation 'org.mockito:mockito-core:5.23.0'
+
+    // Test-time API dependencies used by the tested classes
+    testImplementation 'com.destroystokyo.paper:paper-api:1.16.5-R0.1-SNAPSHOT'
+    testImplementation 'me.clip:placeholderapi:2.12.2'
 }
 
 // ================================================================
@@ -215,6 +231,21 @@ tasks {
         // Minecraft version for local testing
         // Plugin JAR (shadowJar) will be automatically loaded
         minecraftVersion('1.16.5')
+    }
+}
+
+// ----------------------------------------------------------------
+// 🧪 Test execution
+// ----------------------------------------------------------------
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat = 'full'
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
     }
 }
 
