@@ -127,7 +127,7 @@ dependencies {
     implementation 'eu.okaeri:okaeri-configs-yaml-snakeyaml:5.0.13'
 
     // JSON serialization (required for legacy 1.16.x compatibility)
-    implementation 'com.google.code.gson:gson:2.13.2'
+    implementation 'com.google.code.gson:gson:2.14.0'
 
     // Paper library utilities (async get bed, async chunk loading, etc.)
     implementation 'io.papermc:paperlib:1.0.8'
