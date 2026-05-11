@@ -133,7 +133,7 @@ dependencies {
     implementation 'io.papermc:paperlib:1.0.8'
 
     // High-performance caching
-    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.3'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
 
     // Folia compatibility layer
     implementation 'com.tcoded:FoliaLib:0.5.1'
