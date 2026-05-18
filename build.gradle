@@ -136,7 +136,7 @@ dependencies {
     implementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
 
     // Folia compatibility layer
-    implementation 'com.tcoded:FoliaLib:0.5.1'
+    implementation 'com.tcoded:FoliaLib:0.5.2'
 
     // ----------------------------------------------------------------
     // 🧪 Testing
