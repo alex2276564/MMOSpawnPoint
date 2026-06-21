@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.logging.Level;
 
 public class MMOSpawnPointConfigManager {
     private final MMOSpawnPoint plugin;
@@ -52,8 +53,7 @@ public class MMOSpawnPointConfigManager {
 
             plugin.getLogger().info("Configuration system reloaded successfully!");
         } catch (Exception e) {
-            plugin.getLogger().severe("Failed to reload configuration: " + e.getMessage());
-            e.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Failed to reload configuration", e);
         }
     }
 

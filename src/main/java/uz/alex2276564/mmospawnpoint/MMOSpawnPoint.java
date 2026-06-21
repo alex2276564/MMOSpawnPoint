@@ -12,6 +12,7 @@ import uz.alex2276564.mmospawnpoint.listener.*;
 import uz.alex2276564.mmospawnpoint.manager.SpawnEntry;
 import uz.alex2276564.mmospawnpoint.manager.SpawnManager;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
+import uz.alex2276564.mmospawnpoint.utils.HttpUtils;
 import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
 import uz.alex2276564.mmospawnpoint.utils.UpdateChecker;
 import uz.alex2276564.mmospawnpoint.utils.adventure.AdventureMessageManager;
@@ -21,12 +22,17 @@ import uz.alex2276564.mmospawnpoint.utils.backup.BackupManager;
 import uz.alex2276564.mmospawnpoint.utils.runner.FoliaRunner;
 import uz.alex2276564.mmospawnpoint.utils.runner.Runner;
 
+import java.util.logging.Level;
+
 public final class MMOSpawnPoint extends JavaPlugin {
     @Getter
     private static MMOSpawnPoint instance;
 
     @Getter
     private Runner runner;
+
+    @Getter
+    private HttpUtils httpUtils;
 
     @Getter
     private MMOSpawnPointConfigManager configManager;
@@ -61,6 +67,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
 
         try {
             setupRunner();
+            setupHttpClient();
             setupMessageManager();
             setupConfig();
             detectSpawnLocationSupport();
@@ -73,8 +80,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
 
             getLogger().info("MMOSpawnPoint has been enabled successfully!");
         } catch (Exception e) {
-            getLogger().severe("Failed to enable MMOSpawnPoint: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(Level.SEVERE, "Failed to enable MMOSpawnPoint", e);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -86,6 +92,10 @@ public final class MMOSpawnPoint extends JavaPlugin {
         if (runner.isFolia()) {
             getLogger().info("Folia detected - using RegionScheduler and EntityScheduler for optimal performance");
         }
+    }
+
+    private void setupHttpClient() {
+        this.httpUtils = new HttpUtils();
     }
 
     private void setupMessageManager() {
@@ -258,7 +268,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
     }
 
     private void checkUpdates() {
-        UpdateChecker updateChecker = new UpdateChecker(this, "alex2276564/MMOSpawnPoint", runner);
+        UpdateChecker updateChecker = new UpdateChecker(this, "alex2276564/MMOSpawnPoint", runner, httpUtils);
         updateChecker.checkForUpdates();
     }
 

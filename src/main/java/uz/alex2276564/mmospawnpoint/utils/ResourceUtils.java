@@ -47,13 +47,10 @@ public class ResourceUtils {
     }
 
     /**
-     * Force update file from resource (always deletes old and copies new)
+     * Force update file from resource (always overwrites destination).
      */
-    public static boolean updateFromResource(MMOSpawnPoint plugin, String resourcePath, File destination) {
-        if (destination.exists()) {
-            destination.delete();
-        }
-        return copyResource(plugin, resourcePath, destination);
+    public static void updateFromResource(MMOSpawnPoint plugin, String resourcePath, File destination) {
+        copyResource(plugin, resourcePath, destination);
     }
 
     /**
@@ -101,10 +98,10 @@ public class ResourceUtils {
     /**
      * Copy resource to directory with same filename
      */
-    public static boolean copyResourceToDirectory(MMOSpawnPoint plugin, String resourcePath, File directory) {
+    public static void copyResourceToDirectory(MMOSpawnPoint plugin, String resourcePath, File directory) {
         String fileName = new File(resourcePath).getName();
         File destination = new File(directory, fileName);
-        return copyResource(plugin, resourcePath, destination);
+        copyResource(plugin, resourcePath, destination);
     }
 
     /**
