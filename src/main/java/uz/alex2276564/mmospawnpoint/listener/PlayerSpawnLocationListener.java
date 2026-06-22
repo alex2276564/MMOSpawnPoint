@@ -8,6 +8,8 @@ import org.bukkit.event.Listener;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 
+import java.util.logging.Level;
+
 public class PlayerSpawnLocationListener implements Listener {
 
     private final MMOSpawnPoint plugin;
@@ -64,7 +66,11 @@ public class PlayerSpawnLocationListener implements Listener {
         } catch (Exception e) {
             plugin.getLogger().severe("Error in PlayerSpawnLocationListener: " + e.getMessage());
             if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                e.printStackTrace();
+                plugin.getLogger().log(
+                        Level.SEVERE,
+                        "Detailed exception in PlayerSpawnLocationListener",
+                        e
+                );
             }
         }
     }

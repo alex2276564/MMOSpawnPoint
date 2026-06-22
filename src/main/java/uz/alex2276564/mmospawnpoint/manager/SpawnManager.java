@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
+import java.util.logging.Level;
 
 import static uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder.resolveMinY;
 
@@ -155,7 +156,13 @@ public class SpawnManager {
 
         } catch (Exception e) {
             plugin.getLogger().severe("Error processing join spawn for " + player.getName() + ": " + e.getMessage());
-            if (isDebug()) e.printStackTrace();
+            if (isDebug()) {
+                plugin.getLogger().log(
+                        Level.SEVERE,
+                        "Detailed exception while processing join spawn for " + player.getName(),
+                        e
+                );
+            }
             return false;
         }
     }
@@ -212,7 +219,13 @@ public class SpawnManager {
         } catch (Exception e) {
             plugin.getLogger().severe("Error resolving join spawn for "
                     + player.getName() + ": " + e.getMessage());
-            if (isDebug()) e.printStackTrace();
+            if (isDebug()) {
+                plugin.getLogger().log(
+                        Level.SEVERE,
+                        "Detailed exception while resolving join spawn for " + player.getName(),
+                        e
+                );
+            }
             return null;
         }
     }
@@ -265,7 +278,13 @@ public class SpawnManager {
         } catch (Exception e) {
             plugin.getLogger().severe("Error processing death spawn for "
                     + player.getName() + ": " + e.getMessage());
-            if (isDebug()) e.printStackTrace();
+            if (isDebug()) {
+                plugin.getLogger().log(
+                        Level.SEVERE,
+                        "Detailed exception while processing death spawn for " + player.getName(),
+                        e
+                );
+            }
             return false;
         }
     }
@@ -1197,10 +1216,10 @@ public class SpawnManager {
     private void applyYawPitch(SpawnPointsConfig.Destination option, Location loc) {
         float yaw = (option.yaw == null) ? loc.getYaw()
                 : option.yaw.isValue() ? option.yaw.value.floatValue()
-                : (float) (option.yaw.min + ThreadLocalRandom.current().nextDouble() * (option.yaw.max - option.yaw.min));
+                  : (float) (option.yaw.min + ThreadLocalRandom.current().nextDouble() * (option.yaw.max - option.yaw.min));
         float pitch = (option.pitch == null) ? loc.getPitch()
                 : option.pitch.isValue() ? option.pitch.value.floatValue()
-                : (float) (option.pitch.min + ThreadLocalRandom.current().nextDouble() * (option.pitch.max - option.pitch.min));
+                  : (float) (option.pitch.min + ThreadLocalRandom.current().nextDouble() * (option.pitch.max - option.pitch.min));
         pitch = (float) clampPitch(pitch);
 
         loc.setYaw(yaw);
@@ -1687,7 +1706,11 @@ public class SpawnManager {
         } catch (Exception e) {
             if (isDebug()) {
                 plugin.getLogger().warning("Error while running AFTER phase for " + player.getName() + ": " + e.getMessage());
-                e.printStackTrace();
+                plugin.getLogger().log(
+                        Level.WARNING,
+                        "Detailed exception while running AFTER phase for " + player.getName(),
+                        e
+                );
             }
         }
     }
@@ -1716,7 +1739,11 @@ public class SpawnManager {
         } catch (Exception e) {
             if (isDebug()) {
                 plugin.getLogger().warning("Error while running join phases for " + player.getName() + ": " + e.getMessage());
-                e.printStackTrace();
+                plugin.getLogger().log(
+                        Level.WARNING,
+                        "Detailed exception while running join phases for " + player.getName(),
+                        e
+                );
             }
         }
     }

@@ -15,8 +15,9 @@ For **enterprise-grade security requirements**, use **commercially supported sol
 2. **Supply chain**
 3. **Input sanitization bypass**
 4. **Network attacks**
-5. **Text / formatting injection**
-6. **Business logic bypass**
+5. **Sensitive data exposure**
+6. **Text / formatting injection**
+7. **Business logic bypass**
 
 ## Data sanitization
 
@@ -48,6 +49,12 @@ The built-in `HttpUtils` wrapper enforces:
 - **Timeouts**: Connection (5s), Request (10s).
 - **Response limits**: Hard cap of **256 KiB** to prevent DoS via large payloads.
 - **Safe JSON parsing**: Fails securely (empty `JSONObject` on errors).
+
+## Sensitive data exposure
+
+**PlaceholderAPI:** Placeholder evaluations avoid logging full exception
+traces or raw input by default; detailed stack traces (which may expose sensitive values)
+are only written when `settings.debugMode` is explicitly enabled by the server administrator.
 
 ## Symlinks in the data directory
 

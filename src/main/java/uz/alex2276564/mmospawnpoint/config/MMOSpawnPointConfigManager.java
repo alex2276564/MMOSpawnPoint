@@ -252,7 +252,13 @@ public class MMOSpawnPointConfigManager {
             plugin.getLogger().info("Loaded spawn config: " + file.getName() + " (entries: " + added + ")");
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to load spawn config " + file.getName() + ": " + e.getMessage());
-            if (mainConfig.settings.debugMode) e.printStackTrace();
+            if (mainConfig.settings.debugMode) {
+                plugin.getLogger().log(
+                        Level.WARNING,
+                        "Detailed exception while loading spawn config " + file.getName(),
+                        e
+                );
+            }
         }
     }
 

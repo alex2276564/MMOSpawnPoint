@@ -6,6 +6,7 @@ import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.logging.Level;
 
 public class PlaceholderUtils {
 
@@ -15,7 +16,28 @@ public class PlaceholderUtils {
         try {
             return PlaceholderAPI.setPlaceholders(player, text);
         } catch (Exception e) {
-            e.printStackTrace();
+            MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+            if (plugin != null) {
+                boolean debug = false;
+                try {
+                    debug = plugin.getConfigManager().getMainConfig().settings.debugMode;
+                } catch (Exception ignored) {
+                    // Ignore errors while reading debug flag
+                }
+
+                if (debug) {
+                    plugin.getLogger().log(
+                            Level.WARNING,
+                            "[MMOSpawnPoint] Placeholder replacement error for text: " + text,
+                            e
+                    );
+                } else {
+                    plugin.getLogger().warning(
+                            "[MMOSpawnPoint] Placeholder replacement failed: " + e.getClass().getSimpleName()
+                                    + " (enable debugMode in config.yml to see full stack trace)"
+                    );
+                }
+            }
             return text;
         }
     }
@@ -55,8 +77,13 @@ public class PlaceholderUtils {
 
             return engine.evaluate(condition, resolver);
         } catch (Exception e) {
-            if (MMOSpawnPoint.getInstance().getConfigManager().getMainConfig().settings.debugMode) {
-                e.printStackTrace();
+            MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+            if (plugin != null && plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                plugin.getLogger().log(
+                        Level.WARNING,
+                        "[MMOSpawnPoint] Failed to evaluate placeholder condition: " + condition,
+                        e
+                );
             }
             return false;
         }
@@ -120,8 +147,13 @@ public class PlaceholderUtils {
 
             return engine.evaluate(expression, resolver);
         } catch (Exception e) {
-            if (MMOSpawnPoint.getInstance().getConfigManager().getMainConfig().settings.debugMode) {
-                e.printStackTrace();
+            MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+            if (plugin != null && plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                plugin.getLogger().log(
+                        Level.WARNING,
+                        "[MMOSpawnPoint] Failed to evaluate permission expression: " + expression,
+                        e
+                );
             }
             return false;
         }

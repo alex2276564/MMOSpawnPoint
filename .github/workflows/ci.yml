@@ -79,6 +79,37 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: 🧪 Test Plugin
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@main
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }} (${{ env.JAVA_DIST }})
+        uses: actions/setup-java@main
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DIST }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@main
+
+      - name: Run tests
+        run: ./gradlew test --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@main
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests/test/
+            build/test-results/test/
+
   lint-actions:
     name: 🧹 Lint Actions
     runs-on: ubuntu-latest
@@ -500,6 +531,7 @@ jobs:
     name: 🏗️ Build Plugin (PR)
     if: github.event_name == 'pull_request'
     needs: [
+      test,
       lint-actions,
       lint-renovate,
       lint-links,
@@ -538,7 +570,7 @@ jobs:
         uses: gradle/actions/setup-gradle@main
 
       - name: Build with Gradle
-        run: ./gradlew build
+        run: ./gradlew build -x test
 
       - name: Upload artifact
         uses: actions/upload-artifact@main
@@ -550,6 +582,7 @@ jobs:
     name: 🏗️ Build Plugin (push)
     if: github.event_name == 'push'
     needs: [
+      test,
       lint-actions,
       lint-renovate,
       lint-links,
@@ -588,7 +621,7 @@ jobs:
         uses: gradle/actions/setup-gradle@main
 
       - name: Build with Gradle
-        run: ./gradlew build
+        run: ./gradlew build -x test
 
       - name: Upload artifact
         uses: actions/upload-artifact@main

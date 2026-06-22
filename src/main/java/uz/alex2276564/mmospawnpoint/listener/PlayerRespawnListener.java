@@ -9,6 +9,8 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
 
+import java.util.logging.Level;
+
 public class PlayerRespawnListener implements Listener {
     private final MMOSpawnPoint plugin;
 
@@ -36,7 +38,13 @@ public class PlayerRespawnListener implements Listener {
                         }
                     } catch (Exception ex) {
                         plugin.getLogger().severe("Error in post-respawn teleport for " + player.getName() + ": " + ex.getMessage());
-                        if (plugin.getConfigManager().getMainConfig().settings.debugMode) ex.printStackTrace();
+                        if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                            plugin.getLogger().log(
+                                    Level.SEVERE,
+                                    "Detailed exception in post-respawn teleport for " + player.getName(),
+                                    ex
+                            );
+                        }
                     }
                 }, 1L);
                 return;
@@ -70,7 +78,13 @@ public class PlayerRespawnListener implements Listener {
             }
         } catch (Exception e) {
             plugin.getLogger().severe("Error handling player respawn for " + event.getPlayer().getName() + ": " + e.getMessage());
-            if (plugin.getConfigManager().getMainConfig().settings.debugMode) e.printStackTrace();
+            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
+                plugin.getLogger().log(
+                        Level.SEVERE,
+                        "Detailed exception while handling player respawn for " + event.getPlayer().getName(),
+                        e
+                );
+            }
         }
     }
 }
