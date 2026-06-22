@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dependencies --write-locks
 com.alibaba.fastjson2:fastjson2:2.0.62=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.destroystokyo.paper:paper-api:1.16.5-R0.1-SNAPSHOT=compileClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.ben-manes.caffeine:caffeine:3.2.4=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
