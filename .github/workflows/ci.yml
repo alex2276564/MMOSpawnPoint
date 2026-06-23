@@ -84,6 +84,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@main
+        with:
+          egress-policy: audit
+          
       - name: Checkout repository
         uses: actions/checkout@main
         with:
