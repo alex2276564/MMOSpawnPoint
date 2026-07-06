@@ -107,7 +107,7 @@ dependencies {
     // ----------------------------------------------------------------
     // 🔌 Plugin APIs (compileOnly - optional soft dependencies)
     // ----------------------------------------------------------------
-    compileOnly 'me.clip:placeholderapi:2.12.2'
+    compileOnly 'me.clip:placeholderapi:2.12.3'
     compileOnly 'com.sk89q.worldguard:worldguard-bukkit:7.0.5'
     compileOnly 'net.kyori:adventure-text-minimessage:4.26.1'
 
@@ -152,7 +152,7 @@ dependencies {
 
     // Test-time API dependencies used by the tested classes
     testImplementation 'com.destroystokyo.paper:paper-api:1.16.5-R0.1-SNAPSHOT'
-    testImplementation 'me.clip:placeholderapi:2.12.2'
+    testImplementation 'me.clip:placeholderapi:2.12.3'
 }
 
 // ================================================================
