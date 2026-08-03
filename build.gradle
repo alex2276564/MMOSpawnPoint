@@ -127,7 +127,7 @@ dependencies {
     implementation 'eu.okaeri:okaeri-configs-yaml-snakeyaml:5.0.13'
 
     // JSON serialization
-    implementation 'com.alibaba.fastjson2:fastjson2:2.0.62'
+    implementation 'com.alibaba.fastjson2:fastjson2:2.0.63'
 
     // Paper library utilities (async get bed, async chunk loading, etc.)
     implementation 'io.papermc:paperlib:1.0.8'
