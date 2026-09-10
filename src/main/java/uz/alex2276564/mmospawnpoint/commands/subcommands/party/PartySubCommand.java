@@ -1,6 +1,6 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.party;
 
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPointServices;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandProvider;
@@ -15,42 +15,49 @@ import uz.alex2276564.mmospawnpoint.commands.subcommands.party.setleader.SetLead
 
 public class PartySubCommand implements SubCommandProvider {
 
+    private final MMOSpawnPointServices services;
+
+    public PartySubCommand(MMOSpawnPointServices services) {
+        this.services = services;
+    }
+
     @Override
     public SubCommandBuilder build(CommandBuilder parent) {
         SubCommandBuilder partyBuilder = parent.subcommand("party")
                 .permission("mmospawnpoint.party")
                 .description("Party system commands")
                 .executor((sender, context) -> {
-                    MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+                    var configManager = services.configManager();
+                    var messageManager = services.messageManager();
 
-                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
-                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
+                    if (!configManager.getMainConfig().party.enabled) {
+                        messageManager.sendMessageKeyed(sender, "party.systemDisabled",
+                                configManager.getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
                     // Show party help
-                    var messages = plugin.getConfigManager().getMessagesConfig().party.help;
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.header", messages.header);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.invite", messages.invite);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.accept", messages.accept);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.deny", messages.deny);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.leave", messages.leave);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.list", messages.list);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.remove", messages.remove);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.setleader", messages.setleader);
-                    plugin.getMessageManager().sendMessageKeyed(sender, "party.help.options", messages.options);
+                    var messages = configManager.getMessagesConfig().party.help;
+                    messageManager.sendMessageKeyed(sender, "party.help.header", messages.header);
+                    messageManager.sendMessageKeyed(sender, "party.help.invite", messages.invite);
+                    messageManager.sendMessageKeyed(sender, "party.help.accept", messages.accept);
+                    messageManager.sendMessageKeyed(sender, "party.help.deny", messages.deny);
+                    messageManager.sendMessageKeyed(sender, "party.help.leave", messages.leave);
+                    messageManager.sendMessageKeyed(sender, "party.help.list", messages.list);
+                    messageManager.sendMessageKeyed(sender, "party.help.remove", messages.remove);
+                    messageManager.sendMessageKeyed(sender, "party.help.setleader", messages.setleader);
+                    messageManager.sendMessageKeyed(sender, "party.help.options", messages.options);
                 });
 
         // Register nested party subcommands
-        new InviteSubCommand().build(partyBuilder);
-        new AcceptSubCommand().build(partyBuilder);
-        new DenySubCommand().build(partyBuilder);
-        new LeaveSubCommand().build(partyBuilder);
-        new ListSubCommand().build(partyBuilder);
-        new RemoveSubCommand().build(partyBuilder);
-        new SetLeaderSubCommand().build(partyBuilder);
-        new OptionsSubCommand().build(partyBuilder);
+        new InviteSubCommand(services).build(partyBuilder);
+        new AcceptSubCommand(services).build(partyBuilder);
+        new DenySubCommand(services).build(partyBuilder);
+        new LeaveSubCommand(services).build(partyBuilder);
+        new ListSubCommand(services).build(partyBuilder);
+        new RemoveSubCommand(services).build(partyBuilder);
+        new SetLeaderSubCommand(services).build(partyBuilder);
+        new OptionsSubCommand(services).build(partyBuilder);
 
         return partyBuilder;
     }

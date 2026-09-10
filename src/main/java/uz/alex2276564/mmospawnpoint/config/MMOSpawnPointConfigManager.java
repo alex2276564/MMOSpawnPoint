@@ -4,8 +4,8 @@ import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.yaml.snakeyaml.YamlSnakeYamlConfigurer;
 import lombok.Getter;
 import org.bukkit.Location;
+import org.bukkit.plugin.PluginManager;
 import org.yaml.snakeyaml.Yaml;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.config.configs.mainconfig.MainConfig;
 import uz.alex2276564.mmospawnpoint.config.configs.mainconfig.MainConfigValidator;
 import uz.alex2276564.mmospawnpoint.config.configs.messagesconfig.MessagesConfig;
@@ -16,6 +16,7 @@ import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.SpawnPoints
 import uz.alex2276564.mmospawnpoint.manager.SpawnEntry;
 import uz.alex2276564.mmospawnpoint.utils.ResourceUtils;
 import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
+import uz.alex2276564.mmospawnpoint.utils.adventure.MessageManager;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,9 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class MMOSpawnPointConfigManager {
-    private final MMOSpawnPoint plugin;
+
+    private final File dataFolder;
+    private final Logger logger;
+    private final MessageManager messageManager;
+    private final ClassLoader resourceLoader;
+    private final PluginManager pluginManager;
 
     @Getter
     private MainConfig mainConfig;
@@ -37,8 +44,16 @@ public class MMOSpawnPointConfigManager {
     @Getter
     private List<SpawnEntry> allSpawnEntries;
 
-    public MMOSpawnPointConfigManager(MMOSpawnPoint plugin) {
-        this.plugin = plugin;
+    public MMOSpawnPointConfigManager(File dataFolder,
+                                      Logger logger,
+                                      MessageManager messageManager,
+                                      ClassLoader resourceLoader,
+                                      PluginManager pluginManager) {
+        this.dataFolder = dataFolder;
+        this.logger = logger;
+        this.messageManager = messageManager;
+        this.resourceLoader = resourceLoader;
+        this.pluginManager = pluginManager;
         this.allSpawnEntries = new ArrayList<>();
     }
 
@@ -51,29 +66,29 @@ public class MMOSpawnPointConfigManager {
             // Apply runtime settings
             applyCacheSettings();
 
-            plugin.getLogger().info("Configuration system reloaded successfully!");
+            logger.info("Configuration system reloaded successfully!");
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to reload configuration", e);
+            logger.log(Level.SEVERE, "Failed to reload configuration", e);
         }
     }
 
     private void loadMainConfig() {
         mainConfig = ConfigManager.create(MainConfig.class, it -> {
             it.withConfigurer(new YamlSnakeYamlConfigurer());
-            it.withBindFile(new File(plugin.getDataFolder(), "config.yml"));
+            it.withBindFile(new File(dataFolder, "config.yml"));
             it.withRemoveOrphans(true);
             it.saveDefaults();
             it.load(true);
         });
 
         MainConfigValidator.validate(mainConfig);
-        plugin.getLogger().info("Main configuration loaded and validated successfully");
+        logger.info("Main configuration loaded and validated successfully");
     }
 
     private void loadMessagesConfig() {
         messagesConfig = ConfigManager.create(MessagesConfig.class, it -> {
             it.withConfigurer(new YamlSnakeYamlConfigurer());
-            it.withBindFile(new File(plugin.getDataFolder(), "messages.yml"));
+            it.withBindFile(new File(dataFolder, "messages.yml"));
             it.withRemoveOrphans(true);
             it.saveDefaults();
             it.load(true);
@@ -81,8 +96,8 @@ public class MMOSpawnPointConfigManager {
 
         MessagesConfigValidator.validate(messagesConfig);
         applyPartyPrefixToken(messagesConfig);
-        MMOSpawnPoint.getInstance().getMessageManager().configureDisabledKeysProvider(() -> getMessagesConfig().disabledKeys);
-        plugin.getLogger().info("Messages configuration loaded and validated successfully");
+        messageManager.configureDisabledKeysProvider(() -> getMessagesConfig().disabledKeys);
+        logger.info("Messages configuration loaded and validated successfully");
     }
 
     private void applyPartyPrefixToken(MessagesConfig cfg) {
@@ -148,14 +163,14 @@ public class MMOSpawnPointConfigManager {
 
         SpawnEntry.clearPatternCache();
 
-        File spawnPointsDir = new File(plugin.getDataFolder(), "spawnpoints");
+        File spawnPointsDir = new File(dataFolder, "spawnpoints");
 
         if (!spawnPointsDir.exists()) {
             spawnPointsDir.mkdirs();
-            createDirectoryStructure();
+            createDirectoryStructure(spawnPointsDir);
         } else {
             File examplesFile = new File(spawnPointsDir, "examples.txt");
-            ResourceUtils.updateFromResource(plugin, "spawnpoints/examples.txt", examplesFile);
+            ResourceUtils.updateFromResource(resourceLoader, logger, "spawnpoints/examples.txt", examplesFile);
         }
 
         loadAllSpawnConfigsRecursively(spawnPointsDir, 0);
@@ -163,7 +178,7 @@ public class MMOSpawnPointConfigManager {
         // Sort by priority (descending)
         allSpawnEntries.sort((a, b) -> Integer.compare(b.calculatedPriority(), a.calculatedPriority()));
 
-        plugin.getLogger().info("Loaded " + allSpawnEntries.size() + " spawn configuration entries");
+        logger.info("Loaded " + allSpawnEntries.size() + " spawn configuration entries");
 
         if (mainConfig.settings.debugMode) {
             logSpawnPriorities();
@@ -173,7 +188,7 @@ public class MMOSpawnPointConfigManager {
     private void loadAllSpawnConfigsRecursively(File directory, int depth) {
         int maxDepth = mainConfig.settings.maintenance.maxFolderDepth;
         if (depth > maxDepth) {
-            plugin.getLogger().warning("Maximum directory depth (" + maxDepth + ") exceeded for: " + directory.getPath());
+            logger.warning("Maximum directory depth (" + maxDepth + ") exceeded for: " + directory.getPath());
             return;
         }
 
@@ -195,11 +210,11 @@ public class MMOSpawnPointConfigManager {
             try (FileInputStream fis = new FileInputStream(file)) {
                 Object obj = new Yaml().load(fis);
                 if (!(obj instanceof Map<?, ?> map)) {
-                    plugin.getLogger().warning("Skipping non-YAML or empty file: " + file.getName());
+                    logger.warning("Skipping non-YAML or empty file: " + file.getName());
                     return;
                 }
                 if (!map.containsKey("spawns")) {
-                    plugin.getLogger().warning("No 'spawns' key found in " + file.getName() + " — skipping");
+                    logger.warning("No 'spawns' key found in " + file.getName() + " — skipping");
                     return;
                 }
             } catch (Exception ignored) {
@@ -215,7 +230,19 @@ public class MMOSpawnPointConfigManager {
                 it.load();
             });
 
-            SpawnPointsConfigValidator.validate(config, file.getName());
+            boolean wgConfigured = mainConfig.hooks.useWorldGuard;
+            boolean wgPresent = pluginManager.getPlugin("WorldGuard") != null;
+            boolean papiConfigured = mainConfig.hooks.usePlaceholderAPI;
+            boolean papiPresent = pluginManager.getPlugin("PlaceholderAPI") != null;
+
+            SpawnPointsConfigValidator.validate(
+                    config,
+                    file.getName(),
+                    wgConfigured,
+                    wgPresent,
+                    papiConfigured,
+                    papiPresent
+            );
 
             int added = 0;
             for (SpawnPointsConfig.SpawnPointEntry entry : config.spawns) {
@@ -226,7 +253,7 @@ public class MMOSpawnPointConfigManager {
                     default -> null;
                 };
                 if (type == null) {
-                    plugin.getLogger().warning("Unknown kind in " + file.getName() + " — skipping entry.");
+                    logger.warning("Unknown kind in " + file.getName() + " — skipping entry.");
                     continue;
                 }
 
@@ -249,11 +276,11 @@ public class MMOSpawnPointConfigManager {
                 added++;
             }
 
-            plugin.getLogger().info("Loaded spawn config: " + file.getName() + " (entries: " + added + ")");
+            logger.info("Loaded spawn config: " + file.getName() + " (entries: " + added + ")");
         } catch (Exception e) {
-            plugin.getLogger().warning("Failed to load spawn config " + file.getName() + ": " + e.getMessage());
+            logger.warning("Failed to load spawn config " + file.getName() + ": " + e.getMessage());
             if (mainConfig.settings.debugMode) {
-                plugin.getLogger().log(
+                logger.log(
                         Level.WARNING,
                         "Detailed exception while loading spawn config " + file.getName(),
                         e
@@ -263,10 +290,10 @@ public class MMOSpawnPointConfigManager {
     }
 
     private void logSpawnPriorities() {
-        plugin.getLogger().info("=== Spawn Priority Order ===");
+        logger.info("=== Spawn Priority Order ===");
         for (SpawnEntry entry : allSpawnEntries) {
             String spawnName = getSpawnName(entry);
-            plugin.getLogger().info(String.format(
+            logger.info(String.format(
                     "Priority %d: %s '%s' (%s) from %s",
                     entry.calculatedPriority(),
                     entry.type().name().toLowerCase(),
@@ -275,7 +302,7 @@ public class MMOSpawnPointConfigManager {
                     entry.fileName()
             ));
         }
-        plugin.getLogger().info("============================");
+        logger.info("============================");
     }
 
     private static String getSpawnName(SpawnEntry entry) {
@@ -290,11 +317,9 @@ public class MMOSpawnPointConfigManager {
         };
     }
 
-    private void createDirectoryStructure() {
-        File spawnPointsDir = new File(plugin.getDataFolder(), "spawnpoints");
-
+    private void createDirectoryStructure(File spawnPointsDir) {
         File examplesFile = new File(spawnPointsDir, "examples.txt");
-        ResourceUtils.updateFromResource(plugin, "spawnpoints/examples.txt", examplesFile);
+        ResourceUtils.updateFromResource(resourceLoader, logger, "spawnpoints/examples.txt", examplesFile);
 
         File[] existingFiles = spawnPointsDir.listFiles();
         boolean isEmpty = existingFiles == null ||
@@ -309,15 +334,15 @@ public class MMOSpawnPointConfigManager {
                 File pvpZones = new File(starterDir, "pvp-zones.yml");
                 File dungeonExample = new File(starterDir, "dungeon-example.yml");
 
-                ResourceUtils.updateFromResource(plugin, "spawnpoints/starter/hub-spawn.yml", hubSpawn);
-                ResourceUtils.updateFromResource(plugin, "spawnpoints/starter/pvp-zones.yml", pvpZones);
-                ResourceUtils.updateFromResource(plugin, "spawnpoints/starter/dungeon-example.yml", dungeonExample);
+                ResourceUtils.updateFromResource(resourceLoader, logger, "spawnpoints/starter/hub-spawn.yml", hubSpawn);
+                ResourceUtils.updateFromResource(resourceLoader, logger, "spawnpoints/starter/pvp-zones.yml", pvpZones);
+                ResourceUtils.updateFromResource(resourceLoader, logger, "spawnpoints/starter/dungeon-example.yml", dungeonExample);
 
-                plugin.getLogger().info("Created starter configuration examples in starter/ folder");
+                logger.info("Created starter configuration examples in starter/ folder");
             }
         }
 
-        plugin.getLogger().info("Spawn points directory structure ready");
+        logger.info("Spawn points directory structure ready");
     }
 
     private void applyCacheSettings() {
@@ -365,7 +390,7 @@ public class MMOSpawnPointConfigManager {
         );
 
         if (cfg.debugMode) {
-            plugin.getLogger().info(
+            logger.info(
                     "Applied cache/safe-location settings: enabled=" + cacheConfig.enabled +
                             ", expiry=" + cacheConfig.expiryTime + "s, maxSize=" + cacheConfig.maxCacheSize +
                             ", ySelection={overworld=" + ys.overworld.mode + "/" + ys.overworld.first + "/" + ys.overworld.firstShare +

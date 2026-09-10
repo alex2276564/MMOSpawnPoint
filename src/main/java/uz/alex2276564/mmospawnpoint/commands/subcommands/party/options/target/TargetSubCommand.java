@@ -1,16 +1,23 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.party.options.target;
 
 import org.bukkit.entity.Player;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPointServices;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentType;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.party.Party;
+import uz.alex2276564.mmospawnpoint.party.PartyManager;
 
 import java.util.List;
 
 public class TargetSubCommand implements NestedSubCommandProvider {
+
+    private final MMOSpawnPointServices services;
+
+    public TargetSubCommand(MMOSpawnPointServices services) {
+        this.services = services;
+    }
 
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
@@ -20,8 +27,14 @@ public class TargetSubCommand implements NestedSubCommandProvider {
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
                         .dynamicSuggestions((sender, partial, soFar) -> {
                             if (!(sender instanceof Player p)) return List.of();
-                            var pm = MMOSpawnPoint.getInstance().getPartyManager();
-                            var party = pm != null ? pm.getPlayerParty(p.getUniqueId()) : null;
+                            PartyManager pm = services.partyManager();
+                            var configManager = services.configManager();
+
+                            if (!configManager.getMainConfig().party.enabled || pm == null) {
+                                return List.of();
+                            }
+
+                            var party = pm.getPlayerParty(p.getUniqueId());
                             if (party == null) return List.of();
 
                             String needle = partial == null ? "" : partial.toLowerCase();
@@ -31,46 +44,50 @@ public class TargetSubCommand implements NestedSubCommandProvider {
                                     .toList();
                         }))
                 .executor((sender, context) -> {
-                    MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+                    var configManager = services.configManager();
+                    var messageManager = services.messageManager();
+                    PartyManager partyManager = services.partyManager();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
-                                plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
+                        messageManager.sendMessageKeyed(sender, "party.onlyPlayers",
+                                configManager.getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
-                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
-                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
+                    if (!configManager.getMainConfig().party.enabled || partyManager == null) {
+                        messageManager.sendMessageKeyed(sender, "party.systemDisabled",
+                                configManager.getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
-                    if (!plugin.getPartyManager().isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
-                                plugin.getConfigManager().getMessagesConfig().party.notInParty);
+                    if (!partyManager.isInParty(player.getUniqueId())) {
+                        messageManager.sendMessageKeyed(player, "party.notInParty",
+                                configManager.getMessagesConfig().party.notInParty);
                         return;
                     }
 
-                    Party party = plugin.getPartyManager().getPlayerParty(player.getUniqueId());
+                    Party party = partyManager.getPlayerParty(player.getUniqueId());
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
-                                plugin.getConfigManager().getMessagesConfig().party.notLeader);
+                        messageManager.sendMessageKeyed(player, "party.notLeader",
+                                configManager.getMessagesConfig().party.notLeader);
                         return;
                     }
 
                     Player targetPlayer = context.getArgument("player");
 
                     if (!party.isMember(targetPlayer.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.playerNotInYourParty",
-                                plugin.getConfigManager().getMessagesConfig().party.playerNotInYourParty);
+                        messageManager.sendMessageKeyed(player, "party.playerNotInYourParty",
+                                configManager.getMessagesConfig().party.playerNotInYourParty);
                         return;
                     }
 
-                    if (plugin.getPartyManager().setRespawnTarget(player, targetPlayer)) {
-                        String targetMessage = plugin.getConfigManager().getMessagesConfig().party.respawnTargetSet;
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.respawnTargetSet", targetMessage, "player", targetPlayer.getName());
+                    if (partyManager.setRespawnTarget(player, targetPlayer)) {
+                        String targetMessage =
+                                configManager.getMessagesConfig().party.respawnTargetSet;
+                        messageManager.sendMessageKeyed(player, "party.respawnTargetSet",
+                                targetMessage, "player", targetPlayer.getName());
                     }
                 });
     }

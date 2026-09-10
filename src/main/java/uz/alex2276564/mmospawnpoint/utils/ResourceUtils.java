@@ -1,21 +1,28 @@
 package uz.alex2276564.mmospawnpoint.utils;
 
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.logging.Logger;
 
-public class ResourceUtils {
+public final class ResourceUtils {
+
+    private ResourceUtils() {
+    }
 
     /**
-     * Copy resource to file (overwrites if exists)
+     * Copy resource from classpath to file (overwrites if exists).
      */
-    public static boolean copyResource(MMOSpawnPoint plugin, String resourcePath, File destination) {
-        try (InputStream inputStream = plugin.getResource(resourcePath)) {
+    public static boolean copyResource(ClassLoader resourceLoader,
+                                       Logger logger,
+                                       String resourcePath,
+                                       File destination) {
+        try (InputStream inputStream = resourceLoader.getResourceAsStream(resourcePath)) {
             if (inputStream == null) {
-                plugin.getLogger().warning("Resource not found: " + resourcePath);
+                if (logger != null) {
+                    logger.warning("Resource not found: " + resourcePath);
+                }
                 return false;
             }
 
@@ -27,64 +34,83 @@ public class ResourceUtils {
             // Copy resource to file
             Files.copy(inputStream, destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-            plugin.getLogger().info("Copied resource " + resourcePath + " to " + destination.getName());
+            if (logger != null) {
+                logger.info("Copied resource " + resourcePath + " to " + destination.getName());
+            }
             return true;
 
         } catch (IOException e) {
-            plugin.getLogger().warning("Failed to copy resource " + resourcePath + ": " + e.getMessage());
+            if (logger != null) {
+                logger.warning("Failed to copy resource " + resourcePath + ": " + e.getMessage());
+            }
             return false;
         }
     }
 
     /**
-     * Copy resource to file only if destination doesn't exist
+     * Copy resource to file only if destination doesn't exist.
      */
-    public static boolean copyResourceIfNotExists(MMOSpawnPoint plugin, String resourcePath, File destination) {
+    public static boolean copyResourceIfNotExists(ClassLoader resourceLoader,
+                                                  Logger logger,
+                                                  String resourcePath,
+                                                  File destination) {
         if (destination.exists()) {
             return false;
         }
-        return copyResource(plugin, resourcePath, destination);
+        return copyResource(resourceLoader, logger, resourcePath, destination);
     }
 
     /**
      * Force update file from resource (always overwrites destination).
      */
-    public static void updateFromResource(MMOSpawnPoint plugin, String resourcePath, File destination) {
-        copyResource(plugin, resourcePath, destination);
+    public static void updateFromResource(ClassLoader resourceLoader,
+                                          Logger logger,
+                                          String resourcePath,
+                                          File destination) {
+        copyResource(resourceLoader, logger, resourcePath, destination);
     }
 
     /**
-     * Get resource content as string
+     * Get resource content as string (UTF-8).
      */
-    public static String getResourceAsString(MMOSpawnPoint plugin, String resourcePath) {
-        try (InputStream inputStream = plugin.getResource(resourcePath)) {
+    public static String getResourceAsString(ClassLoader resourceLoader,
+                                             Logger logger,
+                                             String resourcePath) {
+        try (InputStream inputStream = resourceLoader.getResourceAsStream(resourcePath)) {
             if (inputStream == null) {
-                plugin.getLogger().warning("Resource not found: " + resourcePath);
+                if (logger != null) {
+                    logger.warning("Resource not found: " + resourcePath);
+                }
                 return null;
             }
 
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+
                 StringBuilder content = new StringBuilder();
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    content.append(line).append("\n");
+                    content.append(line).append('\n');
                 }
                 return content.toString();
             }
 
         } catch (IOException e) {
-            plugin.getLogger().warning("Failed to read resource " + resourcePath + ": " + e.getMessage());
+            if (logger != null) {
+                logger.warning("Failed to read resource " + resourcePath + ": " + e.getMessage());
+            }
             return null;
         }
     }
 
     /**
-     * Save string content to file
+     * Save string content to file (UTF-8).
      */
     public static boolean saveStringToFile(String content, File destination) {
         try {
-            if (destination.getParentFile() != null) {
-                destination.getParentFile().mkdirs();
+            File parent = destination.getParentFile();
+            if (parent != null) {
+                parent.mkdirs();
             }
 
             Files.writeString(destination.toPath(), content, StandardCharsets.UTF_8);
@@ -96,28 +122,34 @@ public class ResourceUtils {
     }
 
     /**
-     * Copy resource to directory with same filename
+     * Copy resource to directory with same filename.
      */
-    public static void copyResourceToDirectory(MMOSpawnPoint plugin, String resourcePath, File directory) {
+    public static void copyResourceToDirectory(ClassLoader resourceLoader,
+                                               Logger logger,
+                                               String resourcePath,
+                                               File directory) {
         String fileName = new File(resourcePath).getName();
         File destination = new File(directory, fileName);
-        copyResource(plugin, resourcePath, destination);
+        copyResource(resourceLoader, logger, resourcePath, destination);
     }
 
     /**
-     * Copy multiple resources to directory
+     * Copy multiple resources to directory.
      */
-    public static void copyResources(MMOSpawnPoint plugin, String[] resourcePaths, File directory) {
+    public static void copyResources(ClassLoader resourceLoader,
+                                     Logger logger,
+                                     String[] resourcePaths,
+                                     File directory) {
         for (String resourcePath : resourcePaths) {
-            copyResourceToDirectory(plugin, resourcePath, directory);
+            copyResourceToDirectory(resourceLoader, logger, resourcePath, directory);
         }
     }
 
     /**
-     * Check if resource exists
+     * Check if resource exists on classpath.
      */
-    public static boolean resourceExists(MMOSpawnPoint plugin, String resourcePath) {
-        try (InputStream inputStream = plugin.getResource(resourcePath)) {
+    public static boolean resourceExists(ClassLoader resourceLoader, String resourcePath) {
+        try (InputStream inputStream = resourceLoader.getResourceAsStream(resourcePath)) {
             return inputStream != null;
         } catch (IOException e) {
             return false;

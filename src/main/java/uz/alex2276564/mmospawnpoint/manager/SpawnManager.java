@@ -8,7 +8,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.config.MMOSpawnPointConfigManager;
 import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.SpawnPointsConfig;
 import uz.alex2276564.mmospawnpoint.events.MSPPostTeleportEvent;
 import uz.alex2276564.mmospawnpoint.events.MSPPreTeleportEvent;
@@ -16,6 +16,8 @@ import uz.alex2276564.mmospawnpoint.party.PartyManager;
 import uz.alex2276564.mmospawnpoint.utils.PlaceholderUtils;
 import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
 import uz.alex2276564.mmospawnpoint.utils.SecurityUtils;
+import uz.alex2276564.mmospawnpoint.utils.adventure.MessageManager;
+import uz.alex2276564.mmospawnpoint.utils.runner.Runner;
 import uz.alex2276564.mmospawnpoint.utils.runner.TaskHandle;
 
 import java.util.*;
@@ -23,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder.resolveMinY;
 
@@ -38,7 +41,12 @@ import static uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder.resolveMinY;
  */
 public class SpawnManager {
 
-    private final MMOSpawnPoint plugin;
+    private final MMOSpawnPointConfigManager configManager;
+    private final Runner runner;
+    private final MessageManager messageManager;
+    private final Logger logger;
+    private final boolean placeholderAPIEnabled;
+    private final boolean spawnLocationJoinSupported;
 
     // Death locations are accessed from event threads; keep it concurrent
     private final Map<UUID, Location> deathLocations = new ConcurrentHashMap<>();
@@ -60,9 +68,20 @@ public class SpawnManager {
     @Setter
     private PartyManager partyManager;
 
-    public SpawnManager(MMOSpawnPoint plugin) {
-        this.plugin = plugin;
-        var batch = plugin.getConfigManager().getMainConfig().settings.safeSearchBatch;
+    public SpawnManager(MMOSpawnPointConfigManager configManager,
+                        Runner runner,
+                        MessageManager messageManager,
+                        Logger logger,
+                        boolean placeholderAPIEnabled,
+                        boolean spawnLocationJoinSupported) {
+        this.configManager = configManager;
+        this.runner = runner;
+        this.messageManager = messageManager;
+        this.logger = logger;
+        this.placeholderAPIEnabled = placeholderAPIEnabled;
+        this.spawnLocationJoinSupported = spawnLocationJoinSupported;
+
+        var batch = configManager.getMainConfig().settings.safeSearchBatch;
         this.attemptsPerTick = Math.max(10, batch.attemptsPerTick);
         this.timeBudgetNs = Math.max(1, batch.timeBudgetMillis) * 1_000_000L;
     }
@@ -89,10 +108,10 @@ public class SpawnManager {
             pendingWaitingRoomActions.remove(playerId);
             pendingAfterActions.remove(playerId);
             if (isDebug()) {
-                plugin.getLogger().info("Cleaned up spawn manager data for player: " + playerId);
+                logger.info("Cleaned up spawn manager data for player: " + playerId);
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error cleaning up spawn manager data for " + playerId + ": " + e.getMessage());
+            logger.warning("Error cleaning up spawn manager data for " + playerId + ": " + e.getMessage());
         }
     }
 
@@ -100,7 +119,7 @@ public class SpawnManager {
         UUID id = player.getUniqueId();
         Location clone = location.clone();
 
-        boolean overwrite = plugin.getConfigManager()
+        boolean overwrite = configManager
                 .getMainConfig()
                 .death
                 .overwriteLastDeathLocation;
@@ -114,7 +133,7 @@ public class SpawnManager {
         }
 
         if (isDebug()) {
-            plugin.getLogger().info("Recorded death location for " + player.getName()
+            logger.info("Recorded death location for " + player.getName()
                     + " (overwriteLastDeathLocation=" + overwrite + "): "
                     + locationToString(location));
         }
@@ -125,12 +144,12 @@ public class SpawnManager {
     public boolean processJoinSpawn(Player player) {
         try {
             if (isDebug()) {
-                plugin.getLogger().info("Processing join spawn for " + player.getName());
+                logger.info("Processing join spawn for " + player.getName());
             }
 
             // Party join scoped
-            String partyScope = plugin.getConfigManager().getMainConfig().party.scope;
-            if (plugin.getConfigManager().getMainConfig().party.enabled
+            String partyScope = configManager.getMainConfig().party.scope;
+            if (configManager.getMainConfig().party.enabled
                     && partyManager != null
                     && ("join".equalsIgnoreCase(partyScope) || "both".equalsIgnoreCase(partyScope))) {
 
@@ -149,15 +168,15 @@ public class SpawnManager {
             }
 
             if (isDebug()) {
-                plugin.getLogger().info("No join spawn location found for " + player.getName());
+                logger.info("No join spawn location found for " + player.getName());
             }
-            plugin.getMessageManager().sendMessageKeyed(player, "general.noSpawnFound", plugin.getConfigManager().getMessagesConfig().general.noSpawnFound);
+            messageManager.sendMessageKeyed(player, "general.noSpawnFound", configManager.getMessagesConfig().general.noSpawnFound);
             return false;
 
         } catch (Exception e) {
-            plugin.getLogger().severe("Error processing join spawn for " + player.getName() + ": " + e.getMessage());
+            logger.severe("Error processing join spawn for " + player.getName() + ": " + e.getMessage());
             if (isDebug()) {
-                plugin.getLogger().log(
+                logger.log(
                         Level.SEVERE,
                         "Detailed exception while processing join spawn for " + player.getName(),
                         e
@@ -180,20 +199,20 @@ public class SpawnManager {
     public Location resolveJoinSpawnLocationForSpawnEvent(Player player, Location baseSpawnLocation) {
         try {
             if (isDebug()) {
-                plugin.getLogger().info("Resolving join spawn (spawn-location event) for " + player.getName()
+                logger.info("Resolving join spawn (spawn-location event) for " + player.getName()
                         + " from base location " + locationToString(baseSpawnLocation));
             }
 
             // Party join scoped
-            String partyScope = plugin.getConfigManager().getMainConfig().party.scope;
-            if (plugin.getConfigManager().getMainConfig().party.enabled
+            String partyScope = configManager.getMainConfig().party.scope;
+            if (configManager.getMainConfig().party.enabled
                     && partyManager != null
                     && ("join".equalsIgnoreCase(partyScope) || "both".equalsIgnoreCase(partyScope))) {
 
                 Location partyLocation = partyManager.findPartyJoinLocation(player);
                 if (partyLocation != null && partyLocation != PartyManager.FALLBACK_TO_NORMAL_SPAWN_MARKER) {
                     if (isDebug()) {
-                        plugin.getLogger().info("Using party join spawn location for "
+                        logger.info("Using party join spawn location for "
                                 + player.getName() + ": " + locationToString(partyLocation));
                     }
                     return partyLocation;
@@ -204,23 +223,23 @@ public class SpawnManager {
             Location joinLocation = findSpawnLocationByPriority("join", baseSpawnLocation, player);
             if (joinLocation != null) {
                 if (isDebug()) {
-                    plugin.getLogger().info("Using MSP join spawn location for "
+                    logger.info("Using MSP join spawn location for "
                             + player.getName() + ": " + locationToString(joinLocation));
                 }
                 return joinLocation;
             }
 
             if (isDebug()) {
-                plugin.getLogger().info("No MSP join spawn location found for "
+                logger.info("No MSP join spawn location found for "
                         + player.getName() + " – keeping vanilla spawn location");
             }
             return null;
 
         } catch (Exception e) {
-            plugin.getLogger().severe("Error resolving join spawn for "
+            logger.severe("Error resolving join spawn for "
                     + player.getName() + ": " + e.getMessage());
             if (isDebug()) {
-                plugin.getLogger().log(
+                logger.log(
                         Level.SEVERE,
                         "Detailed exception while resolving join spawn for " + player.getName(),
                         e
@@ -235,26 +254,26 @@ public class SpawnManager {
             Location deathLocation = deathLocations.remove(player.getUniqueId());
             if (deathLocation == null) {
                 if (isDebug()) {
-                    plugin.getLogger().info("No death location found for " + player.getName() + ", using server default");
+                    logger.info("No death location found for " + player.getName() + ", using server default");
                 }
                 return false;
             }
 
             if (isDebug()) {
-                plugin.getLogger().info("Processing death spawn for " + player.getName()
+                logger.info("Processing death spawn for " + player.getName()
                         + " who died at " + locationToString(deathLocation));
             }
 
             // Party death scoped
-            String partyScope = plugin.getConfigManager().getMainConfig().party.scope;
-            if (plugin.getConfigManager().getMainConfig().party.enabled
+            String partyScope = configManager.getMainConfig().party.scope;
+            if (configManager.getMainConfig().party.enabled
                     && partyManager != null
                     && ("death".equalsIgnoreCase(partyScope) || "both".equalsIgnoreCase(partyScope))) {
 
                 Location partyLocation = partyManager.findPartyRespawnLocation(player, deathLocation);
                 if (partyLocation != null && partyLocation != PartyManager.FALLBACK_TO_NORMAL_SPAWN_MARKER) {
                     if (isDebug()) {
-                        plugin.getLogger().info("Using party respawn location for "
+                        logger.info("Using party respawn location for "
                                 + player.getName() + ": " + locationToString(partyLocation));
                     }
                     teleportPlayerWithDelay(player, partyLocation, "death");
@@ -270,16 +289,16 @@ public class SpawnManager {
             }
 
             if (isDebug()) {
-                plugin.getLogger().warning("No death spawn location found for " + player.getName());
+                logger.warning("No death spawn location found for " + player.getName());
             }
-            plugin.getMessageManager().sendMessageKeyed(player, "general.noSpawnFound", plugin.getConfigManager().getMessagesConfig().general.noSpawnFound);
+            messageManager.sendMessageKeyed(player, "general.noSpawnFound", configManager.getMessagesConfig().general.noSpawnFound);
             return false;
 
         } catch (Exception e) {
-            plugin.getLogger().severe("Error processing death spawn for "
+            logger.severe("Error processing death spawn for "
                     + player.getName() + ": " + e.getMessage());
             if (isDebug()) {
-                plugin.getLogger().log(
+                logger.log(
                         Level.SEVERE,
                         "Detailed exception while processing death spawn for " + player.getName(),
                         e
@@ -295,23 +314,23 @@ public class SpawnManager {
      * Returns final location or waiting-room location if requireSafe=true (async search will continue).
      */
     public Location findSpawnLocationByPriority(String eventType, Location referenceLocation, Player player) {
-        List<SpawnEntry> matchingEntries = plugin.getConfigManager().getMatchingSpawnEntries(eventType, referenceLocation);
+        List<SpawnEntry> matchingEntries = configManager.getMatchingSpawnEntries(eventType, referenceLocation);
 
         if (isDebug()) {
-            plugin.getLogger().info("Found " + matchingEntries.size()
+            logger.info("Found " + matchingEntries.size()
                     + " matching spawn entries for " + eventType);
         }
 
         for (SpawnEntry entry : matchingEntries) {
             if (isDebug()) {
-                plugin.getLogger().info("Checking spawn entry with priority "
+                logger.info("Checking spawn entry with priority "
                         + entry.calculatedPriority() + " from " + entry.fileName());
             }
 
             Location spawnLocation = processSpawnEntry(entry, player, eventType);
             if (spawnLocation != null) {
                 if (isDebug()) {
-                    plugin.getLogger().info("Selected spawn entry with priority "
+                    logger.info("Selected spawn entry with priority "
                             + entry.calculatedPriority() + " from " + entry.fileName());
                 }
                 return spawnLocation;
@@ -340,7 +359,7 @@ public class SpawnManager {
             String eventType
     ) {
         if (isDebug()) {
-            plugin.getLogger().info("processEntry eventType=" + eventType);
+            logger.info("processEntry eventType=" + eventType);
         }
 
         if (conditionsNotMet(player, conditions)) {
@@ -357,14 +376,14 @@ public class SpawnManager {
         if (selected == null) return null;
 
         boolean requireSafe = selected.requireSafe;
-        boolean useWaitingRoom = plugin.getConfigManager().getMainConfig().settings.waitingRoom.enabled && requireSafe;
+        boolean useWaitingRoom = configManager.getMainConfig().settings.waitingRoom.enabled && requireSafe;
 
         // Is this a weighted region scenario? (more than one destination option)
         boolean hasMultipleDestinations = destinations.size() > 1;
 
         if (useWaitingRoom) {
             if (isDebug()) {
-                plugin.getLogger().info("processEntry: using waiting room for eventType=" + eventType);
+                logger.info("processEntry: using waiting room for eventType=" + eventType);
             }
 
             // For join + setSpawnLocation flows, BEFORE messages sent inside PlayerSpawnLocationEvent
@@ -393,7 +412,7 @@ public class SpawnManager {
             // For spawn-location based flows (death/join), schedule phases a bit later,
             // and only consume pendingWaitingRoomActions when the player is actually online.
             if (shouldScheduleWaitingRoomPhase(eventType)) {
-                plugin.getRunner().runGlobalLater(() -> {
+                runner.runGlobalLater(() -> {
                     if (!player.isOnline()) {
                         return;
                     }
@@ -433,7 +452,7 @@ public class SpawnManager {
     }
 
     private boolean shouldScheduleWaitingRoomPhase(String eventType) {
-        var mainCfg = plugin.getConfigManager().getMainConfig();
+        var mainCfg = configManager.getMainConfig();
 
         if ("death".equalsIgnoreCase(eventType)) {
             return mainCfg.settings.teleport.useSetRespawnLocationForDeath;
@@ -453,9 +472,9 @@ public class SpawnManager {
         if (!"join".equalsIgnoreCase(eventType)) {
             return false;
         }
-        var mainCfg = plugin.getConfigManager().getMainConfig();
+        var mainCfg = configManager.getMainConfig();
         // We only defer when join spawn is handled via PlayerSpawnLocationEvent
-        return plugin.isSpawnLocationJoinSupported()
+        return spawnLocationJoinSupported
                 && mainCfg.settings.teleport.useSetSpawnLocationForJoin
                 && !mainCfg.join.waitForResourcePack;
     }
@@ -522,7 +541,7 @@ public class SpawnManager {
                         .append("}");
                 if (i < options.size() - 1) sb.append(", ");
             }
-            plugin.getLogger().info(sb.toString());
+            logger.info(sb.toString());
         }
 
         if (total <= 0) return null;
@@ -574,7 +593,7 @@ public class SpawnManager {
             }
         }
 
-        if (conditions.placeholders != null && !conditions.placeholders.isEmpty() && plugin.isPlaceholderAPIEnabled()) {
+        if (conditions.placeholders != null && !conditions.placeholders.isEmpty() && placeholderAPIEnabled) {
             for (String placeholderExpr : conditions.placeholders) {
                 if (!PlaceholderUtils.checkPlaceholderCondition(player, placeholderExpr)) {
                     return true;
@@ -677,7 +696,7 @@ public class SpawnManager {
 
             this.world = Bukkit.getWorld(option.world);
             this.isPoint = isPointOption(option);
-            this.currentRadius = plugin.getConfigManager().getMainConfig().settings.safeLocationRadius;
+            this.currentRadius = configManager.getMainConfig().settings.safeLocationRadius;
             this.attemptCount = 0;
 
             // Build rects only if world is present
@@ -690,7 +709,7 @@ public class SpawnManager {
             }
 
             // Determine cache profile from main config
-            var cacheCfg = plugin.getConfigManager().getMainConfig().settings.safeLocationCache.spawnTypeCaching;
+            var cacheCfg = configManager.getMainConfig().settings.safeLocationCache.spawnTypeCaching;
 
             boolean cEnabled;
             boolean cPlayerSpecific;
@@ -724,7 +743,7 @@ public class SpawnManager {
         }
 
         void start() {
-            handle = plugin.getRunner().runGlobalTimer(this::tick, 1L, 1L);
+            handle = runner.runGlobalTimer(this::tick, 1L, 1L);
         }
 
         void cancel() {
@@ -739,10 +758,10 @@ public class SpawnManager {
                 }
 
                 // Timeout — should work even if the player is not yet considered online
-                long timeoutMs = plugin.getConfigManager().getMainConfig().settings.waitingRoom.asyncSearchTimeout * 1000L;
+                long timeoutMs = configManager.getMainConfig().settings.waitingRoom.asyncSearchTimeout * 1000L;
                 if (timeoutMs > 0 && System.currentTimeMillis() - waitingEnteredAtMs > timeoutMs) {
                     if (isDebug()) {
-                        plugin.getLogger().warning("[MMOSpawnPoint] Safe search TIMEOUT for "
+                        logger.warning("[MMOSpawnPoint] Safe search TIMEOUT for "
                                 + player.getName() + " in world=" + world.getName()
                                 + " attempts=" + attemptCount
                                 + " fail{feet=" + failFeet
@@ -768,7 +787,7 @@ public class SpawnManager {
                     return;
                 }
 
-                if (plugin.getRunner().isFolia()) {
+                if (runner.isFolia()) {
                     // Folia: do one attempt per tick on the proper region thread
                     if (attemptInProgress) return;
                     attemptInProgress = true;
@@ -777,11 +796,11 @@ public class SpawnManager {
                     // Choose candidate location (no world access on global thread)
                     final Location candidateRegionLoc = chooseCandidateRegionLocation();
 
-                    plugin.getRunner().runAtLocation(candidateRegionLoc, () -> {
+                    runner.runAtLocation(candidateRegionLoc, () -> {
                         try {
                             Location found = singleAttemptInRegion(candidateRegionLoc);
                             if (found != null) {
-                                plugin.getRunner().runGlobal(() -> finish(found, true));
+                                runner.runGlobal(() -> finish(found, true));
                             }
                         } finally {
                             attemptInProgress = false;
@@ -805,7 +824,7 @@ public class SpawnManager {
                     }
                 }
             } catch (Throwable t) {
-                plugin.getLogger().severe("[SafeSearchJob] tick fatal: " + t.getMessage());
+                logger.severe("[SafeSearchJob] tick fatal: " + t.getMessage());
                 try {
                     finish(null, false);
                 } catch (Exception ignored) {
@@ -1123,11 +1142,11 @@ public class SpawnManager {
 
         private void maybeExpandRadiusForNearSearch() {
             // Expand radius occasionally if we keep failing at fixed-point safe search
-            int step = Math.max(2, plugin.getConfigManager().getMainConfig().settings.maxSafeLocationAttempts / 3);
+            int step = Math.max(2, configManager.getMainConfig().settings.maxSafeLocationAttempts / 3);
             if ((attemptCount % step) == 0) {
                 currentRadius = Math.min(
                         currentRadius * 2,
-                        Math.max(currentRadius, plugin.getConfigManager().getMainConfig().settings.safeLocationRadius * 4)
+                        Math.max(currentRadius, configManager.getMainConfig().settings.safeLocationRadius * 4)
                 );
             }
         }
@@ -1163,8 +1182,8 @@ public class SpawnManager {
 
             if (!success || found == null) return;
 
-            int delayConfig = plugin.getConfigManager().getMainConfig().settings.teleport.delayTicks;
-            int minStayTicks = plugin.getConfigManager().getMainConfig().settings.waitingRoom.minStayTicks;
+            int delayConfig = configManager.getMainConfig().settings.teleport.delayTicks;
+            int minStayTicks = configManager.getMainConfig().settings.waitingRoom.minStayTicks;
             long elapsedMs = System.currentTimeMillis() - waitingEnteredAtMs;
             long requiredMs = Math.max(0L, minStayTicks * 50L - elapsedMs);
             int requiredTicks = (int) Math.ceil(requiredMs / 50.0);
@@ -1216,10 +1235,10 @@ public class SpawnManager {
     private void applyYawPitch(SpawnPointsConfig.Destination option, Location loc) {
         float yaw = (option.yaw == null) ? loc.getYaw()
                 : option.yaw.isValue() ? option.yaw.value.floatValue()
-                  : (float) (option.yaw.min + ThreadLocalRandom.current().nextDouble() * (option.yaw.max - option.yaw.min));
+                : (float) (option.yaw.min + ThreadLocalRandom.current().nextDouble() * (option.yaw.max - option.yaw.min));
         float pitch = (option.pitch == null) ? loc.getPitch()
                 : option.pitch.isValue() ? option.pitch.value.floatValue()
-                  : (float) (option.pitch.min + ThreadLocalRandom.current().nextDouble() * (option.pitch.max - option.pitch.min));
+                : (float) (option.pitch.min + ThreadLocalRandom.current().nextDouble() * (option.pitch.max - option.pitch.min));
         pitch = (float) clampPitch(pitch);
 
         loc.setYaw(yaw);
@@ -1482,12 +1501,12 @@ public class SpawnManager {
                 int chance = getEffectiveMessageChance(player, msg);
                 if (roll(chance)) {
                     if (isDebug()) {
-                        plugin.getLogger().info("runPhaseForActions: sending message to " + player.getName()
+                        logger.info("runPhaseForActions: sending message to " + player.getName()
                                 + " phase=" + phase + " text=" + msg.text);
                     }
-                    plugin.getMessageManager().sendMessage(player, processPlaceholders(player, msg.text));
+                    messageManager.sendMessage(player, processPlaceholders(player, msg.text));
                 } else if (isDebug()) {
-                    plugin.getLogger().info("runPhaseForActions: skipped message due to chance for " + player.getName()
+                    logger.info("runPhaseForActions: skipped message due to chance for " + player.getName()
                             + " phase=" + phase + " text=" + msg.text);
                 }
             }
@@ -1499,18 +1518,18 @@ public class SpawnManager {
 
                 int chance = getEffectiveCommandChance(player, cmd);
                 if (isDebug()) {
-                    plugin.getLogger().info("runPhaseForActions: Checking command for " + player.getName()
+                    logger.info("runPhaseForActions: Checking command for " + player.getName()
                             + " with chance: " + chance + ", phase: " + phase);
                 }
 
                 if (roll(chance)) {
                     if (isDebug()) {
-                        plugin.getLogger().info("runPhaseForActions: executing command for " + player.getName()
+                        logger.info("runPhaseForActions: executing command for " + player.getName()
                                 + " phase=" + phase + " command=" + cmd.command);
                     }
                     executeCommand(player, cmd.command);
                 } else if (isDebug()) {
-                    plugin.getLogger().info("runPhaseForActions: skipped command due to chance for " + player.getName()
+                    logger.info("runPhaseForActions: skipped command due to chance for " + player.getName()
                             + " phase=" + phase + " command=" + cmd.command);
                 }
             }
@@ -1537,16 +1556,16 @@ public class SpawnManager {
         String safeName = SecurityUtils.sanitize(player.getName(), SecurityUtils.SanitizeType.PLAYER_NAME);
         String processedCommand = processPlaceholders(player, command.replace("%player%", safeName));
 
-        plugin.getRunner().runGlobal(() -> {
+        runner.runGlobal(() -> {
             if (isDebug()) {
-                plugin.getLogger().info("Executing command: " + processedCommand);
+                logger.info("Executing command: " + processedCommand);
             }
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), processedCommand);
         });
     }
 
     private void teleportPlayerWithDelay(Player player, Location location, String eventType) {
-        int delayTicks = plugin.getConfigManager().getMainConfig().settings.teleport.delayTicks;
+        int delayTicks = configManager.getMainConfig().settings.teleport.delayTicks;
 
         Runnable afterTeleport = () -> {
             // If this teleport was to WAITING ROOM (i.e., we have pending WR actions) — run them first
@@ -1591,10 +1610,10 @@ public class SpawnManager {
 
             Location to = pre.getTo();
 
-            plugin.getRunner().teleportAsync(player, to).thenAccept(success -> {
+            runner.teleportAsync(player, to).thenAccept(success -> {
                 if (!Boolean.TRUE.equals(success)) return;
 
-                plugin.getRunner().runAtEntity(player, () -> {
+                runner.runAtEntity(player, () -> {
                     // POST
                     MSPPostTeleportEvent post = new MSPPostTeleportEvent(
                             player, eventType, "FINAL", from, to
@@ -1609,9 +1628,9 @@ public class SpawnManager {
         };
 
         if (safeDelay == 0) {
-            plugin.getRunner().runAtEntity(player, task);
+            runner.runAtEntity(player, task);
         } else {
-            plugin.getRunner().runAtEntityLater(player, task, safeDelay);
+            runner.runAtEntityLater(player, task, safeDelay);
         }
     }
 
@@ -1620,12 +1639,12 @@ public class SpawnManager {
             return;
         }
 
-        String message = plugin.getConfigManager().getMessagesConfig().join.teleportedOnJoin;
-        plugin.getMessageManager().sendMessageKeyed(player, "join.teleportedOnJoin", message);
+        String message = configManager.getMessagesConfig().join.teleportedOnJoin;
+        messageManager.sendMessageKeyed(player, "join.teleportedOnJoin", message);
     }
 
     private String processPlaceholders(Player player, String text) {
-        return plugin.isPlaceholderAPIEnabled()
+        return placeholderAPIEnabled
                 ? PlaceholderUtils.setPlaceholders(player, text)
                 : text;
     }
@@ -1633,7 +1652,7 @@ public class SpawnManager {
     // ========== Misc utils ==========
 
     private boolean isDebug() {
-        return plugin.getConfigManager().getMainConfig().settings.debugMode;
+        return configManager.getMainConfig().settings.debugMode;
     }
 
     private String locationToString(Location loc) {
@@ -1654,11 +1673,11 @@ public class SpawnManager {
      */
     private Location getBestWaitingRoom(SpawnPointsConfig.WaitingRoomConfig local, SpawnPointsConfig.WaitingRoomConfig entry) {
         SpawnPointsConfig.WaitingRoomConfig target = (local != null) ? local : entry;
-        if (target == null) target = plugin.getConfigManager().getMainConfig().settings.waitingRoom.location;
+        if (target == null) target = configManager.getMainConfig().settings.waitingRoom.location;
 
         World world = Bukkit.getWorld(target.world);
         if (world == null) {
-            plugin.getLogger().warning("Waiting room world not found: " + target.world + " — falling back to default world spawn.");
+            logger.warning("Waiting room world not found: " + target.world + " — falling back to default world spawn.");
             return Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0).getSpawnLocation();
         }
         return new Location(world, target.x, target.y, target.z, target.yaw, target.pitch);
@@ -1675,7 +1694,7 @@ public class SpawnManager {
             PendingEntry pending = pendingAfterActions.remove(id);
             if (pending == null) {
                 if (isDebug()) {
-                    plugin.getLogger().info("runAfterPhaseIfPending: no pending entry for " + player.getName());
+                    logger.info("runAfterPhaseIfPending: no pending entry for " + player.getName());
                 }
                 return; // nothing to do
             }
@@ -1684,7 +1703,7 @@ public class SpawnManager {
                     && "join".equalsIgnoreCase(eventType);
 
             if (isDebug()) {
-                plugin.getLogger().info("runAfterPhaseIfPending: running "
+                logger.info("runAfterPhaseIfPending: running "
                         + (deferBeforeForJoin ? "BEFORE+AFTER" : "AFTER")
                         + " for " + player.getName()
                         + " event=" + eventType
@@ -1705,8 +1724,8 @@ public class SpawnManager {
             }
         } catch (Exception e) {
             if (isDebug()) {
-                plugin.getLogger().warning("Error while running AFTER phase for " + player.getName() + ": " + e.getMessage());
-                plugin.getLogger().log(
+                logger.warning("Error while running AFTER phase for " + player.getName() + ": " + e.getMessage());
+                logger.log(
                         Level.WARNING,
                         "Detailed exception while running AFTER phase for " + player.getName(),
                         e
@@ -1738,8 +1757,8 @@ public class SpawnManager {
             runAfterPhaseIfPending(player, "join");
         } catch (Exception e) {
             if (isDebug()) {
-                plugin.getLogger().warning("Error while running join phases for " + player.getName() + ": " + e.getMessage());
-                plugin.getLogger().log(
+                logger.warning("Error while running join phases for " + player.getName() + ": " + e.getMessage());
+                logger.log(
                         Level.WARNING,
                         "Detailed exception while running join phases for " + player.getName(),
                         e
@@ -1786,8 +1805,7 @@ public class SpawnManager {
 
         return switch (type.toLowerCase(Locale.ROOT)) {
             case "permission" -> PlaceholderUtils.evaluatePermissionExpression(player, value, bypassPermissions);
-            case "placeholder" ->
-                    plugin.isPlaceholderAPIEnabled() && PlaceholderUtils.checkPlaceholderCondition(player, value);
+            case "placeholder" -> placeholderAPIEnabled && PlaceholderUtils.checkPlaceholderCondition(player, value);
             default -> false;
         };
     }

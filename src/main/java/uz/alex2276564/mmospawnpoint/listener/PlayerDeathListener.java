@@ -5,13 +5,23 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.config.MMOSpawnPointConfigManager;
+import uz.alex2276564.mmospawnpoint.manager.SpawnManager;
+
+import java.util.logging.Logger;
 
 public class PlayerDeathListener implements Listener {
-    private final MMOSpawnPoint plugin;
 
-    public PlayerDeathListener(MMOSpawnPoint plugin) {
-        this.plugin = plugin;
+    private final SpawnManager spawnManager;
+    private final MMOSpawnPointConfigManager configManager;
+    private final Logger logger;
+
+    public PlayerDeathListener(SpawnManager spawnManager,
+                               MMOSpawnPointConfigManager configManager,
+                               Logger logger) {
+        this.spawnManager = spawnManager;
+        this.configManager = configManager;
+        this.logger = logger;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -19,13 +29,13 @@ public class PlayerDeathListener implements Listener {
         try {
             Player player = event.getEntity();
             // Record death location for later use in respawn event
-            plugin.getSpawnManager().recordDeathLocation(player, player.getLocation());
+            spawnManager.recordDeathLocation(player, player.getLocation());
 
-            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                plugin.getLogger().info("Recorded death location for " + player.getName());
+            if (configManager.getMainConfig().settings.debugMode) {
+                logger.info("Recorded death location for " + player.getName());
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error handling player death for " + event.getEntity().getName() + ": " + e.getMessage());
+            logger.warning("Error handling player death for " + event.getEntity().getName() + ": " + e.getMessage());
         }
     }
 }

@@ -1,14 +1,21 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.party.options.mode;
 
 import org.bukkit.entity.Player;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPointServices;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentType;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.party.Party;
+import uz.alex2276564.mmospawnpoint.party.PartyManager;
 
 public class ModeSubCommand implements NestedSubCommandProvider {
+
+    private final MMOSpawnPointServices services;
+
+    public ModeSubCommand(MMOSpawnPointServices services) {
+        this.services = services;
+    }
 
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
@@ -18,45 +25,49 @@ public class ModeSubCommand implements NestedSubCommandProvider {
                 .argument(new ArgumentBuilder<>("mode", ArgumentType.STRING)
                         .suggestions("NORMAL", "PARTY_MEMBER"))
                 .executor((sender, context) -> {
-                    MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
+                    var configManager = services.configManager();
+                    var messageManager = services.messageManager();
+                    PartyManager partyManager = services.partyManager();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
-                                plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
+                        messageManager.sendMessageKeyed(sender, "party.onlyPlayers",
+                                configManager.getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
-                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
-                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
+                    if (!configManager.getMainConfig().party.enabled || partyManager == null) {
+                        messageManager.sendMessageKeyed(sender, "party.systemDisabled",
+                                configManager.getMessagesConfig().party.systemDisabled);
                         return;
                     }
 
-                    if (!plugin.getPartyManager().isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
-                                plugin.getConfigManager().getMessagesConfig().party.notInParty);
+                    if (!partyManager.isInParty(player.getUniqueId())) {
+                        messageManager.sendMessageKeyed(player, "party.notInParty",
+                                configManager.getMessagesConfig().party.notInParty);
                         return;
                     }
 
-                    Party party = plugin.getPartyManager().getPlayerParty(player.getUniqueId());
+                    Party party = partyManager.getPlayerParty(player.getUniqueId());
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
-                                plugin.getConfigManager().getMessagesConfig().party.notLeader);
+                        messageManager.sendMessageKeyed(player, "party.notLeader",
+                                configManager.getMessagesConfig().party.notLeader);
                         return;
                     }
 
                     String mode = context.getArgument("mode");
                     try {
                         Party.RespawnMode respawnMode = Party.RespawnMode.valueOf(mode.toUpperCase());
-                        plugin.getPartyManager().setRespawnMode(player, respawnMode);
+                        partyManager.setRespawnMode(player, respawnMode);
 
-                        String modeMessage = plugin.getConfigManager().getMessagesConfig().party.respawnModeChanged;
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.respawnModeChanged", modeMessage, "mode", respawnMode.name());
+                        String modeMessage =
+                                configManager.getMessagesConfig().party.respawnModeChanged;
+                        messageManager.sendMessageKeyed(player, "party.respawnModeChanged",
+                                modeMessage, "mode", respawnMode.name());
                     } catch (IllegalArgumentException e) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.invalidRespawnMode",
-                                plugin.getConfigManager().getMessagesConfig().party.invalidRespawnMode);
+                        messageManager.sendMessageKeyed(player, "party.invalidRespawnMode",
+                                configManager.getMessagesConfig().party.invalidRespawnMode);
                     }
                 });
     }

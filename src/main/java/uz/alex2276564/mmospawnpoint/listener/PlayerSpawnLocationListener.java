@@ -6,22 +6,38 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.config.MMOSpawnPointConfigManager;
+import uz.alex2276564.mmospawnpoint.manager.SpawnManager;
+import uz.alex2276564.mmospawnpoint.utils.adventure.MessageManager;
+import uz.alex2276564.mmospawnpoint.utils.runner.Runner;
 
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class PlayerSpawnLocationListener implements Listener {
 
-    private final MMOSpawnPoint plugin;
+    private final MMOSpawnPointConfigManager configManager;
+    private final SpawnManager spawnManager;
+    private final Runner runner;
+    private final MessageManager messageManager;
+    private final Logger logger;
 
-    public PlayerSpawnLocationListener(MMOSpawnPoint plugin) {
-        this.plugin = plugin;
+    public PlayerSpawnLocationListener(MMOSpawnPointConfigManager configManager,
+                                       SpawnManager spawnManager,
+                                       Runner runner,
+                                       MessageManager messageManager,
+                                       Logger logger) {
+        this.configManager = configManager;
+        this.spawnManager = spawnManager;
+        this.runner = runner;
+        this.messageManager = messageManager;
+        this.logger = logger;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerSpawnLocation(PlayerSpawnLocationEvent event) {
         try {
-            var mainConfig = plugin.getConfigManager().getMainConfig();
+            var mainConfig = configManager.getMainConfig();
 
             // Disabled in config -> keep old join-teleport flow
             if (!mainConfig.settings.teleport.useSetSpawnLocationForJoin) {
@@ -31,7 +47,7 @@ public class PlayerSpawnLocationListener implements Listener {
             // Resource-pack waiting uses PlayerJoinEvent + teleport flow by design
             if (mainConfig.join.waitForResourcePack) {
                 if (mainConfig.settings.debugMode) {
-                    plugin.getLogger().info(
+                    logger.info(
                             "Skipping PlayerSpawnLocationEvent handling for " + event.getPlayer().getName()
                                     + " because join.waitForResourcePack is enabled"
                     );
@@ -46,16 +62,15 @@ public class PlayerSpawnLocationListener implements Listener {
             }
 
             // Resolve MSP/party join spawn location for spawn-location event
-            Location resolved = plugin.getSpawnManager()
-                    .resolveJoinSpawnLocationForSpawnEvent(player, baseSpawn);
+            Location resolved = spawnManager.resolveJoinSpawnLocationForSpawnEvent(player, baseSpawn);
 
             if (resolved == null) {
                 // No MSP override -> keep vanilla spawnLocation
-                plugin.getRunner().runAtEntityLater(player, () -> {
+                runner.runAtEntityLater(player, () -> {
                     if (!player.isOnline()) return;
 
-                    String msg = plugin.getConfigManager().getMessagesConfig().general.noSpawnFound;
-                    plugin.getMessageManager().sendMessageKeyed(player, "general.noSpawnFound", msg);
+                    String msg = configManager.getMessagesConfig().general.noSpawnFound;
+                    messageManager.sendMessageKeyed(player, "general.noSpawnFound", msg);
                 }, 1L);
 
                 return;
@@ -64,9 +79,9 @@ public class PlayerSpawnLocationListener implements Listener {
             event.setSpawnLocation(resolved);
 
         } catch (Exception e) {
-            plugin.getLogger().severe("Error in PlayerSpawnLocationListener: " + e.getMessage());
-            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                plugin.getLogger().log(
+            logger.severe("Error in PlayerSpawnLocationListener: " + e.getMessage());
+            if (configManager.getMainConfig().settings.debugMode) {
+                logger.log(
                         Level.SEVERE,
                         "Detailed exception in PlayerSpawnLocationListener",
                         e

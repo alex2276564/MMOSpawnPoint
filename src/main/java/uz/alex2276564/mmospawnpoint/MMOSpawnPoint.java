@@ -12,9 +12,7 @@ import uz.alex2276564.mmospawnpoint.listener.*;
 import uz.alex2276564.mmospawnpoint.manager.SpawnEntry;
 import uz.alex2276564.mmospawnpoint.manager.SpawnManager;
 import uz.alex2276564.mmospawnpoint.party.PartyManager;
-import uz.alex2276564.mmospawnpoint.utils.HttpUtils;
-import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
-import uz.alex2276564.mmospawnpoint.utils.UpdateChecker;
+import uz.alex2276564.mmospawnpoint.utils.*;
 import uz.alex2276564.mmospawnpoint.utils.adventure.AdventureMessageManager;
 import uz.alex2276564.mmospawnpoint.utils.adventure.LegacyMessageManager;
 import uz.alex2276564.mmospawnpoint.utils.adventure.MessageManager;
@@ -25,9 +23,6 @@ import uz.alex2276564.mmospawnpoint.utils.runner.Runner;
 import java.util.logging.Level;
 
 public final class MMOSpawnPoint extends JavaPlugin {
-    @Getter
-    private static MMOSpawnPoint instance;
-
     @Getter
     private Runner runner;
 
@@ -42,6 +37,12 @@ public final class MMOSpawnPoint extends JavaPlugin {
 
     @Getter
     private MessageManager messageManager;
+
+    @Getter
+    private UpdateChecker updateChecker;
+
+    @Getter
+    private MMOSpawnPointServices services;
 
     @Getter
     private SpawnManager spawnManager;
@@ -63,20 +64,28 @@ public final class MMOSpawnPoint extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        instance = this;
-
         try {
             setupRunner();
             setupHttpClient();
             setupMessageManager();
             setupConfig();
+            PlaceholderUtils.configure(
+                    getLogger(),
+                    () -> configManager.getMainConfig().settings.debugMode
+            );
+            WorldGuardUtils.configure(
+                    getLogger(),
+                    () -> configManager.getMainConfig().settings.debugMode
+            );
+            SafeLocationFinder.configureLogger(getLogger());
             detectSpawnLocationSupport();
             checkDependencies();
             setupBackupManager();
             setupManagers();
+            setupServices();
+            setupUpdateChecker();
             registerListeners();
             registerCommands();
-            checkUpdates();
 
             getLogger().info("MMOSpawnPoint has been enabled successfully!");
         } catch (Exception e) {
@@ -101,7 +110,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
     private void setupMessageManager() {
         if (isMiniMessageAvailable()) {
             try {
-                messageManager = new AdventureMessageManager();
+                messageManager = new AdventureMessageManager(runner);
                 getLogger().info("Using Adventure MiniMessage for text formatting - full MiniMessage syntax supported");
                 return;
             } catch (Exception e) {
@@ -156,7 +165,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
     }
 
     private void detectSpawnLocationSupport() {
-        String mc = getServer().getMinecraftVersion(); // e.g. "1.21.11", "1.16.5"
+        String mc = getServer().getMinecraftVersion(); // e.g. "26.1", "1.21.11", "1.16.5"
         int[] parts = parseMinecraftVersion(mc);
         int major = parts[0];
         int minor = parts[1];
@@ -217,59 +226,112 @@ public final class MMOSpawnPoint extends JavaPlugin {
     }
 
     private void setupConfig() {
-        configManager = new MMOSpawnPointConfigManager(this);
+        configManager = new MMOSpawnPointConfigManager(
+                getDataFolder(),
+                getLogger(),
+                messageManager,
+                getClassLoader(),
+                getServer().getPluginManager()
+        );
         configManager.reload();
     }
 
     private void setupBackupManager() {
-        backupManager = new BackupManager(this);
+        backupManager = new BackupManager(runner, getLogger(), getDataFolder().toPath());
 
         // Check for backup need on startup
         backupManager.checkAndBackupAsync();
 
         // Schedule periodic checks - daily (24 hours)
-        long dailyTicks = Runner.secondsToTicks(24 * 60 * 60);
+        long dailySeconds = 24L * 60L * 60L;
+        long dailyTicks = Runner.secondsToTicks(dailySeconds);
         runner.runAsyncTimer(() -> backupManager.checkAndBackupAsync(), dailyTicks, dailyTicks);
     }
 
     private void setupManagers() {
-        spawnManager = new SpawnManager(this);
+        spawnManager = new SpawnManager(
+                configManager,
+                runner,
+                messageManager,
+                getLogger(),
+                placeholderAPIEnabled,
+                spawnLocationJoinSupported
+        );
 
         if (configManager.getMainConfig().party.enabled) {
-            partyManager = new PartyManager(this);
+            partyManager = new PartyManager(
+                    configManager,
+                    runner,
+                    messageManager,
+                    getLogger(),
+                    worldGuardEnabled
+            );
             spawnManager.setPartyManager(partyManager);
             getLogger().info("Party system enabled with scope: " + configManager.getMainConfig().party.scope);
         }
     }
 
+    private void setupServices() {
+        this.services = new MMOSpawnPointServices(
+                runner,
+                configManager,
+                messageManager,
+                getLogger(),
+                spawnManager,
+                partyManager // may be null if party is disabled
+        );
+    }
+
+    private void setupUpdateChecker() {
+        this.updateChecker = new UpdateChecker(
+                getDescription().getName(),
+                getDescription().getVersion(),
+                "alex2276564/MMOSpawnPoint",
+                runner,
+                httpUtils,
+                getLogger()
+        );
+
+        updateChecker.checkForUpdates();
+    }
+
     private void registerListeners() {
         PluginManager pm = getServer().getPluginManager();
-        pm.registerEvents(new PlayerDeathListener(this), this);
-        pm.registerEvents(new PlayerRespawnListener(this), this);
-        pm.registerEvents(new PlayerJoinListener(this), this);
-        pm.registerEvents(new PlayerQuitListener(this), this);
-        pm.registerEvents(new PlayerWorldChangeListener(this), this);
 
-        if (configManager.getMainConfig().join.waitForResourcePack) {
-            resourcePackListener = new PlayerResourcePackListener(this);
+        var cfg = configManager;
+        var logger = getLogger();
+
+        pm.registerEvents(new PlayerDeathListener(spawnManager, cfg, logger), this);
+        pm.registerEvents(new PlayerRespawnListener(cfg, spawnManager, partyManager, runner, logger), this);
+        pm.registerEvents(new PlayerWorldChangeListener(cfg, logger), this);
+
+        if (cfg.getMainConfig().join.waitForResourcePack) {
+            resourcePackListener = new PlayerResourcePackListener(cfg, spawnManager, runner, messageManager, logger);
             pm.registerEvents(resourcePackListener, this);
         }
 
+        pm.registerEvents(new PlayerQuitListener(cfg, spawnManager, partyManager, resourcePackListener, logger), this);
+
+        pm.registerEvents(new PlayerJoinListener(
+                cfg,
+                spawnManager,
+                runner,
+                messageManager,
+                logger,
+                resourcePackListener,
+                spawnLocationJoinSupported
+        ), this);
+
         if (spawnLocationJoinSupported) {
-            pm.registerEvents(new PlayerSpawnLocationListener(this), this);
+            pm.registerEvents(new PlayerSpawnLocationListener(cfg, spawnManager, runner, messageManager, logger), this);
         }
     }
 
     private void registerCommands() {
-        MultiCommandManager multiManager = new MultiCommandManager(this);
+        MultiCommandManager multiManager = new MultiCommandManager(this, services);
 
-        BuiltCommand mmoSpawnPointCommand = MMOSpawnPointCommands.createMMOSpawnPointCommand();
+        BuiltCommand mmoSpawnPointCommand = MMOSpawnPointCommands.createMMOSpawnPointCommand(services);
         multiManager.registerCommand(mmoSpawnPointCommand);
-    }
-
-    private void checkUpdates() {
-        UpdateChecker updateChecker = new UpdateChecker(this, "alex2276564/MMOSpawnPoint", runner, httpUtils);
-        updateChecker.checkForUpdates();
     }
 
     @Override

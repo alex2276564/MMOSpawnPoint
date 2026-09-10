@@ -4,7 +4,7 @@ import io.papermc.lib.PaperLib;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPointServices;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentType;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
@@ -15,7 +15,13 @@ import java.util.*;
 
 public class ClearSubCommand implements NestedSubCommandProvider {
 
-    private static final String[] FLAGS = { "--if-has", "--dry-run" };
+    private static final String[] FLAGS = {"--if-has", "--dry-run"};
+
+    private final MMOSpawnPointServices services;
+
+    public ClearSubCommand(MMOSpawnPointServices services) {
+        this.services = services;
+    }
 
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
@@ -30,7 +36,7 @@ public class ClearSubCommand implements NestedSubCommandProvider {
                             addFlagSuggestions(out, partial, soFar);
 
                             String p = (partial == null ? "" : partial.toLowerCase(Locale.ROOT));
-                            for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
+                            for (Player online : Bukkit.getOnlinePlayers()) {
                                 String name = online.getName();
                                 if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                             }
@@ -61,9 +67,14 @@ public class ClearSubCommand implements NestedSubCommandProvider {
         }
     }
 
-    private void execute(CommandSender sender, uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandContext ctx) {
-        MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
-        var msgs = plugin.getConfigManager().getMessagesConfig().commands.spawnpoint.clear;
+    private void execute(CommandSender sender,
+                         uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandContext ctx) {
+
+        var configManager = services.configManager();
+        var messageManager = services.messageManager();
+        var runner = services.runner();
+
+        var msgs = configManager.getMessagesConfig().commands.spawnpoint.clear;
 
         String[] raw = ctx.getRawArgs();
         SpawnpointFlags flags = SpawnpointFlags.parse(raw);
@@ -73,14 +84,15 @@ public class ClearSubCommand implements NestedSubCommandProvider {
         if (pos.length >= 1) {
             target = Bukkit.getPlayerExact(pos[0]);
             if (target == null) {
-                plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.playerNotFound",
-                        plugin.getConfigManager().getMessagesConfig().commands.spawnpoint.set.playerNotFound,
+                messageManager.sendMessageKeyed(sender,
+                        "commands.spawnpoint.set.playerNotFound",
+                        configManager.getMessagesConfig().commands.spawnpoint.set.playerNotFound,
                         "player", pos[0]);
                 return;
             }
         } else {
             if (!(sender instanceof Player p)) {
-                plugin.getMessageManager().sendMessageKeyed(sender,
+                messageManager.sendMessageKeyed(sender,
                         "commands.spawnpoint.clear.consoleNeedsPlayer",
                         msgs.consoleNeedsPlayer);
                 return;
@@ -90,23 +102,23 @@ public class ClearSubCommand implements NestedSubCommandProvider {
 
         PaperLib.getBedSpawnLocationAsync(target, false).thenAccept(curr -> {
             if (flags.ifHas && curr == null) {
-                plugin.getMessageManager().sendMessageKeyed(sender,
+                messageManager.sendMessageKeyed(sender,
                         "commands.spawnpoint.clear.noSpawn", msgs.noSpawn);
                 return;
             }
 
             if (flags.dryRun) {
-                plugin.getMessageManager().sendMessageKeyed(sender,
+                messageManager.sendMessageKeyed(sender,
                         "commands.spawnpoint.clear.dryRun", msgs.dryRun,
                         Map.of("player", target.getName()));
                 return;
             }
 
-            plugin.getRunner().runAtEntity(target, () -> {
+            runner.runAtEntity(target, () -> {
                 try {
                     target.setBedSpawnLocation(null, true);
                 } catch (Throwable t) {
-                    plugin.getMessageManager().sendMessageKeyed(sender,
+                    messageManager.sendMessageKeyed(sender,
                             "commands.spawnpoint.clear.failed", msgs.failed,
                             Map.of("player", target.getName()));
                     return;
@@ -114,20 +126,20 @@ public class ClearSubCommand implements NestedSubCommandProvider {
 
                 PaperLib.getBedSpawnLocationAsync(target, false).thenAccept(after -> {
                     if (after != null) {
-                        plugin.getMessageManager().sendMessageKeyed(sender,
+                        messageManager.sendMessageKeyed(sender,
                                 "commands.spawnpoint.clear.failed", msgs.failed,
                                 Map.of("player", target.getName()));
                         return;
                     }
 
                     if (sender instanceof Player sp && sp.getUniqueId().equals(target.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(
+                        messageManager.sendMessageKeyed(
                                 sp, "commands.spawnpoint.clear.successSelf", msgs.successSelf);
                     } else {
-                        plugin.getMessageManager().sendMessageKeyed(sender,
+                        messageManager.sendMessageKeyed(sender,
                                 "commands.spawnpoint.clear.successOther", msgs.successOther,
                                 Map.of("player", target.getName()));
-                        plugin.getMessageManager().sendMessageKeyed(
+                        messageManager.sendMessageKeyed(
                                 target, "commands.spawnpoint.clear.targetNotified", msgs.targetNotified,
                                 Map.of("setter", sender.getName())
                         );

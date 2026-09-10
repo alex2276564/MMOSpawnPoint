@@ -8,14 +8,38 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.config.MMOSpawnPointConfigManager;
 import uz.alex2276564.mmospawnpoint.events.MSPPreTeleportEvent;
+import uz.alex2276564.mmospawnpoint.manager.SpawnManager;
+import uz.alex2276564.mmospawnpoint.utils.adventure.MessageManager;
+import uz.alex2276564.mmospawnpoint.utils.runner.Runner;
+
+import java.util.logging.Logger;
 
 public class PlayerJoinListener implements Listener {
-    private final MMOSpawnPoint plugin;
 
-    public PlayerJoinListener(MMOSpawnPoint plugin) {
-        this.plugin = plugin;
+    private final MMOSpawnPointConfigManager configManager;
+    private final SpawnManager spawnManager;
+    private final Runner runner;
+    private final MessageManager messageManager;
+    private final Logger logger;
+    private final PlayerResourcePackListener resourcePackListener;
+    private final boolean spawnLocationJoinSupported;
+
+    public PlayerJoinListener(MMOSpawnPointConfigManager configManager,
+                              SpawnManager spawnManager,
+                              Runner runner,
+                              MessageManager messageManager,
+                              Logger logger,
+                              PlayerResourcePackListener resourcePackListener,
+                              boolean spawnLocationJoinSupported) {
+        this.configManager = configManager;
+        this.spawnManager = spawnManager;
+        this.runner = runner;
+        this.messageManager = messageManager;
+        this.logger = logger;
+        this.resourcePackListener = resourcePackListener;
+        this.spawnLocationJoinSupported = spawnLocationJoinSupported;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -24,18 +48,18 @@ public class PlayerJoinListener implements Listener {
 
         // Handle dead players (existing logic)
         if (player.isDead()) {
-            if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                plugin.getLogger().info("Player " + player.getName() + " joined while dead, handling respawn");
+            if (configManager.getMainConfig().settings.debugMode) {
+                logger.info("Player " + player.getName() + " joined while dead, handling respawn");
             }
-            plugin.getSpawnManager().recordDeathLocation(player, player.getLocation());
+            spawnManager.recordDeathLocation(player, player.getLocation());
 
             // Notify the player that join teleport is skipped because they are dead
-            String skipped = plugin.getConfigManager().getMessagesConfig().join.skippedDead;
-            plugin.getMessageManager().sendMessageKeyed(player, "join.skippedDead", skipped);
+            String skipped = configManager.getMessagesConfig().join.skippedDead;
+            messageManager.sendMessageKeyed(player, "join.skippedDead", skipped);
             return;
         }
 
-        var mainConfig = plugin.getConfigManager().getMainConfig();
+        var mainConfig = configManager.getMainConfig();
 
         // Party scope debug (actual party join spawn is handled either in PlayerSpawnLocationEvent
         // or in processJoinSpawn, depending on config)
@@ -43,7 +67,7 @@ public class PlayerJoinListener implements Listener {
         if (mainConfig.party.enabled
                 && ("join".equalsIgnoreCase(partyScope) || "both".equalsIgnoreCase(partyScope))
                 && mainConfig.settings.debugMode) {
-            plugin.getLogger().info("Party system active for joins for " + player.getName());
+            logger.info("Party system active for joins for " + player.getName());
         }
 
         // Resource pack waiting takes priority and always uses post-join teleport flow
@@ -55,31 +79,31 @@ public class PlayerJoinListener implements Listener {
         // If we use PlayerSpawnLocationEvent for join and this MC version supports it,
         // MSP spawn was already handled there (no post-join teleport)
         if (mainConfig.settings.teleport.useSetSpawnLocationForJoin
-                && plugin.isSpawnLocationJoinSupported()) {
+                && spawnLocationJoinSupported) {
 
             if (mainConfig.settings.debugMode) {
-                plugin.getLogger().info("Join spawn for " + player.getName()
+                logger.info("Join spawn for " + player.getName()
                         + " is handled via PlayerSpawnLocationEvent (no post-join teleport)");
             }
 
             // Handle all deferred join phases (BEFORE/WAITING_ROOM/AFTER) after the player has fully joined.
-            plugin.getRunner().runAtEntityLater(player, () -> {
+            runner.runAtEntityLater(player, () -> {
                 if (!player.isOnline() || player.isDead()) {
                     if (mainConfig.settings.debugMode) {
-                        plugin.getLogger().info("Skipping join phases for " + player.getName()
+                        logger.info("Skipping join phases for " + player.getName()
                                 + " because the player is no longer online or is dead.");
                     }
                     return;
                 }
 
-                plugin.getSpawnManager().runJoinPhasesAfterSpawn(player);
+                spawnManager.runJoinPhasesAfterSpawn(player);
             }, 1L);
 
             return;
         }
 
         // Legacy / fallback behavior: process join spawn via post-join teleport
-        plugin.getRunner().runAtEntityLater(player, () -> {
+        runner.runAtEntityLater(player, () -> {
             if (player.isOnline() && !player.isDead()) {
                 processJoinSpawn(player);
             }
@@ -87,52 +111,52 @@ public class PlayerJoinListener implements Listener {
     }
 
     private void handleResourcePackWait(Player player) {
-        if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-            plugin.getLogger().info("Waiting for resource pack for " + player.getName());
+        if (configManager.getMainConfig().settings.debugMode) {
+            logger.info("Waiting for resource pack for " + player.getName());
         }
 
         // Add player to resource pack waiting list
-        PlayerResourcePackListener resourcePackListener = plugin.getResourcePackListener();
         if (resourcePackListener != null) {
             resourcePackListener.addWaitingPlayer(player);
         }
 
         // Send waiting message
-        String waitingMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.waiting;
-        plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waiting", waitingMessage);
+        String waitingMessage = configManager.getMessagesConfig().resourcepack.waiting;
+        messageManager.sendMessageKeyed(player, "resourcepack.waiting", waitingMessage);
 
         // Move to waiting room if enabled
-        if (plugin.getConfigManager().getMainConfig().join.useWaitingRoomForResourcePack) {
+        if (configManager.getMainConfig().join.useWaitingRoomForResourcePack) {
             moveToWaitingRoom(player);
         }
 
         // Set timeout
-        int timeout = plugin.getConfigManager().getMainConfig().join.resourcePackTimeout;
-        plugin.getRunner().runAtEntityLater(player, () -> {
-            if (player.isOnline() && resourcePackListener != null &&
-                    resourcePackListener.isWaitingForResourcePack(player.getUniqueId())) {
+        int timeout = configManager.getMainConfig().join.resourcePackTimeout;
+        runner.runAtEntityLater(player, () -> {
+            if (player.isOnline()
+                    && resourcePackListener != null
+                    && resourcePackListener.isWaitingForResourcePack(player.getUniqueId())) {
 
                 // Timeout reached
                 resourcePackListener.removeWaitingPlayer(player.getUniqueId());
 
-                String timeoutMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.timeout;
-                plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.timeout", timeoutMessage);
+                String timeoutMessage = configManager.getMessagesConfig().resourcepack.timeout;
+                messageManager.sendMessageKeyed(player, "resourcepack.timeout", timeoutMessage);
 
                 // Process join spawn anyway (post-join teleport flow)
                 if (!player.isDead()) {
                     processJoinSpawn(player);
                 }
             }
-        }, timeout * 20L);  // Convert seconds to ticks
+        }, timeout * 20L); // Convert seconds to ticks
     }
 
     private void moveToWaitingRoom(Player player) {
-        if (!plugin.getConfigManager().getMainConfig().settings.waitingRoom.enabled) {
+        if (!configManager.getMainConfig().settings.waitingRoom.enabled) {
             return;
         }
 
         // Get global waiting room location
-        var waitingRoomConfig = plugin.getConfigManager().getMainConfig().settings.waitingRoom.location;
+        var waitingRoomConfig = configManager.getMainConfig().settings.waitingRoom.location;
         World world = Bukkit.getWorld(waitingRoomConfig.world);
         if (world == null) {
             return;
@@ -147,7 +171,7 @@ public class PlayerJoinListener implements Listener {
                 waitingRoomConfig.pitch
         );
 
-        plugin.getRunner().runAtEntity(player, () -> {
+        runner.runAtEntity(player, () -> {
             if (!player.isOnline()) return;
 
             Location from = player.getLocation().clone();
@@ -161,23 +185,23 @@ public class PlayerJoinListener implements Listener {
 
             Location to = pre.getTo();
 
-            plugin.getRunner().teleportAsync(player, to).thenAccept(success -> {
+            runner.teleportAsync(player, to).thenAccept(success -> {
                 if (!Boolean.TRUE.equals(success)) return;
 
                 // POST
-                plugin.getRunner().runAtEntity(player, () -> {
+                runner.runAtEntity(player, () -> {
                     uz.alex2276564.mmospawnpoint.events.MSPPostTeleportEvent post =
                             new uz.alex2276564.mmospawnpoint.events.MSPPostTeleportEvent(
                                     player, "join", "WAITING_ROOM", from, to
                             );
                     Bukkit.getPluginManager().callEvent(post);
 
-                    String waitingMessage = plugin.getConfigManager().getMessagesConfig().resourcepack.waitingInRoom;
+                    String waitingMessage = configManager.getMessagesConfig().resourcepack.waitingInRoom;
                     if (!waitingMessage.isEmpty()) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "resourcepack.waitingInRoom", waitingMessage);
+                        messageManager.sendMessageKeyed(player, "resourcepack.waitingInRoom", waitingMessage);
                     }
-                    if (plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                        plugin.getLogger().info("Moved " + player.getName() + " to waiting room for resource pack");
+                    if (configManager.getMainConfig().settings.debugMode) {
+                        logger.info("Moved " + player.getName() + " to waiting room for resource pack");
                     }
                 });
             });
@@ -185,9 +209,9 @@ public class PlayerJoinListener implements Listener {
     }
 
     private void processJoinSpawn(Player player) {
-        boolean success = plugin.getSpawnManager().processJoinSpawn(player);
-        if (!success && plugin.getConfigManager().getMainConfig().settings.debugMode) {
-            plugin.getLogger().info("Join spawn processing failed for " + player.getName());
+        boolean success = spawnManager.processJoinSpawn(player);
+        if (!success && configManager.getMainConfig().settings.debugMode) {
+            logger.info("Join spawn processing failed for " + player.getName());
         }
     }
 }

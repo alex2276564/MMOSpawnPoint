@@ -1,11 +1,17 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.cache.stats;
 
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPointServices;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
 import uz.alex2276564.mmospawnpoint.utils.SafeLocationFinder;
 
 public class CacheStatsSubCommand implements NestedSubCommandProvider {
+
+    private final MMOSpawnPointServices services;
+
+    public CacheStatsSubCommand(MMOSpawnPointServices services) {
+        this.services = services;
+    }
 
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
@@ -13,8 +19,9 @@ public class CacheStatsSubCommand implements NestedSubCommandProvider {
                 .permission("mmospawnpoint.cache.stats")
                 .description("Show cache statistics")
                 .executor((sender, ctx) -> {
-                    var plugin = MMOSpawnPoint.getInstance();
-                    var msg = plugin.getConfigManager().getMessagesConfig().commands.cache;
+                    var configManager = services.configManager();
+                    var messageManager = services.messageManager();
+                    var msg = configManager.getMessagesConfig().commands.cache;
 
                     var snap = SafeLocationFinder.SafeLocationFinderExports.snapshot();
                     double rate = snap.searches() > 0 ? (snap.hits() * 100.0) / snap.searches() : 0.0;
@@ -28,7 +35,8 @@ public class CacheStatsSubCommand implements NestedSubCommandProvider {
                             .replace("<enabled>", String.valueOf(snap.enabled()))
                             .replace("<expiry>", String.valueOf(snap.expirySeconds()))
                             .replace("<max>", String.valueOf(snap.maxSize()));
-                    plugin.getMessageManager().sendMessageKeyed(sender, "commands.cache.statsLine", line);
+
+                    messageManager.sendMessageKeyed(sender, "commands.cache.statsLine", line);
                 });
     }
 }

@@ -1,7 +1,6 @@
 package uz.alex2276564.mmospawnpoint.manager;
 
 import org.bukkit.Location;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig.SpawnPointsConfig;
 import uz.alex2276564.mmospawnpoint.utils.WorldGuardUtils;
 
@@ -42,9 +41,6 @@ public record SpawnEntry(
 
     private boolean matchesRegion(Location location) {
         if (spawnData == null) return false;
-        if (!MMOSpawnPoint.getInstance().isWorldGuardEnabled()) {
-            return false;
-        }
 
         try {
             // World check: null or "*" => any world

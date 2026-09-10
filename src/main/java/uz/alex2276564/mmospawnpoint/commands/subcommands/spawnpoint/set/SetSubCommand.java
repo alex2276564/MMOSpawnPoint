@@ -6,11 +6,8 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
-import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
-import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentType;
-import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
-import uz.alex2276564.mmospawnpoint.commands.framework.builder.SubCommandBuilder;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPointServices;
+import uz.alex2276564.mmospawnpoint.commands.framework.builder.*;
 import uz.alex2276564.mmospawnpoint.commands.subcommands.spawnpoint.SpawnpointFlags;
 
 import java.util.*;
@@ -18,6 +15,12 @@ import java.util.*;
 public class SetSubCommand implements NestedSubCommandProvider {
 
     private enum Mode {NONE, PLAYER, WORLD}
+
+    private final MMOSpawnPointServices services;
+
+    public SetSubCommand(MMOSpawnPointServices services) {
+        this.services = services;
+    }
 
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
@@ -39,12 +42,12 @@ public class SetSubCommand implements NestedSubCommandProvider {
                             String p = norm(partial);
 
                             // players
-                            for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
+                            for (Player online : Bukkit.getOnlinePlayers()) {
                                 String name = online.getName();
                                 if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                             }
                             // worlds
-                            for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                            for (World w : Bukkit.getWorlds()) {
                                 String name = w.getName();
                                 if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                             }
@@ -64,7 +67,7 @@ public class SetSubCommand implements NestedSubCommandProvider {
                                 // if world not set yet -> suggest worlds, otherwise suggest X
                                 World givenWorld = detectWorld(soFar, mode);
                                 if (givenWorld == null) {
-                                    for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                    for (World w : Bukkit.getWorlds()) {
                                         String name = w.getName();
                                         if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                                     }
@@ -75,11 +78,11 @@ public class SetSubCommand implements NestedSubCommandProvider {
                                 addXSuggestions(sender, out, partial);
                             } else { // NONE
                                 // still suggest players/worlds
-                                for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
+                                for (Player online : Bukkit.getOnlinePlayers()) {
                                     String name = online.getName();
                                     if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                                 }
-                                for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                for (World w : Bukkit.getWorlds()) {
                                     String name = w.getName();
                                     if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                                 }
@@ -99,7 +102,7 @@ public class SetSubCommand implements NestedSubCommandProvider {
                             if (mode == Mode.PLAYER) {
                                 World givenWorld = detectWorld(soFar, mode);
                                 if (givenWorld == null) {
-                                    for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                    for (World w : Bukkit.getWorlds()) {
                                         String name = w.getName();
                                         if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                                     }
@@ -109,11 +112,11 @@ public class SetSubCommand implements NestedSubCommandProvider {
                             } else if (mode == Mode.WORLD) {
                                 addYSuggestions(sender, out, partial);
                             } else {
-                                for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
+                                for (Player online : Bukkit.getOnlinePlayers()) {
                                     String name = online.getName();
                                     if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                                 }
-                                for (World w : MMOSpawnPoint.getInstance().getServer().getWorlds()) {
+                                for (World w : Bukkit.getWorlds()) {
                                     String name = w.getName();
                                     if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                                 }
@@ -281,22 +284,27 @@ public class SetSubCommand implements NestedSubCommandProvider {
 
     // ========== execute (как у тебя) ==========
 
-    private void execute(CommandSender sender, uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandContext ctx) {
-        MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
-        var msgs = plugin.getConfigManager().getMessagesConfig().commands.spawnpoint.set;
+    private void execute(CommandSender sender, CommandContext ctx) {
+
+        var configManager = services.configManager();
+        var messageManager = services.messageManager();
+        var runner = services.runner();
+
+        var msgs = configManager.getMessagesConfig().commands.spawnpoint.set;
 
         String[] raw = ctx.getRawArgs();
         SpawnpointFlags flags = SpawnpointFlags.parse(raw);
         try {
             flags.validateMutual();
         } catch (IllegalArgumentException ex) {
-            plugin.getMessageManager().sendMessage(sender, "<red>" + ex.getMessage());
+            messageManager.sendMessage(sender, "<red>" + ex.getMessage());
             return;
         }
         String[] pos = SpawnpointFlags.stripFlags(raw);
 
         if (pos.length == 0) {
-            plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
+            messageManager.sendMessageKeyed(sender,
+                    "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
             return;
         }
 
@@ -310,24 +318,29 @@ public class SetSubCommand implements NestedSubCommandProvider {
         if (p0 != null) {
             // expected: [player] <world> <x> <y> <z> [yaw] [pitch]
             if (pos.length < 6) {
-                plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
+                messageManager.sendMessageKeyed(sender,
+                        "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
                 return;
             }
             target = p0;
             world = Bukkit.getWorld(pos[1]);
             if (world == null) {
-                plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.invalidWorld", msgs.invalidWorld, "world", pos[1]);
+                messageManager.sendMessageKeyed(sender,
+                        "commands.spawnpoint.set.invalidWorld", msgs.invalidWorld,
+                        "world", pos[1]);
                 return;
             }
             i = 2;
         } else if (w0 != null) {
             // expected: <world> <x> <y> <z> [yaw] [pitch] (only if sender is a player)
             if (!(sender instanceof Player self)) {
-                plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
+                messageManager.sendMessageKeyed(sender,
+                        "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
                 return;
             }
             if (pos.length < 4) {
-                plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
+                messageManager.sendMessageKeyed(sender,
+                        "commands.spawnpoint.set.consoleUsage", msgs.consoleUsage);
                 return;
             }
             target = self;
@@ -335,14 +348,17 @@ public class SetSubCommand implements NestedSubCommandProvider {
             i = 1;
         } else {
             // first token — player name (not online) or garbage → show normal error
-            plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.playerNotFound", msgs.playerNotFound, "player", pos[0]);
+            messageManager.sendMessageKeyed(sender,
+                    "commands.spawnpoint.set.playerNotFound", msgs.playerNotFound,
+                    "player", pos[0]);
             return;
         }
 
         // parse coords
         Location loc = parseLocation(world, pos, i);
         if (loc == null) {
-            plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.invalidCoords", msgs.invalidCoords);
+            messageManager.sendMessageKeyed(sender,
+                    "commands.spawnpoint.set.invalidCoords", msgs.invalidCoords);
             return;
         }
 
@@ -350,22 +366,25 @@ public class SetSubCommand implements NestedSubCommandProvider {
         PaperLib.getBedSpawnLocationAsync(target, false).thenAccept(curr -> {
             // Conditions
             if (flags.ifHas && curr == null) {
-                plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.skippedIfHas", msgs.skippedIfHas);
+                messageManager.sendMessageKeyed(sender,
+                        "commands.spawnpoint.set.skippedIfHas", msgs.skippedIfHas);
                 return;
             }
             if (flags.ifMissing && curr != null) {
-                plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.skippedIfMissing", msgs.skippedIfMissing);
+                messageManager.sendMessageKeyed(sender,
+                        "commands.spawnpoint.set.skippedIfMissing", msgs.skippedIfMissing);
                 return;
             }
             if (flags.onlyIfIncorrect && isSameSpawn(curr, loc)) {
-                plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.skippedIfCorrect", msgs.skippedIfCorrect);
+                messageManager.sendMessageKeyed(sender,
+                        "commands.spawnpoint.set.skippedIfCorrect", msgs.skippedIfCorrect);
                 return;
             }
 
             String locationStr = fmt(loc);
 
             if (flags.dryRun) {
-                plugin.getMessageManager().sendMessageKeyed(
+                messageManager.sendMessageKeyed(
                         sender, "commands.spawnpoint.set.dryRun", msgs.dryRun,
                         Map.of("player", target.getName(), "location", locationStr)
                 );
@@ -374,51 +393,54 @@ public class SetSubCommand implements NestedSubCommandProvider {
 
             boolean force = !flags.requireValidBed;
 
-            PaperLib.getChunkAtAsync(loc, true).thenRun(() -> plugin.getRunner().runAtEntity(target, () -> {
-                try {
-                    target.setBedSpawnLocation(loc, force);
-                } catch (Throwable t) {
-                    plugin.getMessageManager().sendMessageKeyed(
-                            sender, "commands.spawnpoint.set.error", msgs.error,
-                            "error", (t.getMessage() == null ? "unknown" : t.getMessage())
-                    );
-                    return;
-                }
+            PaperLib.getChunkAtAsync(loc, true).thenRun(() ->
+                    runner.runAtEntity(target, () -> {
+                        try {
+                            target.setBedSpawnLocation(loc, force);
+                        } catch (Throwable t) {
+                            messageManager.sendMessageKeyed(
+                                    sender, "commands.spawnpoint.set.error", msgs.error,
+                                    "error", (t.getMessage() == null ? "unknown" : t.getMessage())
+                            );
+                            return;
+                        }
 
-                // Re-check the effective bed spawn for honest feedback
-                PaperLib.getBedSpawnLocationAsync(target, false).thenAccept(after -> {
-                    if (flags.requireValidBed && after == null) {
-                        plugin.getMessageManager().sendMessageKeyed(sender,
-                                "commands.spawnpoint.set.skippedNoValidBed", msgs.skippedNoValidBed);
-                        return;
-                    }
+                        // Re-check the effective bed spawn for honest feedback
+                        PaperLib.getBedSpawnLocationAsync(target, false).thenAccept(after -> {
+                            if (flags.requireValidBed && after == null) {
+                                messageManager.sendMessageKeyed(sender,
+                                        "commands.spawnpoint.set.skippedNoValidBed", msgs.skippedNoValidBed);
+                                return;
+                            }
 
-                    // feedback to sender
-                    if (sender instanceof Player sp && sp.getUniqueId().equals(target.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(
-                                sp, "commands.spawnpoint.set.selfSuccess", msgs.selfSuccess,
-                                Map.of("location", locationStr)
-                        );
-                    } else {
-                        plugin.getMessageManager().sendMessageKeyed(
-                                sender, "commands.spawnpoint.set.otherSuccess", msgs.otherSuccess,
-                                Map.of("player", target.getName(), "location", locationStr)
-                        );
-                        plugin.getRunner().runAtEntity(target, () -> plugin.getMessageManager().sendMessageKeyed(
-                                target, "commands.spawnpoint.set.targetNotification", msgs.targetNotification,
-                                Map.of("setter", sender.getName(), "location", locationStr)
-                        ));
-                    }
-                }).exceptionally(ex -> {
-                    plugin.getMessageManager().sendMessageKeyed(
-                            sender, "commands.spawnpoint.set.error", msgs.error,
-                            "error", ex.getMessage()
-                    );
-                    return null;
-                });
-            }));
+                            // feedback to sender
+                            if (sender instanceof Player sp && sp.getUniqueId().equals(target.getUniqueId())) {
+                                messageManager.sendMessageKeyed(
+                                        sp, "commands.spawnpoint.set.selfSuccess", msgs.selfSuccess,
+                                        Map.of("location", locationStr)
+                                );
+                            } else {
+                                messageManager.sendMessageKeyed(
+                                        sender, "commands.spawnpoint.set.otherSuccess", msgs.otherSuccess,
+                                        Map.of("player", target.getName(), "location", locationStr)
+                                );
+                                runner.runAtEntity(target, () -> messageManager.sendMessageKeyed(
+                                        target, "commands.spawnpoint.set.targetNotification", msgs.targetNotification,
+                                        Map.of("setter", sender.getName(), "location", locationStr)
+                                ));
+                            }
+                        }).exceptionally(ex -> {
+                            messageManager.sendMessageKeyed(
+                                    sender, "commands.spawnpoint.set.error", msgs.error,
+                                    "error", ex.getMessage()
+                            );
+                            return null;
+                        });
+                    }));
         }).exceptionally(ex -> {
-            plugin.getMessageManager().sendMessageKeyed(sender, "commands.spawnpoint.set.error", msgs.error, "error", ex.getMessage());
+            messageManager.sendMessageKeyed(sender,
+                    "commands.spawnpoint.set.error", msgs.error,
+                    "error", ex.getMessage());
             return null;
         });
     }
@@ -451,6 +473,7 @@ public class SetSubCommand implements NestedSubCommandProvider {
 
     private static String fmt(Location loc) {
         return String.format(Locale.US, "%.1f, %.1f, %.1f in %s (yaw=%.0f, pitch=%.0f)",
-                loc.getX(), loc.getY(), loc.getZ(), loc.getWorld().getName(), loc.getYaw(), loc.getPitch());
+                loc.getX(), loc.getY(), loc.getZ(),
+                loc.getWorld().getName(), loc.getYaw(), loc.getPitch());
     }
 }

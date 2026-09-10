@@ -2,13 +2,22 @@ package uz.alex2276564.mmospawnpoint.utils;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.entity.Player;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class PlaceholderUtils {
+
+    private static Logger logger;
+    private static Supplier<Boolean> debugSupplier = () -> false;
+
+    public static void configure(Logger log, Supplier<Boolean> debug) {
+        logger = log;
+        debugSupplier = (debug != null) ? debug : () -> false;
+    }
 
     // ------------- Public API -------------
 
@@ -16,27 +25,24 @@ public class PlaceholderUtils {
         try {
             return PlaceholderAPI.setPlaceholders(player, text);
         } catch (Exception e) {
-            MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
-            if (plugin != null) {
-                boolean debug = false;
-                try {
-                    debug = plugin.getConfigManager().getMainConfig().settings.debugMode;
-                } catch (Exception ignored) {
-                    // Ignore errors while reading debug flag
-                }
+            boolean debug = false;
+            try {
+                debug = debugSupplier.get();
+            } catch (Exception ignored) {
+                // Ignore errors while reading debug flag
+            }
 
-                if (debug) {
-                    plugin.getLogger().log(
-                            Level.WARNING,
-                            "[MMOSpawnPoint] Placeholder replacement error for text: " + text,
-                            e
-                    );
-                } else {
-                    plugin.getLogger().warning(
-                            "[MMOSpawnPoint] Placeholder replacement failed: " + e.getClass().getSimpleName()
-                                    + " (enable debugMode in config.yml to see full stack trace)"
-                    );
-                }
+            if (debug) {
+                logger.log(
+                        Level.WARNING,
+                        "[MMOSpawnPoint] Placeholder replacement error for text: " + text,
+                        e
+                );
+            } else {
+                logger.warning(
+                        "[MMOSpawnPoint] Placeholder replacement failed: " + e.getClass().getSimpleName()
+                                + " (enable debugMode in config.yml to see full stack trace)"
+                );
             }
             return text;
         }
@@ -62,11 +68,17 @@ public class PlaceholderUtils {
                     try {
                         return PlaceholderAPI.setPlaceholders(player, var);
                     } catch (Exception e) {
-                        if (MMOSpawnPoint.getInstance().getConfigManager().getMainConfig().settings.debugMode) {
-                            MMOSpawnPoint.getInstance().getLogger().warning("[MMOSpawnPoint] Placeholder error for: " + var + " -> " + e.getMessage());
+                        boolean debug = false;
+                        try {
+                            debug = debugSupplier.get();
+                        } catch (Exception ignored) {
+                        }
+
+                        if (debug) {
+                            logger.warning("[MMOSpawnPoint] Placeholder error for: " + var + " -> " + e.getMessage());
                         } else {
-                            MMOSpawnPoint.getInstance().getLogger().warning("[MMOSpawnPoint] Placeholder evaluation failed: " + e.getClass().getSimpleName());
-                            MMOSpawnPoint.getInstance().getLogger().warning("[MMOSpawnPoint] Please enable the debug mode in config.yml to see all information.");
+                            logger.warning("[MMOSpawnPoint] Placeholder evaluation failed: " + e.getClass().getSimpleName());
+                            logger.warning("[MMOSpawnPoint] Please enable the debug mode in config.yml to see all information.");
                         }
                         return "";
                     }
@@ -77,9 +89,13 @@ public class PlaceholderUtils {
 
             return engine.evaluate(condition, resolver);
         } catch (Exception e) {
-            MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
-            if (plugin != null && plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                plugin.getLogger().log(
+            boolean debug = false;
+            try {
+                debug = debugSupplier.get();
+            } catch (Exception ignored) {
+            }
+            if (debug) {
+                logger.log(
                         Level.WARNING,
                         "[MMOSpawnPoint] Failed to evaluate placeholder condition: " + condition,
                         e
@@ -147,9 +163,13 @@ public class PlaceholderUtils {
 
             return engine.evaluate(expression, resolver);
         } catch (Exception e) {
-            MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
-            if (plugin != null && plugin.getConfigManager().getMainConfig().settings.debugMode) {
-                plugin.getLogger().log(
+            boolean debug = false;
+            try {
+                debug = debugSupplier.get();
+            } catch (Exception ignored) {
+            }
+            if (debug) {
+                logger.log(
                         Level.WARNING,
                         "[MMOSpawnPoint] Failed to evaluate permission expression: " + expression,
                         e

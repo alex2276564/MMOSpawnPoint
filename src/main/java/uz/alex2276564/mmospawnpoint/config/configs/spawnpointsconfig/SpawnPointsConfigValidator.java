@@ -2,7 +2,6 @@ package uz.alex2276564.mmospawnpoint.config.configs.spawnpointsconfig;
 
 import lombok.experimental.UtilityClass;
 import org.bukkit.Material;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 import uz.alex2276564.mmospawnpoint.config.utils.validation.ValidationResult;
 import uz.alex2276564.mmospawnpoint.config.utils.validation.Validators;
 import uz.alex2276564.mmospawnpoint.utils.PlaceholderUtils;
@@ -15,19 +14,17 @@ import java.util.regex.Pattern;
 @UtilityClass
 public class SpawnPointsConfigValidator {
 
-    public static void validate(SpawnPointsConfig config, String fileName) {
+    public static void validate(SpawnPointsConfig config,
+                                String fileName,
+                                boolean wgConfigured,
+                                boolean wgPresent,
+                                boolean papiConfigured,
+                                boolean papiPresent) {
         ValidationResult result = new ValidationResult();
 
         if (config.spawns == null || config.spawns.isEmpty()) {
             result.addError("spawns", "Spawn list cannot be empty");
         } else {
-            // Runtime hook availability
-            MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
-            boolean wgConfigured = plugin.getConfigManager().getMainConfig().hooks.useWorldGuard;
-            boolean wgPresent = plugin.getServer().getPluginManager().getPlugin("WorldGuard") != null;
-            boolean papiConfigured = plugin.getConfigManager().getMainConfig().hooks.usePlaceholderAPI;
-            boolean papiPresent = plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null;
-
             for (int i = 0; i < config.spawns.size(); i++) {
                 SpawnPointsConfig.SpawnPointEntry e = config.spawns.get(i);
                 String p = "spawns[" + i + "]";

@@ -4,7 +4,7 @@ import io.papermc.lib.PaperLib;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPointServices;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentType;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
@@ -15,6 +15,13 @@ import java.util.List;
 import java.util.Locale;
 
 public class TeleportSubCommand implements NestedSubCommandProvider {
+
+    private final MMOSpawnPointServices services;
+
+    public TeleportSubCommand(MMOSpawnPointServices services) {
+        this.services = services;
+    }
+
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
         return parent.subcommand("teleport")
@@ -27,7 +34,7 @@ public class TeleportSubCommand implements NestedSubCommandProvider {
                             String p = partial == null ? "" : partial.toLowerCase(Locale.ROOT);
                             List<String> out = new ArrayList<>();
 
-                            for (Player online : MMOSpawnPoint.getInstance().getServer().getOnlinePlayers()) {
+                            for (Player online : Bukkit.getOnlinePlayers()) {
                                 String name = online.getName();
                                 if (name.toLowerCase(Locale.ROOT).startsWith(p)) out.add(name);
                             }
@@ -38,9 +45,14 @@ public class TeleportSubCommand implements NestedSubCommandProvider {
                 .executor(this::execute);
     }
 
-    private void execute(CommandSender sender, uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandContext ctx) {
-        MMOSpawnPoint plugin = MMOSpawnPoint.getInstance();
-        var msgs = plugin.getConfigManager().getMessagesConfig().commands.spawnpoint.teleport;
+    private void execute(CommandSender sender,
+                         uz.alex2276564.mmospawnpoint.commands.framework.builder.CommandContext ctx) {
+
+        var configManager = services.configManager();
+        var messageManager = services.messageManager();
+        var runner = services.runner();
+
+        var msgs = configManager.getMessagesConfig().commands.spawnpoint.teleport;
 
         String[] raw = ctx.getRawArgs();
 
@@ -48,15 +60,15 @@ public class TeleportSubCommand implements NestedSubCommandProvider {
         if (raw.length >= 1) {
             target = Bukkit.getPlayerExact(raw[0]);
             if (target == null) {
-                plugin.getMessageManager().sendMessageKeyed(sender,
+                messageManager.sendMessageKeyed(sender,
                         "commands.spawnpoint.set.playerNotFound",
-                        plugin.getConfigManager().getMessagesConfig().commands.spawnpoint.set.playerNotFound,
+                        configManager.getMessagesConfig().commands.spawnpoint.set.playerNotFound,
                         "player", raw[0]);
                 return;
             }
         } else {
             if (!(sender instanceof Player p)) {
-                plugin.getMessageManager().sendMessageKeyed(sender,
+                messageManager.sendMessageKeyed(sender,
                         "commands.spawnpoint.teleport.consoleNeedsPlayer",
                         msgs.consoleNeedsPlayer);
                 return;
@@ -67,11 +79,11 @@ public class TeleportSubCommand implements NestedSubCommandProvider {
         PaperLib.getBedSpawnLocationAsync(target, false).thenAccept(loc -> {
             if (loc == null || loc.getWorld() == null) {
                 if (sender instanceof Player sp && sp.getUniqueId().equals(target.getUniqueId())) {
-                    plugin.getMessageManager().sendMessageKeyed(sender,
+                    messageManager.sendMessageKeyed(sender,
                             "commands.spawnpoint.teleport.noSpawn",
                             msgs.noSpawn);
                 } else {
-                    plugin.getMessageManager().sendMessageKeyed(sender,
+                    messageManager.sendMessageKeyed(sender,
                             "commands.spawnpoint.teleport.noSpawnOther",
                             msgs.noSpawnOther,
                             "player", target.getName());
@@ -80,24 +92,27 @@ public class TeleportSubCommand implements NestedSubCommandProvider {
             }
 
             // Load chunk then teleport (Folia-safe)
-            PaperLib.getChunkAtAsync(loc, true).thenRun(() -> plugin.getRunner().runAtEntity(target, () ->
-                    plugin.getRunner().teleportAsync(target, loc).thenAccept(success -> {
-                if (!Boolean.TRUE.equals(success)) return;
+            PaperLib.getChunkAtAsync(loc, true).thenRun(() ->
+                    runner.runAtEntity(target, () ->
+                            runner.teleportAsync(target, loc).thenAccept(success -> {
+                                if (!Boolean.TRUE.equals(success)) return;
 
-                // Сообщения — на entity-треде к Player
-                if (sender instanceof Player sp && sp.getUniqueId().equals(target.getUniqueId())) {
-                    plugin.getRunner().runAtEntity(sp, () -> plugin.getMessageManager().sendMessageKeyed(
-                            sp, "commands.spawnpoint.teleport.successSelf", msgs.successSelf));
-                } else {
-                    plugin.getMessageManager().sendMessageKeyed(sender,
-                            "commands.spawnpoint.teleport.successOther",
-                            msgs.successOther,
-                            "player", target.getName());
-                    plugin.getMessageManager().sendMessageKeyed(target,
-                            "commands.spawnpoint.teleport.targetNotified",
-                            msgs.targetNotified);
-                }
-            })));
+                                if (sender instanceof Player sp && sp.getUniqueId().equals(target.getUniqueId())) {
+                                    runner.runAtEntity(sp, () -> messageManager.sendMessageKeyed(
+                                            sp,
+                                            "commands.spawnpoint.teleport.successSelf",
+                                            msgs.successSelf
+                                    ));
+                                } else {
+                                    messageManager.sendMessageKeyed(sender,
+                                            "commands.spawnpoint.teleport.successOther",
+                                            msgs.successOther,
+                                            "player", target.getName());
+                                    messageManager.sendMessageKeyed(target,
+                                            "commands.spawnpoint.teleport.targetNotified",
+                                            msgs.targetNotified);
+                                }
+                            })));
         });
     }
 }

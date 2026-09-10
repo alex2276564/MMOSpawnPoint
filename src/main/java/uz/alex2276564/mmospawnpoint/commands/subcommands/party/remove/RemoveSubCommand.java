@@ -1,7 +1,7 @@
 package uz.alex2276564.mmospawnpoint.commands.subcommands.party.remove;
 
 import org.bukkit.entity.Player;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
+import uz.alex2276564.mmospawnpoint.MMOSpawnPointServices;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentBuilder;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.ArgumentType;
 import uz.alex2276564.mmospawnpoint.commands.framework.builder.NestedSubCommandProvider;
@@ -13,6 +13,12 @@ import java.util.List;
 
 public class RemoveSubCommand implements NestedSubCommandProvider {
 
+    private final MMOSpawnPointServices services;
+
+    public RemoveSubCommand(MMOSpawnPointServices services) {
+        this.services = services;
+    }
+
     @Override
     public SubCommandBuilder build(SubCommandBuilder parent) {
         return parent.subcommand("remove")
@@ -21,9 +27,12 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
                 .argument(new ArgumentBuilder<>("player", ArgumentType.PLAYER)
                         .dynamicSuggestions((sender, partial, soFar) -> {
                             if (!(sender instanceof Player p)) return List.of();
-                            var pm = MMOSpawnPoint.getInstance().getPartyManager();
-                            var party = pm != null ? pm.getPlayerParty(p.getUniqueId()) : null;
+
+                            PartyManager pm = services.partyManager();
+
+                            var party = pm.getPlayerParty(p.getUniqueId());
                             if (party == null) return List.of();
+
                             String needle = partial == null ? "" : partial.toLowerCase();
                             return party.getOnlineMembers().stream()
                                     .filter(m -> !m.getUniqueId().equals(p.getUniqueId()))
@@ -32,26 +41,26 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
                                     .toList();
                         }))
                 .executor((sender, context) -> {
-                    var plugin = MMOSpawnPoint.getInstance();
+                    var configManager = services.configManager();
+                    var messageManager = services.messageManager();
+                    PartyManager partyManager = services.partyManager();
 
                     if (!(sender instanceof Player player)) {
-                        plugin.getMessageManager().sendMessageKeyed(sender, "party.onlyPlayers",
-                                plugin.getConfigManager().getMessagesConfig().party.onlyPlayers);
+                        messageManager.sendMessageKeyed(sender, "party.onlyPlayers",
+                                configManager.getMessagesConfig().party.onlyPlayers);
                         return;
                     }
 
-                    if (!plugin.getConfigManager().getMainConfig().party.enabled) {
-                        plugin.getMessageManager().sendMessageKeyed(sender, "party.systemDisabled",
-                                plugin.getConfigManager().getMessagesConfig().party.systemDisabled);
+                    if (!configManager.getMainConfig().party.enabled || partyManager == null) {
+                        messageManager.sendMessageKeyed(sender, "party.systemDisabled",
+                                configManager.getMessagesConfig().party.systemDisabled);
                         return;
                     }
-
-                    PartyManager partyManager = plugin.getPartyManager();
 
                     // Check if player is in a party
                     if (!partyManager.isInParty(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.notInParty",
-                                plugin.getConfigManager().getMessagesConfig().party.notInParty);
+                        messageManager.sendMessageKeyed(player, "party.notInParty",
+                                configManager.getMessagesConfig().party.notInParty);
                         return;
                     }
 
@@ -59,8 +68,8 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
 
                     // Check if player is party leader
                     if (!party.isLeader(player.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.notLeader",
-                                plugin.getConfigManager().getMessagesConfig().party.notLeader);
+                        messageManager.sendMessageKeyed(player, "party.notLeader",
+                                configManager.getMessagesConfig().party.notLeader);
                         return;
                     }
 
@@ -69,15 +78,15 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
 
                     // Check if target is in the party
                     if (!party.isMember(targetPlayer.getUniqueId())) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.playerNotInYourParty",
-                                plugin.getConfigManager().getMessagesConfig().party.playerNotInYourParty);
+                        messageManager.sendMessageKeyed(player, "party.playerNotInYourParty",
+                                configManager.getMessagesConfig().party.playerNotInYourParty);
                         return;
                     }
 
                     // Can't remove yourself (use leave instead)
                     if (targetPlayer.equals(player)) {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.cannotRemoveSelf",
-                                plugin.getConfigManager().getMessagesConfig().party.cannotRemoveSelf);
+                        messageManager.sendMessageKeyed(player, "party.cannotRemoveSelf",
+                                configManager.getMessagesConfig().party.cannotRemoveSelf);
                         return;
                     }
 
@@ -86,20 +95,22 @@ public class RemoveSubCommand implements NestedSubCommandProvider {
 
                     if (success) {
                         // Notify target player
-                        plugin.getMessageManager().sendMessageKeyed(targetPlayer, "party.playerRemoved",
-                                plugin.getConfigManager().getMessagesConfig().party.playerRemoved);
+                        messageManager.sendMessageKeyed(targetPlayer, "party.playerRemoved",
+                                configManager.getMessagesConfig().party.playerRemoved);
 
                         // Notify party members
-                        String removedMessage = plugin.getConfigManager().getMessagesConfig().party.playerRemovedFromParty;
+                        String removedMessage =
+                                configManager.getMessagesConfig().party.playerRemovedFromParty;
 
                         for (Player member : party.getOnlineMembers()) {
                             if (!member.equals(targetPlayer)) {
-                                plugin.getMessageManager().sendMessageKeyed(member, "party.playerRemovedFromParty", removedMessage, "player", targetPlayer.getName());
+                                messageManager.sendMessageKeyed(member, "party.playerRemovedFromParty",
+                                        removedMessage, "player", targetPlayer.getName());
                             }
                         }
                     } else {
-                        plugin.getMessageManager().sendMessageKeyed(player, "party.errorOccurred",
-                                plugin.getConfigManager().getMessagesConfig().party.errorOccurred);
+                        messageManager.sendMessageKeyed(player, "party.errorOccurred",
+                                configManager.getMessagesConfig().party.errorOccurred);
                     }
                 });
     }

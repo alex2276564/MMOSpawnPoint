@@ -9,7 +9,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import uz.alex2276564.mmospawnpoint.MMOSpawnPoint;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,8 +17,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 public class SafeLocationFinder {
+
+    private static Logger logger;
+
+    public static void configureLogger(Logger log) {
+        logger = log;
+    }
 
     // Cache via Caffeine
     private static Cache<@NotNull CacheKey, Location> CACHE;
@@ -38,8 +44,9 @@ public class SafeLocationFinder {
     private static boolean debugCache = false;
 
     // Dimension-aware Y selection
-    private enum DimYMode { MIXED, HIGHEST_ONLY, RANDOM_ONLY }
-    private enum NetherMode { SCAN, HIGHEST_ONLY, RANDOM_ONLY }
+    private enum DimYMode {MIXED, HIGHEST_ONLY, RANDOM_ONLY}
+
+    private enum NetherMode {SCAN, HIGHEST_ONLY, RANDOM_ONLY}
 
     // Overworld
     private static DimYMode owMode = DimYMode.MIXED;
@@ -77,7 +84,8 @@ public class SafeLocationFinder {
             int minX, int maxX, int minY, int maxY, int minZ, int maxZ,
             UUID playerId, boolean playerSpecific,
             String ySignature, int wlHash
-    ) {}
+    ) {
+    }
 
     // Lightweight fail tags for debug diagnostics
     public enum FailReason {
@@ -95,17 +103,17 @@ public class SafeLocationFinder {
      * @param first        for mixed only
      * @param respectRange nether-only
      */ // Per-call Y override (thread-local), similar to whitelist TL
-        public record YSelectionOverride(String mode, String first, Double firstShare, Boolean respectRange) {
-            public YSelectionOverride(String mode, String first, Double firstShare, Boolean respectRange) {
-                // mode: "mixed"|"highest_only"|"random_only" or "scan"
-                this.mode = (mode == null) ? null : mode.toLowerCase(Locale.ROOT);
-                // for mixed only
-                this.first = (first == null) ? null : first.toLowerCase(Locale.ROOT);
-                this.firstShare = firstShare;
-                // nether-only
-                this.respectRange = respectRange;
-            }
+    public record YSelectionOverride(String mode, String first, Double firstShare, Boolean respectRange) {
+        public YSelectionOverride(String mode, String first, Double firstShare, Boolean respectRange) {
+            // mode: "mixed"|"highest_only"|"random_only" or "scan"
+            this.mode = (mode == null) ? null : mode.toLowerCase(Locale.ROOT);
+            // for mixed only
+            this.first = (first == null) ? null : first.toLowerCase(Locale.ROOT);
+            this.firstShare = firstShare;
+            // nether-only
+            this.respectRange = respectRange;
         }
+    }
 
     private static final ThreadLocal<YSelectionOverride> Y_OVERRIDE_TL = new ThreadLocal<>();
 
@@ -139,7 +147,7 @@ public class SafeLocationFinder {
                 .build();
 
         if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info(
+            logger.info(
                     "[SafeLocationFinder] Cache configured - enabled: " + cacheEnabled +
                             ", expiry: " + (expiryMs / 1000) + "s, maxSize: " + maxSize
             );
@@ -160,7 +168,7 @@ public class SafeLocationFinder {
         }
         globalGroundBlacklist = materials;
         if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Configured " + materials.size() + " ground blacklist materials");
+            logger.info("[SafeLocationFinder] Configured " + materials.size() + " ground blacklist materials");
         }
     }
 
@@ -175,7 +183,7 @@ public class SafeLocationFinder {
         }
         globalPassableBlacklist = materials;
         if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Configured " + materials.size() + " passable blacklist materials");
+            logger.info("[SafeLocationFinder] Configured " + materials.size() + " passable blacklist materials");
         }
     }
 
@@ -197,7 +205,7 @@ public class SafeLocationFinder {
         owFirst = "random".equals(f) ? MixedFirstGroup.RANDOM : MixedFirstGroup.HIGHEST;
         owShare = Double.isNaN(firstShare) || Double.isInfinite(firstShare) ? 0.6 : Math.max(0.0, Math.min(1.0, firstShare));
         if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Overworld Y-selection: " + owMode + " first=" + owFirst + " share=" + owShare);
+            logger.info("[SafeLocationFinder] Overworld Y-selection: " + owMode + " first=" + owFirst + " share=" + owShare);
         }
     }
 
@@ -212,7 +220,7 @@ public class SafeLocationFinder {
         endFirst = "random".equals(f) ? MixedFirstGroup.RANDOM : MixedFirstGroup.HIGHEST;
         endShare = Double.isNaN(firstShare) || Double.isInfinite(firstShare) ? 0.6 : Math.max(0.0, Math.min(1.0, firstShare));
         if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] End Y-selection: " + endMode + " first=" + endFirst + " share=" + endShare);
+            logger.info("[SafeLocationFinder] End Y-selection: " + endMode + " first=" + endFirst + " share=" + endShare);
         }
     }
 
@@ -225,7 +233,7 @@ public class SafeLocationFinder {
         };
         netherRespectRange = respectRange;
         if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Nether Y-selection: " + netherMode + ", respectRange=" + netherRespectRange);
+            logger.info("[SafeLocationFinder] Nether Y-selection: " + netherMode + ", respectRange=" + netherRespectRange);
         }
     }
 
@@ -250,7 +258,7 @@ public class SafeLocationFinder {
                 : Math.max(0.0, Math.min(1.0, firstShare));
 
         if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info(
+            logger.info(
                     "[SafeLocationFinder] Custom Y-selection: " + customMode
                             + " first=" + customFirst + " share=" + customShare
             );
@@ -267,7 +275,7 @@ public class SafeLocationFinder {
     public static void clearCache() {
         if (CACHE != null) CACHE.invalidateAll();
         if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] Cache cleared");
+            logger.info("[SafeLocationFinder] Cache cleared");
         }
     }
 
@@ -324,7 +332,9 @@ public class SafeLocationFinder {
                 double dimShare;
 
                 if (env == World.Environment.THE_END) {
-                    dimMode = endMode; dimFirst = endFirst; dimShare = endShare;
+                    dimMode = endMode;
+                    dimFirst = endFirst;
+                    dimShare = endShare;
                     YSelectionOverride o = Y_OVERRIDE_TL.get();
                     if (o != null && o.mode != null) {
                         dimMode = switch (o.mode) {
@@ -342,7 +352,9 @@ public class SafeLocationFinder {
                         }
                     }
                 } else if (env == World.Environment.CUSTOM) {
-                    dimMode = customMode; dimFirst = customFirst; dimShare = customShare;
+                    dimMode = customMode;
+                    dimFirst = customFirst;
+                    dimShare = customShare;
                     YSelectionOverride o = Y_OVERRIDE_TL.get();
                     if (o != null && o.mode != null) {
                         dimMode = switch (o.mode) {
@@ -361,7 +373,9 @@ public class SafeLocationFinder {
                     }
                 } else {
                     // Overworld (NORMAL) and any other fallbacks
-                    dimMode = owMode; dimFirst = owFirst; dimShare = owShare;
+                    dimMode = owMode;
+                    dimFirst = owFirst;
+                    dimShare = owShare;
                     YSelectionOverride o = Y_OVERRIDE_TL.get();
                     if (o != null && o.mode != null) {
                         dimMode = switch (o.mode) {
@@ -675,17 +689,17 @@ public class SafeLocationFinder {
             boolean ok = withWhitelist(groundWhitelist, () -> isSafeLocation(cached));
             if (ok && (accept == null || accept.test(cached))) {
                 if (debugCache) {
-                    MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] NEAR HIT " + typeTag + " @" + world + " (" + bx + "," + bz + ") ySig=" + ySig + " wl=" + wlHash);
+                    logger.info("[SafeLocationFinder] NEAR HIT " + typeTag + " @" + world + " (" + bx + "," + bz + ") ySig=" + ySig + " wl=" + wlHash);
                 }
                 return cached.clone();
             }
             // invalidate stale/unsafe cached
             CACHE.invalidate(key);
             if (debugCache) {
-                MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] NEAR INVALIDATED cached entry @" + world + " (" + bx + "," + bz + ")");
+                logger.info("[SafeLocationFinder] NEAR INVALIDATED cached entry @" + world + " (" + bx + "," + bz + ")");
             }
         } else if (debugCache) {
-            MMOSpawnPoint.getInstance().getLogger().info("[SafeLocationFinder] NEAR MISS " + typeTag + " @" + world + " (" + bx + "," + bz + ")");
+            logger.info("[SafeLocationFinder] NEAR MISS " + typeTag + " @" + world + " (" + bx + "," + bz + ")");
         }
 
         @SuppressWarnings("squid:S2583") // SonarLint false positive
