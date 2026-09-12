@@ -162,7 +162,7 @@ public class PartyManager {
 
             pendingInvitations.remove(playerId);
             for (Party p : parties.values()) {
-                p.getInvitations().remove(playerId);
+                p.removeInvitation(playerId);
             }
         } catch (Exception e) {
             logger.warning("Error cleaning up party data for " + playerId + ": " + e.getMessage());
@@ -245,7 +245,7 @@ public class PartyManager {
         UUID partyId = pendingInvitations.get(playerId);
         Party party = getParty(partyId);
         if (party != null) {
-            party.getInvitations().remove(playerId);
+            party.removeInvitation(playerId);
         }
         pendingInvitations.remove(playerId);
         return true;

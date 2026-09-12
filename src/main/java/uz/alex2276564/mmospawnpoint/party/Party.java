@@ -1,24 +1,52 @@
 package uz.alex2276564.mmospawnpoint.party;
 
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Party model.
+ * <p>
+ * Note:
+ * - We use Lombok @Data for boilerplate (equals/hashCode/toString + basic accessors).
+ * - For mutable collections (members/invitations/respawnCooldowns) we override
+ * the default Lombok behavior:
+ * - members: custom getter returns an unmodifiable view.
+ * - invitations/respawnCooldowns: no public getters; access only via methods
+ * like hasInvitation(), invite(), removeInvitation(), setRespawnCooldown(), etc.
+ * This keeps internal representation encapsulated and avoids CodeQL warnings
+ * about exposing mutable fields.
+ */
 @Data
 public class Party {
-    private UUID id;
+
+    private final UUID id;
     private UUID leader;
-    private LinkedHashSet<UUID> members; // Preserve join order for deterministic next-leader selection
-    private Map<UUID, Long> invitations;
+
+    // Preserve join order for deterministic next-leader selection
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private final LinkedHashSet<UUID> members;
+
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private final Map<UUID, Long> invitations;
+
     private RespawnMode respawnMode;
     private UUID respawnTarget;
-    private Map<UUID, Long> respawnCooldowns;
+
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private final Map<UUID, Long> respawnCooldowns;
 
     public enum RespawnMode {
-        NORMAL, // Normal spawn point logic
+        NORMAL,      // Normal spawn point logic
         PARTY_MEMBER // Respawn near a party member
     }
 
@@ -28,8 +56,16 @@ public class Party {
         this.members = new LinkedHashSet<>();
         this.members.add(leaderId);
         this.invitations = new ConcurrentHashMap<>();
-        this.respawnMode = RespawnMode.NORMAL;
         this.respawnCooldowns = new ConcurrentHashMap<>();
+        this.respawnMode = RespawnMode.NORMAL;
+    }
+
+    /**
+     * Immutable view of party members.
+     * Overrides Lombok-generated getter to avoid exposing the mutable set.
+     */
+    public Set<UUID> getMembers() {
+        return Collections.unmodifiableSet(members);
     }
 
     public boolean isLeader(UUID playerId) {
@@ -45,7 +81,7 @@ public class Party {
     }
 
     public void invite(UUID playerId, long expiryTimeSeconds) {
-        invitations.put(playerId, System.currentTimeMillis() + (expiryTimeSeconds * 1000));
+        invitations.put(playerId, System.currentTimeMillis() + (expiryTimeSeconds * 1000L));
     }
 
     public void addMember(UUID playerId) {
@@ -85,6 +121,10 @@ public class Party {
         }
     }
 
+    /**
+     * Custom setter to enforce that leader is always a party member.
+     * This overrides Lombok's default setter for 'leader'.
+     */
     public void setLeader(UUID playerId) {
         if (this.members.contains(playerId)) {
             this.leader = playerId;
@@ -102,6 +142,13 @@ public class Party {
 
     public int size() {
         return members.size();
+    }
+
+    /**
+     * Remove a single pending invitation for the given player, if present.
+     */
+    public void removeInvitation(UUID playerId) {
+        invitations.remove(playerId);
     }
 
     public List<Player> getOnlineMembers() {
@@ -126,27 +173,33 @@ public class Party {
         return Bukkit.getPlayer(respawnTarget);
     }
 
+    /**
+     * Custom setter for respawnMode to avoid nulls.
+     * Lombok will not generate another setter because this one exists.
+     */
+    public void setRespawnMode(RespawnMode respawnMode) {
+        if (respawnMode == null) {
+            throw new IllegalArgumentException("respawnMode cannot be null");
+        }
+        this.respawnMode = respawnMode;
+    }
+
     public void setRespawnCooldown(UUID playerId, long cooldownSeconds) {
-        respawnCooldowns.put(playerId, System.currentTimeMillis() + (cooldownSeconds * 1000));
+        respawnCooldowns.put(playerId, System.currentTimeMillis() + (cooldownSeconds * 1000L));
     }
 
     public boolean isOnRespawnCooldown(UUID playerId) {
-        if (!respawnCooldowns.containsKey(playerId)) {
-            return false;
-        }
-
-        long cooldownEnd = respawnCooldowns.get(playerId);
-        return System.currentTimeMillis() < cooldownEnd;
+        Long end = respawnCooldowns.get(playerId);
+        return end != null && System.currentTimeMillis() < end;
     }
 
     public long getRemainingCooldown(UUID playerId) {
-        if (!respawnCooldowns.containsKey(playerId)) {
-            return 0;
+        Long end = respawnCooldowns.get(playerId);
+        if (end == null) {
+            return 0L;
         }
-
-        long cooldownEnd = respawnCooldowns.get(playerId);
-        long remaining = cooldownEnd - System.currentTimeMillis();
-        return Math.max(0, remaining / 1000); // Convert to seconds
+        long remaining = end - System.currentTimeMillis();
+        return Math.max(0L, remaining / 1000L); // Convert to seconds
     }
 
     public void clearRespawnCooldown(UUID playerId) {
