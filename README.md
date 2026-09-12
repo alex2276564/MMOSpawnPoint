@@ -986,7 +986,7 @@ If you encounter issues with the plugin:
 * **Server Software:**
   * ✅ [Paper](https://papermc.io/) (1.16.5 and newer) - **Fully Supported**
   * ⚠️ [Folia](https://papermc.io/software/folia) - **Partially Supported** with optimized region-aware scheduling
-  * The party system is currently unstable on Folia; disable it in the config.
+  * The party system is not fully thread-safe on Folia (originally designed for Paper); rare issues may occur with large player counts.
   * ❌ Spigot - Not supported
 * **Java Version:** Java 17 or higher
 * **Optional Dependencies:**

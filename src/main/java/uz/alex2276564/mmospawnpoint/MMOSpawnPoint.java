@@ -68,6 +68,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
             setupRunner();
             setupHttpClient();
             setupMessageManager();
+            SafeLocationFinder.configureLogger(getLogger());
             setupConfig();
             PlaceholderUtils.configure(
                     getLogger(),
@@ -77,7 +78,6 @@ public final class MMOSpawnPoint extends JavaPlugin {
                     getLogger(),
                     () -> configManager.getMainConfig().settings.debugMode
             );
-            SafeLocationFinder.configureLogger(getLogger());
             detectSpawnLocationSupport();
             checkDependencies();
             setupBackupManager();
@@ -188,10 +188,15 @@ public final class MMOSpawnPoint extends JavaPlugin {
         this.spawnLocationJoinSupported = safe;
 
         if (!safe) {
-            getLogger().warning("Detected Minecraft " + mc
-                    + " (>= 1.21.9). PlayerSpawnLocationEvent is deprecated/unstable on this version.");
-            getLogger().warning("Join spawns will be handled via PlayerJoinEvent teleport flow "
-                    + "even if settings.teleport.useSetSpawnLocationForJoin is set to true.");
+            if (!runner.isFolia()) {
+                getLogger().warning("Detected Minecraft " + mc
+                        + " (>= 1.21.9). PlayerSpawnLocationEvent is deprecated/unstable on this version.");
+                getLogger().warning("Join spawns will be handled via PlayerJoinEvent teleport flow "
+                        + "even if settings.teleport.useSetSpawnLocationForJoin is set to true.");
+            } else {
+                getLogger().info("Minecraft " + mc + " detected on Folia - using PlayerJoinEvent for join spawns "
+                        + "(PlayerSpawnLocationEvent disabled).");
+            }
         } else {
             getLogger().info("Minecraft " + mc
                     + " detected: PlayerSpawnLocationEvent join support is enabled.");
@@ -302,7 +307,21 @@ public final class MMOSpawnPoint extends JavaPlugin {
         var logger = getLogger();
 
         pm.registerEvents(new PlayerDeathListener(spawnManager, cfg, logger), this);
-        pm.registerEvents(new PlayerRespawnListener(cfg, spawnManager, partyManager, runner, logger), this);
+
+        // Death respawn handling:
+        // - Paper: use normal PlayerRespawnEvent.
+        // - Folia: use InventoryCloseEvent hack (FoliaDeathRespawnListener).
+        if (runner.isFolia()) {
+            pm.registerEvents(new FoliaDeathRespawnListener(cfg, spawnManager, runner, logger), this);
+
+            logger.warning("Running on Folia: death respawns are handled via InventoryCloseEvent hack "
+                    + "and post-respawn teleports (see https://github.com/PaperMC/Folia/issues/105#issuecomment-2270697815).");
+            logger.warning("settings.teleport.useSetRespawnLocationForDeath is ignored on Folia; "
+                    + "PlayerRespawnEvent/setRespawnLocation are not safe on this platform.");
+        } else {
+            pm.registerEvents(new PlayerRespawnListener(cfg, spawnManager, partyManager, runner, logger), this);
+        }
+
         pm.registerEvents(new PlayerWorldChangeListener(cfg, logger), this);
 
         if (cfg.getMainConfig().join.waitForResourcePack) {
