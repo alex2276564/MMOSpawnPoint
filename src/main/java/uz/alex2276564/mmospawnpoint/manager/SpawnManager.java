@@ -308,6 +308,10 @@ public class SpawnManager {
         }
     }
 
+    public Location consumeDeathLocation(Player player) {
+        return deathLocations.remove(player.getUniqueId());
+    }
+    
     // ========== Core resolution flow ==========
 
     /**

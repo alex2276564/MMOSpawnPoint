@@ -38,6 +38,7 @@ public class PlayerRespawnListener implements Listener {
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         try {
             Player player = event.getPlayer();
+            logger.info("PlayerRespawnListener triggered for " + player.getName());
             var tele = configManager.getMainConfig().settings.teleport;
             if (!tele.useSetRespawnLocationForDeath) {
                 // Post-respawn flow (teleport after vanilla respawn)
@@ -66,7 +67,14 @@ public class PlayerRespawnListener implements Listener {
                 return;
             }
 
-            Location deathLoc = player.getLocation();
+            Location deathLoc = spawnManager.consumeDeathLocation(player);
+            if (deathLoc == null) {
+                if (configManager.getMainConfig().settings.debugMode) {
+                    logger.info("Respawn: no recorded death location for " + player.getName()
+                            + " – skipping MSP death spawn");
+                }
+                return;
+            }
 
             // Party first
             String scope = configManager.getMainConfig().party.scope;
