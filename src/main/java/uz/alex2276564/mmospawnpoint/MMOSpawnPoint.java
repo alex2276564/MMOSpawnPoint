@@ -1,6 +1,5 @@
 package uz.alex2276564.mmospawnpoint;
 
-import lombok.Getter;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import uz.alex2276564.mmospawnpoint.commands.MMOSpawnPointCommands;
@@ -23,43 +22,17 @@ import uz.alex2276564.mmospawnpoint.utils.runner.Runner;
 import java.util.logging.Level;
 
 public final class MMOSpawnPoint extends JavaPlugin {
-    @Getter
+
     private Runner runner;
-
-    @Getter
     private HttpUtils httpUtils;
-
-    @Getter
     private MMOSpawnPointConfigManager configManager;
-
-    @Getter
-    private BackupManager backupManager;
-
-    @Getter
     private MessageManager messageManager;
-
-    @Getter
-    private UpdateChecker updateChecker;
-
-    @Getter
     private MMOSpawnPointServices services;
-
-    @Getter
     private SpawnManager spawnManager;
-
-    @Getter
     private PartyManager partyManager;
-
-    @Getter
     private boolean worldGuardEnabled;
-
-    @Getter
     private boolean placeholderAPIEnabled;
-
-    @Getter
     private PlayerResourcePackListener resourcePackListener;
-
-    @Getter
     private boolean spawnLocationJoinSupported;
 
     @Override
@@ -242,6 +215,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
     }
 
     private void setupBackupManager() {
+        BackupManager backupManager;
         backupManager = new BackupManager(runner, getLogger(), getDataFolder().toPath());
 
         // Check for backup need on startup
@@ -288,7 +262,8 @@ public final class MMOSpawnPoint extends JavaPlugin {
     }
 
     private void setupUpdateChecker() {
-        this.updateChecker = new UpdateChecker(
+        UpdateChecker updateChecker;
+        updateChecker = new UpdateChecker(
                 getDescription().getName(),
                 getDescription().getVersion(),
                 "alex2276564/MMOSpawnPoint",
