@@ -224,7 +224,7 @@ public final class MMOSpawnPoint extends JavaPlugin {
         // Schedule periodic checks - daily (24 hours)
         long dailySeconds = 24L * 60L * 60L;
         long dailyTicks = Runner.secondsToTicks(dailySeconds);
-        runner.runAsyncTimer(() -> backupManager.checkAndBackupAsync(), dailyTicks, dailyTicks);
+        runner.runAsyncTimer(backupManager::checkAndBackupAsync, dailyTicks, dailyTicks);
     }
 
     private void setupManagers() {
