@@ -72,6 +72,7 @@ jobs:
           path: |
             build/reports/tests/test/
             build/test-results/test/
+          if-no-files-found: error
 
   lint-renovate:
     name: 🧹 Lint Renovate
