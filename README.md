@@ -5,6 +5,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/alex2276564/MMOSpawnPoint?color=blue)](https://github.com/alex2276564/MMOSpawnPoint/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Text Formatting](https://img.shields.io/badge/Text%20Formatting-🌈%20MiniMessage-ff69b4)](https://docs.advntr.dev/minimessage/)
+[![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 
 **MMOSpawnPoint** is an advanced MMO spawn system with region-based spawns, party respawn mechanics, safe location finding, resource pack integration, and comprehensive condition-based teleportation. Features walking spawn points, waiting rooms, batched safe location search, advanced caching, and extensive customization for MMO servers.
 
